@@ -1,0 +1,7 @@
+numpy
+scipy
+pytest
+pytest-regressions
+sphinx
+sphinx-rtd-theme
+mosek>=9.2.49
