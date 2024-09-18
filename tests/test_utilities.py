@@ -103,6 +103,64 @@ class TestTfCloseCoeff:
 class TestTfCombine:
     """Test :func:`_tf_combine`."""
 
-    def test_combine(self):
+    @pytest.mark.parametrize(
+        "tf_array, tf",
+        [
+            # Continuous-time
+            (
+                [
+                    [control.TransferFunction([1], [1, 1])],
+                    [control.TransferFunction([2], [1, 0])],
+                ],
+                control.TransferFunction(
+                    [
+                        [[1]],
+                        [[2]],
+                    ],
+                    [
+                        [[1, 1]],
+                        [[1, 0]],
+                    ],
+                ),
+            ),
+            # Discrete-time
+            (
+                [
+                    [control.TransferFunction([1], [1, 1], dt=1)],
+                    [control.TransferFunction([2], [1, 0], dt=1)],
+                ],
+                control.TransferFunction(
+                    [
+                        [[1]],
+                        [[2]],
+                    ],
+                    [
+                        [[1, 1]],
+                        [[1, 0]],
+                    ],
+                    dt=1,
+                ),
+            ),
+            # Scalar
+            (
+                [
+                    [2],
+                    [control.TransferFunction([2], [1, 0])],
+                ],
+                control.TransferFunction(
+                    [
+                        [[2]],
+                        [[2]],
+                    ],
+                    [
+                        [[1]],
+                        [[1, 0]],
+                    ],
+                ),
+            ),
+        ],
+    )
+    def test_combine(self, tf_array, tf):
         """Test combining transfer functions."""
-        pass
+        tf_combined = dkpy._tf_combine(tf_array)
+        assert dkpy._tf_close_coeff(tf_combined, tf)

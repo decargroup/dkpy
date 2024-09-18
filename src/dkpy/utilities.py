@@ -74,6 +74,7 @@ def _tf_combine(tf_array: ArrayLike) -> control.TransferFunction:
     """
     # TODO Error checking
     # TODO Make sure scalars work
+    # TODO check all timebases
     G = np.array(tf_array)
     num = []
     den = []
