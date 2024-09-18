@@ -1,5 +1,7 @@
 numpy
 scipy
+control
+slycot
 pytest
 pytest-regressions
 sphinx
