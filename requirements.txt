@@ -6,4 +6,5 @@ pytest
 pytest-regressions
 sphinx
 sphinx-rtd-theme
+ruff
 mosek>=9.2.49

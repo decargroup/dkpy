@@ -1,13 +1,58 @@
 """Transfer function and state-space manipulation utilities."""
 
 import control
+import numpy as np
+from numpy.typing import ArrayLike
 
-def _combine(tf_array):
+
+def _tf_close_coeff(
+    tf_a: control.TransferFunction,
+    tf_b: control.TransferFunction,
+    rtol: float = 1e-5,
+    atol: float = 1e-8,
+) -> bool:
+    """Check if two transfer functions have close coefficients.
+
+    Parameters
+    ----------
+    tf_a : control.TransferFunction
+        First transfer function.
+    tf_b : control.TransferFunction
+        Second transfer function.
+    rtol : float
+        Relative tolerance for :func:`np.allclose`.
+    atol : float
+        Absolute tolerance for :func:`np.allclose`.
+
+    Returns
+    -------
+    bool :
+        True if transfer function cofficients are all close.
+    """
+    # Check number of outputs and inputs
+    if tf_a.noutputs != tf_b.noutputs:
+        return False
+    if tf_a.ninputs != tf_b.ninputs:
+        return False
+    # Check timestep
+    if tf_a.dt != tf_b.dt:
+        return False
+    # Check coefficient arrays
+    for i in range(tf_a.noutputs):
+        for j in range(tf_a.ninputs):
+            if not np.allclose(tf_a.num[i][j], tf_b.num[i][j], rtol=rtol, atol=atol):
+                return False
+            if not np.allclose(tf_a.den[i][j], tf_b.den[i][j], rtol=rtol, atol=atol):
+                return False
+    return True
+
+
+def _tf_combine(tf_array: ArrayLike) -> control.TransferFunction:
     """Combine array-like of transfer functions into MIMO transfer function.
 
     Parameters
     ----------
-    tf_array : 2D array_like of ``TransferFunction``s
+    tf_array : ArrayLike
         Transfer matrix represented as a two-dimensional array or list-of-lists
         containing ``TransferFunction`` objects. The ``TransferFunction``
         objects can have multiple outputs and inputs, as long as the dimensions
@@ -16,7 +61,8 @@ def _combine(tf_array):
     Returns
     -------
     control.TransferFunction :
-        Transfer matrix represented as a single MIMO `TransferFunction` object.
+        Transfer matrix represented as a single MIMO ``TransferFunction``
+        object.
 
     Examples
     --------
