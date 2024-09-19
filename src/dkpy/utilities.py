@@ -92,15 +92,16 @@ def _ensure_tf(
         )
     # If it's not, then convert it to a transfer function
     arraylike_3d = np.atleast_3d(arraylike_or_tf)
-    if arraylike_3d.dtype == object:
+    try:
+        tf = control.TransferFunction(
+            arraylike_3d,
+            np.ones_like(arraylike_3d),
+            dt,
+        )
+    except TypeError:
         raise ValueError(
             "`arraylike_or_tf` must only contain array-likes or transfer functions."
         )
-    tf = control.TransferFunction(
-        arraylike_3d,
-        np.ones_like(arraylike_3d),
-        dt,
-    )
     return tf
 
 
