@@ -1,5 +1,7 @@
 """Transfer function and state-space manipulation utilities."""
 
+from typing import Optional, Union
+
 import control
 import numpy as np
 from numpy.typing import ArrayLike
@@ -26,7 +28,7 @@ def _tf_close_coeff(
 
     Returns
     -------
-    bool :
+    bool
         True if transfer function cofficients are all close.
     """
     # Check number of outputs and inputs
@@ -47,6 +49,57 @@ def _tf_close_coeff(
     return True
 
 
+def _ensure_tf(
+    arraylike_or_tf: Union[ArrayLike, control.TransferFunction],
+    dt: Union[None, bool, float] = None,
+) -> control.TransferFunction:
+    """Convert an array-like to a transfer function.
+
+    Parameters
+    ----------
+    arraylike_or_tf : Union[ArrayLike, control.TransferFunction]
+        Array-like or transfer function.
+    dt : Union[None, bool, float]
+        Timestep (s). Based on the ``control`` package, ``True`` indicates a
+        discrete-time system with unspecified timestep, ``0`` indicates a
+        continuous-time system, and ``None`` indicates a continuous- or
+        discrete-time system with unspecified timestep. If ``None``, timestep
+        is not validated.
+
+    Returns
+    -------
+    control.TransferFunction
+        Transfer function.
+
+    Raises
+    ------
+    ValueError
+        If input cannot be converted to a transfer function.
+    ValueError
+        If the timesteps do not match.
+    """
+    # If the input is already a transfer function, return it right away
+    if isinstance(arraylike_or_tf, control.TransferFunction):
+        # If timesteps don't match, raise an exception
+        if (dt is not None) and (arraylike_or_tf.dt != dt):
+            raise ValueError(
+                f"`arraylike_or_tf.dt={arraylike_or_tf.dt}` does not match argument `dt={dt}`."
+            )
+        return arraylike_or_tf
+    if np.ndim(arraylike_or_tf) > 2:
+        raise ValueError(
+            "Array-like must have less than two dimensions to be converted into a transfer function."
+        )
+    # If it's not, then convert it to a transfer function
+    arraylike_3d = np.atleast_3d(arraylike_or_tf)
+    tf = control.TransferFunction(
+        arraylike_3d,
+        np.ones_like(arraylike_3d),
+        dt,
+    )
+    return tf
+
+
 def _tf_combine(tf_array: ArrayLike) -> control.TransferFunction:
     """Combine array-like of transfer functions into MIMO transfer function.
 
@@ -60,7 +113,7 @@ def _tf_combine(tf_array: ArrayLike) -> control.TransferFunction:
 
     Returns
     -------
-    control.TransferFunction :
+    control.TransferFunction
         Transfer matrix represented as a single MIMO ``TransferFunction``
         object.
 
