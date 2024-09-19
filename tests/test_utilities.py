@@ -255,10 +255,57 @@ class TestTfCombine:
                     ],
                 ),
             ),
+            # Matrix
+            (
+                [
+                    [np.eye(3)],
+                    [
+                        control.TransferFunction(
+                            [
+                                [[2], [0], [3]],
+                                [[1], [2], [3]],
+                            ],
+                            [
+                                [[1], [1], [1]],
+                                [[1], [1], [1]],
+                            ],
+                        )
+                    ],
+                ],
+                control.TransferFunction(
+                    [
+                        [[1], [0], [0]],
+                        [[0], [1], [0]],
+                        [[0], [0], [1]],
+                        [[2], [0], [3]],
+                        [[1], [2], [3]],
+                    ],
+                    [
+                        [[1], [1], [1]],
+                        [[1], [1], [1]],
+                        [[1], [1], [1]],
+                        [[1], [1], [1]],
+                        [[1], [1], [1]],
+                    ],
+                ),
+            ),
         ],
     )
     def test_combine(self, tf_array, tf):
         """Test combining transfer functions."""
-        pass
-        # tf_combined = dkpy._tf_combine(tf_array)
-        # assert dkpy._tf_close_coeff(tf_combined, tf)
+        tf_combined = dkpy._tf_combine(tf_array)
+        assert dkpy._tf_close_coeff(tf_combined, tf)
+
+    @pytest.mark.parametrize(
+        "tf_array",
+        [
+            [
+                [control.TransferFunction([1], [1, 1], 0.1)],
+                [control.TransferFunction([2], [1, 0], 0.2)],
+            ],
+        ],
+    )
+    def test_error_combine(self, tf_array):
+        """Test error cases"""
+        with pytest.raises(ValueError):
+            dkpy._tf_combine(tf_array)

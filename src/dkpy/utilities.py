@@ -117,6 +117,11 @@ def _tf_combine(tf_array: ArrayLike) -> control.TransferFunction:
         Transfer matrix represented as a single MIMO ``TransferFunction``
         object.
 
+    Raises
+    ------
+    ValueError
+        If timesteps of transfer functions do not match.
+
     Examples
     --------
     >>> s = control.TransferFunction.s
@@ -125,10 +130,21 @@ def _tf_combine(tf_array: ArrayLike) -> control.TransferFunction:
     ...     [s / (s + 2)],
     ... ])
     """
-    # TODO Error checking
-    # TODO Make sure scalars work
-    # TODO check all timebases
-    G = np.array(tf_array)
+    # Get set of unique timesteps in inputs
+    tf_array_ = np.array(tf_array, dtype=object)
+    dts = set([getattr(g, "dt", None) for g in tf_array_.ravel()])
+    dts.discard(None)
+    if len(dts) > 1:
+        raise ValueError(f"Timesteps of transfer functions are mismatched: {dts}")
+    elif len(dts) == 0:
+        dt = None
+    else:
+        dt = dts.pop()
+    # Convert everything into a transfer function object
+    G = np.zeros_like(tf_array_, dtype=object)
+    for i in range(tf_array_.shape[0]):
+        for j in range(tf_array_.shape[1]):
+            G[i, j] = _ensure_tf(tf_array_[i, j], dt)
     num = []
     den = []
     # Iterate over rows and columns of transfer matrix
@@ -144,5 +160,5 @@ def _tf_combine(tf_array: ArrayLike) -> control.TransferFunction:
             num.append(num_row)
             den.append(den_row)
     # Merge numerators and denominators into single transfer function
-    G_tf = control.TransferFunction(num, den, dt=G[0][0].dt)
+    G_tf = control.TransferFunction(num, den, dt=dt)
     return G_tf
