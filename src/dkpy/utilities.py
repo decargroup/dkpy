@@ -130,35 +130,38 @@ def _tf_combine(tf_array: ArrayLike) -> control.TransferFunction:
     ...     [s / (s + 2)],
     ... ])
     """
-    # Get set of unique timesteps in inputs
-    tf_array_ = np.array(tf_array, dtype=object)
-    dts = set([getattr(g, "dt", None) for g in tf_array_.ravel()])
-    dts.discard(None)
-    if len(dts) > 1:
-        raise ValueError(f"Timesteps of transfer functions are mismatched: {dts}")
-    elif len(dts) == 0:
+    # Find common timebase or raise error
+    dt_list = []
+    for row in tf_array:
+        for tf in row:
+            dt_list.append(getattr(tf, "dt", None))
+    dt_set = set(dt_list)
+    dt_set.discard(None)
+    if len(dt_set) > 1:
+        raise ValueError(f"Timesteps of transfer functions are mismatched: {dt_set}")
+    elif len(dt_set) == 0:
         dt = None
     else:
-        dt = dts.pop()
-    # Convert everything into a transfer function object
-    G = np.zeros_like(tf_array_, dtype=object)
-    for i in range(tf_array_.shape[0]):
-        for j in range(tf_array_.shape[1]):
-            G[i, j] = _ensure_tf(tf_array_[i, j], dt)
+        dt = dt_set.pop()
+    # Convert all entries to transfer function objects
+    ensured_tf_array = []
+    for row in tf_array:
+        ensured_row = []
+        for tf in row:
+            ensured_row.append(_ensure_tf(tf, dt))
+        ensured_tf_array.append(ensured_row)
+    # Iterate over
     num = []
     den = []
-    # Iterate over rows and columns of transfer matrix
-    for i_out in range(G.shape[0]):
-        for j_out in range(G[i_out, 0].noutputs):
+    for row in ensured_tf_array:
+        for j_out in range(row[0].noutputs):
             num_row = []
             den_row = []
-            # Iterate over rows and columns of inner `TransferFunction`
-            for i_in in range(G.shape[1]):
-                for j_in in range(G[i_out, i_in].ninputs):
-                    num_row.append(G[i_out, i_in].num[j_out][j_in])
-                    den_row.append(G[i_out, i_in].den[j_out][j_in])
+            for col in row:
+                for j_in in range(col.ninputs):
+                    num_row.append(col.num[j_out][j_in])
+                    den_row.append(col.den[j_out][j_in])
             num.append(num_row)
             den.append(den_row)
-    # Merge numerators and denominators into single transfer function
     G_tf = control.TransferFunction(num, den, dt=dt)
     return G_tf
