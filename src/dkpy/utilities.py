@@ -1,6 +1,6 @@
 """Transfer function and state-space manipulation utilities."""
 
-from typing import Optional, Union
+from typing import Optional, Union, List
 
 import control
 import numpy as np
@@ -92,6 +92,10 @@ def _ensure_tf(
         )
     # If it's not, then convert it to a transfer function
     arraylike_3d = np.atleast_3d(arraylike_or_tf)
+    if arraylike_3d.dtype == object:
+        raise ValueError(
+            "`arraylike_or_tf` must only contain array-likes or transfer functions."
+        )
     tf = control.TransferFunction(
         arraylike_3d,
         np.ones_like(arraylike_3d),
@@ -100,12 +104,14 @@ def _ensure_tf(
     return tf
 
 
-def _tf_combine(tf_array: ArrayLike) -> control.TransferFunction:
+def _tf_combine(
+    tf_array: List[List[Union[ArrayLike, control.TransferFunction]]],
+) -> control.TransferFunction:
     """Combine array-like of transfer functions into MIMO transfer function.
 
     Parameters
     ----------
-    tf_array : ArrayLike
+    tf_array : List[List[Union[ArrayLike, control.TransferFunction]]]
         Transfer matrix represented as a two-dimensional array or list-of-lists
         containing ``TransferFunction`` objects. The ``TransferFunction``
         objects can have multiple outputs and inputs, as long as the dimensions
@@ -121,6 +127,8 @@ def _tf_combine(tf_array: ArrayLike) -> control.TransferFunction:
     ------
     ValueError
         If timesteps of transfer functions do not match.
+    ValueError
+        If ``tf_array`` has incorrect dimensions.
 
     Examples
     --------
@@ -132,9 +140,12 @@ def _tf_combine(tf_array: ArrayLike) -> control.TransferFunction:
     """
     # Find common timebase or raise error
     dt_list = []
-    for row in tf_array:
-        for tf in row:
-            dt_list.append(getattr(tf, "dt", None))
+    try:
+        for row in tf_array:
+            for tf in row:
+                dt_list.append(getattr(tf, "dt", None))
+    except OSError:
+        raise ValueError("`tf_array` has too few dimensions.")
     dt_set = set(dt_list)
     dt_set.discard(None)
     if len(dt_set) > 1:

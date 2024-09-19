@@ -289,6 +289,68 @@ class TestTfCombine:
                     ],
                 ),
             ),
+            # Inhomogeneous
+            (
+                [
+                    [np.eye(3)],
+                    [
+                        control.TransferFunction(
+                            [
+                                [[2], [0]],
+                                [[1], [2]],
+                            ],
+                            [
+                                [[1], [1]],
+                                [[1], [1]],
+                            ],
+                        ),
+                        control.TransferFunction(
+                            [
+                                [[3]],
+                                [[3]],
+                            ],
+                            [
+                                [[1]],
+                                [[1]],
+                            ],
+                        ),
+                    ],
+                ],
+                control.TransferFunction(
+                    [
+                        [[1], [0], [0]],
+                        [[0], [1], [0]],
+                        [[0], [0], [1]],
+                        [[2], [0], [3]],
+                        [[1], [2], [3]],
+                    ],
+                    [
+                        [[1], [1], [1]],
+                        [[1], [1], [1]],
+                        [[1], [1], [1]],
+                        [[1], [1], [1]],
+                        [[1], [1], [1]],
+                    ],
+                ),
+            ),
+            # Discrete-time
+            (
+                [
+                    [2],
+                    [control.TransferFunction([2], [1, 0], dt=0.1)],
+                ],
+                control.TransferFunction(
+                    [
+                        [[2]],
+                        [[2]],
+                    ],
+                    [
+                        [[1]],
+                        [[1, 0]],
+                    ],
+                    dt=0.1,
+                ),
+            ),
         ],
     )
     def test_combine(self, tf_array, tf):
@@ -299,9 +361,24 @@ class TestTfCombine:
     @pytest.mark.parametrize(
         "tf_array",
         [
+            # Wrong timesteps
             [
                 [control.TransferFunction([1], [1, 1], 0.1)],
                 [control.TransferFunction([2], [1, 0], 0.2)],
+            ],
+            [
+                [control.TransferFunction([1], [1, 1], 0.1)],
+                [control.TransferFunction([2], [1, 0], 0)],
+            ],
+            # Too few dimensions
+            [
+                control.TransferFunction([1], [1, 1]),
+                control.TransferFunction([2], [1, 0]),
+            ],
+            # Too many dimensions
+            [
+                [[control.TransferFunction([1], [1, 1], 0.1)]],
+                [[control.TransferFunction([2], [1, 0], 0)]],
             ],
         ],
     )
