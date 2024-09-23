@@ -1,6 +1,6 @@
 """Transfer function and state-space manipulation utilities."""
 
-from typing import Optional, Union, List
+from typing import Union, List
 
 import control
 import numpy as np
