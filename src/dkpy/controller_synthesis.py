@@ -271,6 +271,33 @@ class HinfSynLmi(ControllerSynthesis):
         return K, N, gamma.value.item(), info
 
 
+class HinfSynLmiBisection(ControllerSynthesis):
+    """H-infinity synthesis using an LMI approach with bisection."""
+
+    def __init__(
+        self,
+        bisection_tol: float = 1e-4,
+        max_iterations: int = 100,
+        initial_guess: float = 10,
+        lmi_strictness: Optional[float] = None,
+        solver_params: Optional[Dict[str, Any]] = None,
+    ):
+        """Instantiate :class:`HinfSynLmiBisection`."""
+        self.bisection_tol = bisection_tol
+        self.max_iterations = max_iterations
+        self.initial_guess = initial_guess
+        self.lmi_strictness = lmi_strictness
+        self.solver_params = solver_params
+
+    def synthesize(
+        self,
+        P: control.StateSpace,
+        n_y: int,
+        n_u: int,
+    ) -> Tuple[control.StateSpace, control.StateSpace, float, Dict[str, Any]]:
+        raise NotImplementedError("TODO")
+
+
 def _auto_lmi_strictness(
     solver_params: Dict[str, Any],
     scale: float = 10,
