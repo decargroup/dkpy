@@ -1,6 +1,6 @@
 """Custom exception classes."""
 
-__all__ = ["TimestepError", "DimensionError", "SolutionError"]
+__all__ = ["TimestepError", "DimensionError", "ConfigError", "SolverError"]
 
 
 class TimestepError(ValueError):
@@ -11,5 +11,9 @@ class DimensionError(ValueError):
     """Invalid or incompatible array dimensions."""
 
 
-class SolutionError(RuntimeError):
+class ConfigError(ValueError):
+    """Incorrect solver or problem settings."""
+
+
+class SolverError(RuntimeError):
     """Invalid solver solution."""

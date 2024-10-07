@@ -3,12 +3,14 @@
 __all__ = ["ControllerSynthesis", "HinfSynSlicot", "HinfSynLmi"]
 
 import abc
-from typing import Any, Dict, Tuple, Optional
+from typing import Any, Dict, Optional, Tuple
 
 import control
 import cvxpy
 import numpy as np
 import scipy.linalg
+
+from . import exceptions
 
 
 class ControllerSynthesis(metaclass=abc.ABCMeta):
@@ -145,7 +147,7 @@ class HinfSynLmi(ControllerSynthesis):
         )
         constraints = [
             gamma >= 0,
-            X1 >> self.lmi_strictness,
+            X1 >> self.lmi_strictness,  # TODO
             Y1 >> self.lmi_strictness,
             mat1 << -self.lmi_strictness,
             mat2 >> self.lmi_strictness,
@@ -153,10 +155,14 @@ class HinfSynLmi(ControllerSynthesis):
         # Problem
         problem = cvxpy.Problem(objective, constraints)
         # Solver settings
+        if self.solver_params is None:
+            pass
+        else:
+            pass
         # Solve problem
         result = problem.solve(**self.solver_params)
         if isinstance(result, str):
-            pass
+            pass  # TODO
         else:
             pass
         # Extract controller
@@ -237,3 +243,82 @@ class HinfSynLmi(ControllerSynthesis):
         )
         N = P.lft(K)
         return K, N, gamma.value.item(), info
+
+
+def _auto_lmi_strictness(
+    solver_params: Dict[str, Any],
+    scale: float = 10,
+) -> float:
+    """Autoselect LMI strictness based on solver settings.
+
+    Parameters
+    ----------
+    solver_params : Dict[str, Any]
+        Arguments that would be passed to :func:`cvxpy.Problem.solve`.
+    scale : float = 10
+        LMI strictness is ``scale`` times larger than the largest solver
+        tolerance.
+
+    Returns
+    -------
+    float
+        LMI strictness.
+
+    Raises
+    ------
+    dkpy.ConfigError
+        If the solver specified is not recognized by CVXPY.
+    """
+    if solver_params["solver"] == cvxpy.CLARABEL:
+        tol = np.max(
+            [
+                solver_params.get("tol_gap_abs", 1e-8),
+                solver_params.get("tol_feas", 1e-8),
+                solver_params.get("tol_feas_abs", 1e-8),
+            ]
+        )
+    elif solver_params["solver"] == cvxpy.COPT:
+        tol = np.max(
+            [
+                solver_params.get("AbsGap", 1e-6),
+                solver_params.get("DualTol", 1e-6),
+                solver_params.get("FeasTol", 1e-6),
+            ]
+        )
+    elif solver_params["solver"] == cvxpy.MOSEK:
+        if "mosek_params" in solver_params.keys():
+            mosek_params = solver_params["mosek_params"]
+            tol = np.max(
+                [
+                    mosek_params.get("MSK_DPAR_INTPNT_CO_TOL_DFEAS", 1e-8),
+                    mosek_params.get("MSK_DPAR_INTPNT_CO_TOL_INFEAS", 1e-12),
+                    mosek_params.get("MSK_DPAR_INTPNT_CO_TOL_MU_RED", 1e-8),
+                    mosek_params.get("MSK_DPAR_INTPNT_CO_TOL_PFEAS", 1e-8),
+                    mosek_params.get("MSK_DPAR_INTPNT_CO_TOL_REL_GAP", 1e-8),
+                    mosek_params.get("MSK_DPAR_INTPNT_TOL_DFEAS", 1e-8),
+                    mosek_params.get("MSK_DPAR_INTPNT_TOL_INFEAS", 1e-10),
+                    mosek_params.get("MSK_DPAR_INTPNT_TOL_MU_RED", 1e-16),
+                    mosek_params.get("MSK_DPAR_INTPNT_TOL_PFEAS", 1e-8),
+                    mosek_params.get("MSK_DPAR_INTPNT_TOL_REL_GAP", 1e-8),
+                ]
+            )
+        else:
+            # If neither ``mosek_params`` nor ``eps`` are set, default to 1e-8
+            tol = solver_params.get("eps", 1e-8)
+    elif solver_params["solver"] == cvxpy.CVXOPT:
+        tol = np.max(
+            [
+                solver_params.get("abstol", 1e-7),
+                solver_params.get("feastol", 1e-7),
+            ]
+        )
+    elif solver_params["solver"] == cvxpy.SDPA:
+        tol = solver_params.get("epsilonStar", 1e-7)
+    elif solver_params["solver"] == cvxpy.SCS:
+        tol = solver_params.get("eps", 1e-4)
+    else:
+        raise exceptions.ConfigError(
+            f"Solver {solver_params['solver']} is not a CVXPY-supported SDP solver."
+        )
+    strictness = scale * tol
+    return strictness
