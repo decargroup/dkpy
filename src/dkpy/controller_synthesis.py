@@ -40,6 +40,11 @@ class ControllerSynthesis(metaclass=abc.ABCMeta):
         Tuple[control.StateSpace, control.StateSpace, float, Dict[str, Any]]
             Controller, closed-loop system, objective function value, solution
             information.
+
+        Raises
+        ------
+        dkpy.SolverError
+            If the solver could not solve the problem.
         """
         raise NotImplementedError()
 
@@ -87,6 +92,19 @@ class HinfSynLmi(ControllerSynthesis):
         n_u: int,
     ) -> Tuple[control.StateSpace, control.StateSpace, float, Dict[str, Any]]:
         info = {}
+        # Solver settings
+        solver_params = (
+            {
+                "solver": cvxpy.CLARABEL,
+            }
+            if self.solver_params is None
+            else self.solver_params
+        )
+        lmi_strictness = (
+            _auto_lmi_strictness(solver_params)
+            if self.lmi_strictness is None
+            else self.lmi_strictness
+        )
         # Constants
         n_x = P.nstates
         n_w = P.ninputs - n_u
@@ -147,24 +165,19 @@ class HinfSynLmi(ControllerSynthesis):
         )
         constraints = [
             gamma >= 0,
-            X1 >> self.lmi_strictness,  # TODO
-            Y1 >> self.lmi_strictness,
-            mat1 << -self.lmi_strictness,
-            mat2 >> self.lmi_strictness,
+            X1 >> lmi_strictness,
+            Y1 >> lmi_strictness,
+            mat1 << -lmi_strictness,
+            mat2 >> lmi_strictness,
         ]
         # Problem
         problem = cvxpy.Problem(objective, constraints)
-        # Solver settings
-        if self.solver_params is None:
-            pass
-        else:
-            pass
         # Solve problem
-        result = problem.solve(**self.solver_params)
+        result = problem.solve(**solver_params)
         if isinstance(result, str):
-            pass  # TODO
-        else:
-            pass
+            raise exceptions.SolverError(
+                f"CVXPY solver could not solve problem: {result}"
+            )
         # Extract controller
         Q, s, Vt = scipy.linalg.svd(
             np.eye(X1.shape[0]) - X1.value @ Y1.value,
