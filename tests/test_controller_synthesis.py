@@ -6,6 +6,12 @@ import pytest
 import dkpy
 
 
+class TestControllerSynthesis:
+    """Compare :class:`HinfSynSlicot` and :class:`HinfSynLmi` solutions."""
+
+    pass
+
+
 class TestAutoLmiStrictness:
     """Test :func:`_auto_lmi_strictness`."""
 

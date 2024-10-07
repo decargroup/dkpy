@@ -50,7 +50,10 @@ class ControllerSynthesis(metaclass=abc.ABCMeta):
 
 
 class HinfSynSlicot(ControllerSynthesis):
-    """H-infinity synthesis using SLICOT's Riccati equation method."""
+    """H-infinity synthesis using SLICOT's Riccati equation method.
+
+    TODO Add example
+    """
 
     def __init__(self):
         """Instantiate :class:`HinfSynSlicot`."""
@@ -71,6 +74,8 @@ class HinfSynSlicot(ControllerSynthesis):
 
 class HinfSynLmi(ControllerSynthesis):
     """H-infinity synthesis using a linear matrix inequality approach.
+
+    TODO Add example
 
     TODO Add reference
     Caverly and Forbes 2024, Section 5.3.3
@@ -96,15 +101,22 @@ class HinfSynLmi(ControllerSynthesis):
         solver_params = (
             {
                 "solver": cvxpy.CLARABEL,
+                "tol_gap_abs": 1e-9,
+                "tol_gap_rel": 1e-9,
+                "tol_feas": 1e-9,
+                "tol_infeas_abs": 1e-9,
+                "tol_infeas_rel": 1e-9,
             }
             if self.solver_params is None
             else self.solver_params
         )
+        info["solver_params"] = solver_params
         lmi_strictness = (
             _auto_lmi_strictness(solver_params)
             if self.lmi_strictness is None
             else self.lmi_strictness
         )
+        info["lmi_strictness"] = lmi_strictness
         # Constants
         n_x = P.nstates
         n_w = P.ninputs - n_u
@@ -178,6 +190,7 @@ class HinfSynLmi(ControllerSynthesis):
             raise exceptions.SolverError(
                 f"CVXPY solver could not solve problem: {result}"
             )
+        info["solver_stats"] = problem.solver_stats
         # Extract controller
         Q, s, Vt = scipy.linalg.svd(
             np.eye(X1.shape[0]) - X1.value @ Y1.value,
@@ -287,7 +300,7 @@ def _auto_lmi_strictness(
             [
                 solver_params.get("tol_gap_abs", 1e-8),
                 solver_params.get("tol_feas", 1e-8),
-                solver_params.get("tol_feas_abs", 1e-8),
+                solver_params.get("tol_infeas_abs", 1e-8),
             ]
         )
     elif solver_params["solver"] == cvxpy.COPT:
