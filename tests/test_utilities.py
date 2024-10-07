@@ -171,29 +171,33 @@ class TestEnsureTf:
         assert dkpy._tf_close_coeff(tf, ensured_tf)
 
     @pytest.mark.parametrize(
-        "arraylike_or_tf, dt",
+        "arraylike_or_tf, dt, exception",
         [
             (
                 control.TransferFunction([1], [1, 2, 3]),
                 0.1,
+                dkpy.TimestepError,
             ),
             (
                 control.TransferFunction([1], [1, 2, 3], 0.1),
                 0,
+                dkpy.TimestepError,
             ),
             (
                 np.ones((1, 1, 1)),
                 None,
+                dkpy.DimensionError,
             ),
             (
                 np.ones((1, 1, 1, 1)),
                 None,
+                dkpy.DimensionError,
             ),
         ],
     )
-    def test_error_ensure(self, arraylike_or_tf, dt):
+    def test_error_ensure(self, arraylike_or_tf, dt, exception):
         """Test error cases"""
-        with pytest.raises(ValueError):
+        with pytest.raises(exception):
             dkpy._ensure_tf(arraylike_or_tf, dt)
 
 
@@ -359,30 +363,42 @@ class TestTfCombine:
         assert dkpy._tf_close_coeff(tf_combined, tf)
 
     @pytest.mark.parametrize(
-        "tf_array",
+        "tf_array, exception",
         [
             # Wrong timesteps
-            [
-                [control.TransferFunction([1], [1, 1], 0.1)],
-                [control.TransferFunction([2], [1, 0], 0.2)],
-            ],
-            [
-                [control.TransferFunction([1], [1, 1], 0.1)],
-                [control.TransferFunction([2], [1, 0], 0)],
-            ],
+            (
+                [
+                    [control.TransferFunction([1], [1, 1], 0.1)],
+                    [control.TransferFunction([2], [1, 0], 0.2)],
+                ],
+                dkpy.TimestepError,
+            ),
+            (
+                [
+                    [control.TransferFunction([1], [1, 1], 0.1)],
+                    [control.TransferFunction([2], [1, 0], 0)],
+                ],
+                dkpy.TimestepError,
+            ),
             # Too few dimensions
-            [
-                control.TransferFunction([1], [1, 1]),
-                control.TransferFunction([2], [1, 0]),
-            ],
+            (
+                [
+                    control.TransferFunction([1], [1, 1]),
+                    control.TransferFunction([2], [1, 0]),
+                ],
+                dkpy.DimensionError,
+            ),
             # Too many dimensions
-            [
-                [[control.TransferFunction([1], [1, 1], 0.1)]],
-                [[control.TransferFunction([2], [1, 0], 0)]],
-            ],
+            (
+                [
+                    [[control.TransferFunction([1], [1, 1], 0.1)]],
+                    [[control.TransferFunction([2], [1, 0], 0)]],
+                ],
+                dkpy.DimensionError,
+            ),
         ],
     )
-    def test_error_combine(self, tf_array):
-        """Test error cases"""
-        with pytest.raises(ValueError):
+    def test_error_combine(self, tf_array, exception):
+        """Test error cases."""
+        with pytest.raises(exception):
             dkpy._tf_combine(tf_array)

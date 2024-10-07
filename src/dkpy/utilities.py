@@ -1,10 +1,15 @@
 """Transfer function and state-space manipulation utilities."""
 
+__all__ = ["_ensure_tf", "_tf_close_coeff", "_tf_combine"]
+
+
 from typing import Union, List
 
 import control
 import numpy as np
 from numpy.typing import ArrayLike
+
+from . import exceptions
 
 
 def _tf_close_coeff(
@@ -73,21 +78,21 @@ def _ensure_tf(
 
     Raises
     ------
-    ValueError
+    dkpy.DimensionError
         If input cannot be converted to a transfer function.
-    ValueError
+    dkpy.TimestepError
         If the timesteps do not match.
     """
     # If the input is already a transfer function, return it right away
     if isinstance(arraylike_or_tf, control.TransferFunction):
         # If timesteps don't match, raise an exception
         if (dt is not None) and (arraylike_or_tf.dt != dt):
-            raise ValueError(
+            raise exceptions.TimestepError(
                 f"`arraylike_or_tf.dt={arraylike_or_tf.dt}` does not match argument `dt={dt}`."
             )
         return arraylike_or_tf
     if np.ndim(arraylike_or_tf) > 2:
-        raise ValueError(
+        raise exceptions.DimensionError(
             "Array-like must have less than two dimensions to be converted into a transfer function."
         )
     # If it's not, then convert it to a transfer function
@@ -99,7 +104,7 @@ def _ensure_tf(
             dt,
         )
     except TypeError:
-        raise ValueError(
+        raise exceptions.DimensionError(
             "`arraylike_or_tf` must only contain array-likes or transfer functions."
         )
     return tf
@@ -126,9 +131,9 @@ def _tf_combine(
 
     Raises
     ------
-    ValueError
+    dkpy.TimestepError
         If timesteps of transfer functions do not match.
-    ValueError
+    dkpy.DimensionError
         If ``tf_array`` has incorrect dimensions.
 
     Examples
@@ -146,11 +151,11 @@ def _tf_combine(
             for tf in row:
                 dt_list.append(getattr(tf, "dt", None))
     except OSError:
-        raise ValueError("`tf_array` has too few dimensions.")
+        raise exceptions.DimensionError("`tf_array` has too few dimensions.")
     dt_set = set(dt_list)
     dt_set.discard(None)
     if len(dt_set) > 1:
-        raise ValueError(f"Timesteps of transfer functions are mismatched: {dt_set}")
+        raise exceptions.TimestepError(f"Timesteps of transfer functions are mismatched: {dt_set}")
     elif len(dt_set) == 0:
         dt = None
     else:
