@@ -1,6 +1,7 @@
 numpy
 scipy
 control
+cvxpy
 slycot
 pytest
 pytest-regressions

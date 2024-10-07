@@ -1,7 +1,9 @@
 """Controller synthesis classes."""
 
+__all__ = ["ControllerSynthesis", "HinfSynSlicot", "HinfSynLmi"]
+
 import abc
-from typing import Any, Dict, Tuple
+from typing import Any, Dict, Tuple, Optional
 
 import control
 import cvxpy
@@ -61,14 +63,20 @@ class HinfSynSlicot(ControllerSynthesis):
 
 
 class HinfSynLmi(ControllerSynthesis):
-    """H-infinity synthesis using a linear matrix inequality approach."""
+    """H-infinity synthesis using a linear matrix inequality approach.
+
+    TODO Add reference
+    Caverly and Forbes 2024, Section 5.3.3
+    """
 
     def __init__(
         self,
-        lmi_strictness: float = 1e-7,
+        lmi_strictness: Optional[float] = None,
+        solver_params: Optional[Dict[str, Any]] = None,
     ):
         """Instantiate :class:`HinfSynLmi`."""
         self.lmi_strictness = lmi_strictness
+        self.solver_params = solver_params
 
     def synthesize(
         self,
@@ -145,15 +153,12 @@ class HinfSynLmi(ControllerSynthesis):
         # Problem
         problem = cvxpy.Problem(objective, constraints)
         # Solver settings
-        # TODO Allow these to be changed
-        updated_solver_params = dict(
-            solver="MOSEK",
-            eps=1e-9,
-            verbose=True,
-        )
         # Solve problem
-        # TODO Check solver status
-        result = problem.solve(**updated_solver_params)
+        result = problem.solve(**self.solver_params)
+        if isinstance(result, str):
+            pass
+        else:
+            pass
         # Extract controller
         Q, s, Vt = scipy.linalg.svd(
             np.eye(X1.shape[0]) - X1.value @ Y1.value,
@@ -199,24 +204,36 @@ class HinfSynLmi(ControllerSynthesis):
         # Save condition numbers before inverting
         info["cond_M_left"] = np.linalg.cond(M_left)
         info["cond_M_right"] = np.linalg.cond(M_right)
-        # Extract block matrix of controller state-space matrices
-        K_block = np.linalg.solve(M_right.T, np.linalg.solve(M_left, M_middle).T).T
+        # Extract ``A_K``, ``B_K``, ``C_K``, and ``D_K``. If ``D22=0``, these
+        # are the controller state-space matrices. If not, there is one more
+        # step to do.
+        K_block = scipy.linalg.solve(
+            M_right.T, scipy.linalg.solve(M_left, M_middle).T
+        ).T
         n_x_c = An.shape[0]
         A_K = K_block[:n_x_c, :n_x_c]
         B_K = K_block[:n_x_c, n_x_c:]
         C_K = K_block[n_x_c:, :n_x_c]
         D_K = K_block[n_x_c:, n_x_c:]
-        # TODO Implement D22 != 0
-        # Make sure ``D22`` is zero. If it's not, other calculations need to be
-        # done to get ``K``.
-        if not np.allclose(D22, np.zeros_like(D22), atol=1e-12, rtol=0):
-            raise RuntimeError("TODO")
+        # Compute controller state-space matrices if ``D22`` is nonzero.
+        if np.any(D22):
+            D_c = scipy.linalg.solve(np.eye(D_K.shape[0]) + D_K @ D22, D_K)
+            C_c = (np.eye(D_c.shape[0]) - D_c @ D22) @ C_K
+            B_c = B_K @ (np.eye(D22.shape[0]) - D22 @ D_c)
+            A_c = A_K - B_c @ scipy.linalg.solve(
+                np.eye(D22.shape[0]) - D22 @ D_c, D22 @ C_c
+            )
+        else:
+            D_c = D_K
+            C_c = C_K
+            B_c = B_K
+            A_c = A_K
         # Create spate space object
         K = control.StateSpace(
-            A_K,
-            B_K,
-            C_K,
-            D_K,
+            A_c,
+            B_c,
+            C_c,
+            D_c,
         )
         N = P.lft(K)
         return K, N, gamma.value.item(), info
