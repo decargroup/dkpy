@@ -15,6 +15,7 @@ import control
 import cvxpy
 import numpy as np
 import scipy.linalg
+import slycot
 
 
 class ControllerSynthesis(metaclass=abc.ABCMeta):
@@ -43,7 +44,9 @@ class ControllerSynthesis(metaclass=abc.ABCMeta):
         -------
         Tuple[control.StateSpace, control.StateSpace, float, Dict[str, Any]]
             Controller, closed-loop system, objective function value, solution
-            information.
+            information. If a controller cannot by synthesized, the first three
+            elements of the tuple are ``None``, but solution information is
+            still returned.
 
         Raises
         ------
@@ -69,10 +72,12 @@ class HinfSynSlicot(ControllerSynthesis):
         n_y: int,
         n_u: int,
     ) -> Tuple[control.StateSpace, control.StateSpace, float, Dict[str, Any]]:
-        K, N, gamma, rcond = control.hinfsyn(P, n_y, n_u)
-        info = {
-            "rcond": rcond,
-        }
+        info = {}
+        try:
+            K, N, gamma, rcond = control.hinfsyn(P, n_y, n_u)
+        except slycot.exceptions.SlycotError:
+            return None, None, None, info
+        info["rcond"] = rcond
         return K, N, gamma, info
 
 
@@ -190,9 +195,10 @@ class HinfSynLmi(ControllerSynthesis):
         problem = cvxpy.Problem(objective, constraints)
         # Solve problem
         result = problem.solve(**solver_params)
+        info["result"] = result
+        info["solver_stats"] = problem.solver_stats
         if isinstance(result, str) or (problem.status != "optimal"):
             return None, None, None, info
-        info["solver_stats"] = problem.solver_stats
         # Extract controller
         Q, s, Vt = scipy.linalg.svd(
             np.eye(X1.shape[0]) - X1.value @ Y1.value,
@@ -389,7 +395,13 @@ class HinfSynLmiBisection(ControllerSynthesis):
         problem = cvxpy.Problem(objective, constraints)
         # Make sure initial guess is high enough
         gamma_high = self.initial_guess
+        gammas = []
+        problems = []
+        results = []
+        n_iterations = 0
         for i in range(self.max_iterations):
+            n_iterations += 1
+            gammas.append(gamma_high)
             try:
                 # Update gamma and solve optimization problem
                 problem.param_dict["gamma"].value = np.array([gamma_high])
@@ -397,6 +409,8 @@ class HinfSynLmiBisection(ControllerSynthesis):
                     # Ignore warnings since some problems may be infeasible
                     warnings.simplefilter("ignore")
                     result = problem.solve(**solver_params)
+                    problems.append(problem)
+                    results.append(result)
             except cvxpy.SolverError:
                 gamma_high *= 2
                 continue
@@ -405,12 +419,16 @@ class HinfSynLmiBisection(ControllerSynthesis):
             else:
                 break
         else:
-            # Could not find a high enough initial `gamma` in `max_iterations`
+            info["status"] = "Could not find feasible initial `gamma`."
+            info["gammas"] = gammas
+            info["problems"] = problems
+            info["results"] = results
+            info["iterations"] = n_iterations
             return None, None, None, info
         # Start iteration
         gamma_low = 0
-        gammas = []
         for i in range(self.max_iterations):
+            n_iterations += 1
             gammas.append((gamma_high + gamma_low) / 2)
             try:
                 # Update gamma and solve optimization problem
@@ -419,6 +437,8 @@ class HinfSynLmiBisection(ControllerSynthesis):
                     # Ignore warnings since some problems may be infeasible
                     warnings.simplefilter("ignore")
                     result = problem.solve(**solver_params)
+                    problems.append(problem)
+                    results.append(result)
             except cvxpy.SolverError:
                 gamma_low = gammas[-1]
                 continue
@@ -437,7 +457,18 @@ class HinfSynLmiBisection(ControllerSynthesis):
                     break
         else:
             # Terminated due to max iterations
-            pass
+            info["status"] = "Reached maximum number of iterations."
+            info["gammas"] = gammas
+            info["problems"] = problems
+            info["results"] = results
+            info["iterations"] = n_iterations
+            return None, None, None, info
+        # Save info
+        info["status"] = "Bisection succeeded."
+        info["gammas"] = gammas
+        info["problems"] = problems
+        info["results"] = results
+        info["iterations"] = n_iterations
         # Extract controller
         Q, s, Vt = scipy.linalg.svd(
             np.eye(X1.shape[0]) - X1.value @ Y1.value,
