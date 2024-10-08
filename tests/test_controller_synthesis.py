@@ -7,6 +7,7 @@ import pytest
 import dkpy
 
 
+
 class TestControllerSynthesis:
     """Compare :class:`HinfSynSlicot` and :class:`HinfSynLmi` solutions.
 
@@ -44,8 +45,10 @@ class TestControllerSynthesis:
         _, _, gamma_exp, _ = control.hinfsyn(P, n_y, n_u)
         _, _, gamma_slicot, _ = dkpy.HinfSynSlicot().synthesize(P, n_y, n_u)
         _, _, gamma_lmi, _ = dkpy.HinfSynLmi().synthesize(P, n_y, n_u)
+        _, _, gamma_bisect, _ = dkpy.HinfSynLmiBisection().synthesize(P, n_y, n_u)
         np.testing.assert_allclose(gamma_slicot, gamma_exp)
         np.testing.assert_allclose(gamma_lmi, gamma_exp, atol=1e-4)
+        np.testing.assert_allclose(gamma_bisect, gamma_exp, atol=1e-3)
 
 
 class TestAutoLmiStrictness:
