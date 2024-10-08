@@ -1,0 +1,4 @@
+.. role:: class(code)
+
+dkpy
+====
