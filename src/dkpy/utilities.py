@@ -9,8 +9,6 @@ import control
 import numpy as np
 from numpy.typing import ArrayLike
 
-from . import exceptions
-
 
 def _tf_close_coeff(
     tf_a: control.TransferFunction,
@@ -87,12 +85,12 @@ def _ensure_tf(
     if isinstance(arraylike_or_tf, control.TransferFunction):
         # If timesteps don't match, raise an exception
         if (dt is not None) and (arraylike_or_tf.dt != dt):
-            raise exceptions.TimestepError(
+            raise ValueError(
                 f"`arraylike_or_tf.dt={arraylike_or_tf.dt}` does not match argument `dt={dt}`."
             )
         return arraylike_or_tf
     if np.ndim(arraylike_or_tf) > 2:
-        raise exceptions.DimensionError(
+        raise ValueError(
             "Array-like must have less than two dimensions to be converted into a transfer function."
         )
     # If it's not, then convert it to a transfer function
@@ -104,7 +102,7 @@ def _ensure_tf(
             dt,
         )
     except TypeError:
-        raise exceptions.DimensionError(
+        raise ValueError(
             "`arraylike_or_tf` must only contain array-likes or transfer functions."
         )
     return tf
@@ -151,11 +149,13 @@ def _tf_combine(
             for tf in row:
                 dt_list.append(getattr(tf, "dt", None))
     except OSError:
-        raise exceptions.DimensionError("`tf_array` has too few dimensions.")
+        raise ValueError("`tf_array` has too few dimensions.")
     dt_set = set(dt_list)
     dt_set.discard(None)
     if len(dt_set) > 1:
-        raise exceptions.TimestepError(f"Timesteps of transfer functions are mismatched: {dt_set}")
+        raise ValueError(
+            f"Timesteps of transfer functions are mismatched: {dt_set}"
+        )
     elif len(dt_set) == 0:
         dt = None
     else:

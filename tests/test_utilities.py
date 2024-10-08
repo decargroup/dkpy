@@ -176,22 +176,22 @@ class TestEnsureTf:
             (
                 control.TransferFunction([1], [1, 2, 3]),
                 0.1,
-                dkpy.TimestepError,
+                ValueError,
             ),
             (
                 control.TransferFunction([1], [1, 2, 3], 0.1),
                 0,
-                dkpy.TimestepError,
+                ValueError,
             ),
             (
                 np.ones((1, 1, 1)),
                 None,
-                dkpy.DimensionError,
+                ValueError,
             ),
             (
                 np.ones((1, 1, 1, 1)),
                 None,
-                dkpy.DimensionError,
+                ValueError,
             ),
         ],
     )
@@ -371,14 +371,14 @@ class TestTfCombine:
                     [control.TransferFunction([1], [1, 1], 0.1)],
                     [control.TransferFunction([2], [1, 0], 0.2)],
                 ],
-                dkpy.TimestepError,
+                ValueError,
             ),
             (
                 [
                     [control.TransferFunction([1], [1, 1], 0.1)],
                     [control.TransferFunction([2], [1, 0], 0)],
                 ],
-                dkpy.TimestepError,
+                ValueError,
             ),
             # Too few dimensions
             (
@@ -386,7 +386,7 @@ class TestTfCombine:
                     control.TransferFunction([1], [1, 1]),
                     control.TransferFunction([2], [1, 0]),
                 ],
-                dkpy.DimensionError,
+                ValueError,
             ),
             # Too many dimensions
             (
@@ -394,7 +394,7 @@ class TestTfCombine:
                     [[control.TransferFunction([1], [1, 1], 0.1)]],
                     [[control.TransferFunction([2], [1, 0], 0)]],
                 ],
-                dkpy.DimensionError,
+                ValueError,
             ),
         ],
     )

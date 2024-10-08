@@ -16,8 +16,6 @@ import cvxpy
 import numpy as np
 import scipy.linalg
 
-from . import exceptions
-
 
 class ControllerSynthesis(metaclass=abc.ABCMeta):
     """Controller synthesis base class."""
@@ -49,8 +47,8 @@ class ControllerSynthesis(metaclass=abc.ABCMeta):
 
         Raises
         ------
-        dkpy.SolverError
-            If the solver could not solve the problem.
+        ValueError
+            If the solver specified is not recognized by CVXPY.
         """
         raise NotImplementedError()
 
@@ -193,9 +191,7 @@ class HinfSynLmi(ControllerSynthesis):
         # Solve problem
         result = problem.solve(**solver_params)
         if isinstance(result, str) or (problem.status != "optimal"):
-            raise exceptions.SolverError(
-                f"CVXPY solver could not solve problem: {result}"
-            )
+            return None, None, None, info
         info["solver_stats"] = problem.solver_stats
         # Extract controller
         Q, s, Vt = scipy.linalg.svd(
@@ -543,7 +539,7 @@ def _auto_lmi_strictness(
 
     Raises
     ------
-    dkpy.ConfigError
+    ValueError
         If the solver specified is not recognized by CVXPY.
     """
     if solver_params["solver"] == cvxpy.CLARABEL:
@@ -594,7 +590,7 @@ def _auto_lmi_strictness(
     elif solver_params["solver"] == cvxpy.SCS:
         tol = solver_params.get("eps", 1e-4)
     else:
-        raise exceptions.ConfigError(
+        raise ValueError(
             f"Solver {solver_params['solver']} is not a CVXPY-supported SDP solver."
         )
     strictness = scale * tol
