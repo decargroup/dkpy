@@ -57,10 +57,7 @@ class ControllerSynthesis(metaclass=abc.ABCMeta):
 
 
 class HinfSynSlicot(ControllerSynthesis):
-    """H-infinity synthesis using SLICOT's Riccati equation method.
-
-    TODO Add example
-    """
+    """H-infinity synthesis using SLICOT's Riccati equation method."""
 
     def __init__(self):
         """Instantiate :class:`HinfSynSlicot`."""
@@ -84,10 +81,7 @@ class HinfSynSlicot(ControllerSynthesis):
 class HinfSynLmi(ControllerSynthesis):
     """H-infinity synthesis using a linear matrix inequality approach.
 
-    TODO Add example
-
-    TODO Add reference
-    Caverly and Forbes 2024, Section 5.3.3
+    Synthesis method based on Section 5.3.3 of [CF24]_.
     """
 
     def __init__(
@@ -280,7 +274,10 @@ class HinfSynLmi(ControllerSynthesis):
 
 
 class HinfSynLmiBisection(ControllerSynthesis):
-    """H-infinity synthesis using an LMI approach with bisection."""
+    """H-infinity synthesis using an LMI approach with bisection.
+
+    Synthesis method based on Section 5.3.3 of [CF24]_.
+    """
 
     def __init__(
         self,

@@ -11,12 +11,7 @@ import dkpy
 class TestControllerSynthesis:
     """Compare :class:`HinfSynSlicot` and :class:`HinfSynLmi` solutions.
 
-    TODO References
-
-    Based on Example 7 from [1].
-
-    [1] Scherer, Gahinet, & Chilali, "Multiobjective Output-Feedback Control via
-    LMI Optimization", IEEE Trans. Automatic Control, Vol. 42, No. 7, July 1997.
+    Based on Example 7 from [SGC97]_.
     """
 
     def test_compare_gamma(self):
