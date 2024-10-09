@@ -44,6 +44,7 @@ intersphinx_mapping = {
     'scipy': ('https://docs.scipy.org/doc/scipy/', None),
     'matplotlib': ('https://matplotlib.org/stable/', None),
     'control': ('https://python-control.readthedocs.io/en/latest/', None),
+    'cvxpy': ('https://www.cvxpy.org/', None),
 }
 
 templates_path = ['_templates']

@@ -89,7 +89,29 @@ class HinfSynLmi(ControllerSynthesis):
         lmi_strictness: Optional[float] = None,
         solver_params: Optional[Dict[str, Any]] = None,
     ):
-        """Instantiate :class:`HinfSynLmi`."""
+        """Instantiate :class:`HinfSynLmi`.
+
+        Solution accuracy depends strongly on the selected solver and
+        tolerances. Setting the solver and its tolerances in ``solver_params``
+        and setting ``lmi_strictness`` manually is recommended, rather than
+        relying on the default settings.
+
+        Parameters
+        ----------
+        lmi_strictness : Optional[float]
+            Strictness for linear matrix inequality constraints. Should be
+            larger than the solver tolerance. If ``None``, then it is
+            automatically set to 10x the solver's largest absolute tolerance.
+        solver_params : Optional[Dict[str, Any]]
+            Dictionary of keyword arguments for :func:`cvxpy.Problem.solve`.
+            Notable keys are ``'solver'`` and ``'verbose'``. Additional keys
+            used to set solver tolerances are solver-dependent. A definitive
+            list can be found at [#solvers]_.
+
+        References
+        ----------
+        .. [#solvers] https://www.cvxpy.org/tutorial/advanced/index.html#setting-solver-options
+        """
         self.lmi_strictness = lmi_strictness
         self.solver_params = solver_params
 
@@ -190,7 +212,7 @@ class HinfSynLmi(ControllerSynthesis):
         # Solve problem
         result = problem.solve(**solver_params)
         info["result"] = result
-        info["solver_stats"] = problem.solver_stats
+        info["problem"] = problem
         if isinstance(result, str) or (problem.status != "optimal"):
             return None, None, None, info
         # Extract controller
@@ -288,7 +310,37 @@ class HinfSynLmiBisection(ControllerSynthesis):
         lmi_strictness: Optional[float] = None,
         solver_params: Optional[Dict[str, Any]] = None,
     ):
-        """Instantiate :class:`HinfSynLmiBisection`."""
+        """Instantiate :class:`HinfSynLmiBisection`.
+
+        Solution accuracy depends strongly on the selected solver and
+        tolerances. Setting the solver and its tolerances in ``solver_params``
+        and setting ``lmi_strictness`` manually is recommended, rather than
+        relying on the default settings.
+
+        Parameters
+        ----------
+        bisection_atol : float
+            Bisection absolute tolerance.
+        bisection_rtol : float
+            Bisection relative tolerance.
+        max_iterations : int
+            Maximum number of bisection iterations.
+        initial_guess : float
+            Initial guess for bisection.
+        lmi_strictness : Optional[float]
+            Strictness for linear matrix inequality constraints. Should be
+            larger than the solver tolerance. If ``None``, then it is
+            automatically set to 10x the solver's largest absolute tolerance.
+        solver_params : Optional[Dict[str, Any]]
+            Dictionary of keyword arguments for :func:`cvxpy.Problem.solve`.
+            Notable keys are ``'solver'`` and ``'verbose'``. Additional keys
+            used to set solver tolerances are solver-dependent. A definitive
+            list can be found at [#solvers]_.
+
+        References
+        ----------
+        .. [#solvers] https://www.cvxpy.org/tutorial/advanced/index.html#setting-solver-options
+        """
         self.bisection_atol = bisection_atol
         self.bisection_rtol = bisection_rtol
         self.max_iterations = max_iterations
@@ -422,6 +474,12 @@ class HinfSynLmiBisection(ControllerSynthesis):
             info["results"] = results
             info["iterations"] = n_iterations
             return None, None, None, info
+        # Check if ``gamma`` was increased.
+        if gamma_high > self.initial_guess:
+            warnings.warn(
+                f"Had to increase initial guess from {self.initial_guess} to {gamma_high}. "
+                "Consider increasing the initial guess."
+            )
         # Start iteration
         gamma_low = 0
         for i in range(self.max_iterations):
