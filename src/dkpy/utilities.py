@@ -136,11 +136,14 @@ def _tf_combine(
 
     Examples
     --------
+    Combine two transfer functions
+
     >>> s = control.TransferFunction.s
-    >>> dkpy._combine([
+    >>> dkpy._tf_combine([
     ...     [1 / (s + 1)],
     ...     [s / (s + 2)],
     ... ])
+    TransferFunction([[array([1])], [array([1, 0])]], [[array([1, 1])], [array([1, 2])]])
     """
     # Find common timebase or raise error
     dt_list = []

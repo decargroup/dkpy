@@ -32,3 +32,20 @@ Issues = "https://github.com/decargroup/dkpy/issues"
 
 [project.optional-dependencies]
 solvers = ["mosek>=9.2.49"]
+
+[tool.pytest.ini_options]
+addopts = "--doctest-modules --doctest-continue-on-failure"
+doctest_optionflags = "NORMALIZE_WHITESPACE NUMBER ELLIPSIS"
+python_files = [
+    "test_*.py",
+    "*_example_*.py",
+]
+python_functions = [
+    "test*",
+    "example*",
+]
+testpaths = [
+    "tests",
+    "src",
+    "examples",
+]

@@ -57,7 +57,14 @@ class ControllerSynthesis(metaclass=abc.ABCMeta):
 
 
 class HinfSynSlicot(ControllerSynthesis):
-    """H-infinity synthesis using SLICOT's Riccati equation method."""
+    """H-infinity synthesis using SLICOT's Riccati equation method.
+
+    Examples
+    --------
+    H-infinity controller synthesis
+
+    >>> K, N, gamma, info = dkpy.HinfSynSlicot().synthesize(P, n_y, n_u)
+    """
 
     def __init__(self):
         """Instantiate :class:`HinfSynSlicot`."""
@@ -82,6 +89,62 @@ class HinfSynLmi(ControllerSynthesis):
     """H-infinity synthesis using a linear matrix inequality approach.
 
     Synthesis method based on Section 5.3.3 of [CF24]_.
+
+    Examples
+    --------
+    H-infinity controller synthesis with default settings
+
+    >>> K, N, gamma, info = dkpy.HinfSynLmi().synthesize(P, n_y, n_u)
+
+    H-infinity controller synthesis with CLARABEL
+
+    >>> K, N, gamma, info = dkpy.HinfSynLmi(
+    ...     lmi_strictness=1e-8,
+    ...     solver_params={
+    ...         "solver": "CLARABEL",
+    ...         "tol_gap_abs": 1e-9,
+    ...         "tol_gap_rel": 1e-9,
+    ...         "tol_feas": 1e-9,
+    ...         "tol_infeas_abs": 1e-9,
+    ...         "tol_infeas_rel": 1e-9,
+    ...     },
+    ... ).synthesize(P, n_y, n_u)
+
+    H-infinity controller synthesis with SCS
+
+    >>> K, N, gamma, info = dkpy.HinfSynLmi(
+    ...     lmi_strictness=1e-3,
+    ...     solver_params={
+    ...         "solver": "SCS",
+    ...         "eps": 1e-4,
+    ...     },
+    ... ).synthesize(P, n_y, n_u)
+
+    H-infinity controller synthesis with MOSEK (simple settings)
+
+    >>> K, N, gamma, info = dkpy.HinfSynLmi(
+    ...     lmi_strictness=1e-8,
+    ...     solver_params={
+    ...         "solver": "MOSEK",
+    ...         "eps": 1e-9,
+    ...     },
+    ... ).synthesize(P, n_y, n_u)  # doctest: +SKIP
+
+    H-infinity controller synthesis with MOSEK (advanced settings)
+
+    >>> K, N, gamma, info = dkpy.HinfSynLmi(
+    ...     lmi_strictness=1e-7,
+    ...     solver_params={
+    ...         "solver": "MOSEK",
+    ...         "mosek_params": {
+    ...             "MSK_DPAR_INTPNT_CO_TOL_DFEAS": 1e-8,
+    ...             "MSK_DPAR_INTPNT_CO_TOL_INFEAS": 1e-12,
+    ...             "MSK_DPAR_INTPNT_CO_TOL_MU_RED": 1e-8,
+    ...             "MSK_DPAR_INTPNT_CO_TOL_PFEAS": 1e-8,
+    ...             "MSK_DPAR_INTPNT_CO_TOL_REL_GAP": 1e-8,
+    ...         },
+    ...     },
+    ... ).synthesize(P, n_y, n_u)  # doctest: +SKIP
     """
 
     def __init__(
@@ -299,6 +362,30 @@ class HinfSynLmiBisection(ControllerSynthesis):
     """H-infinity synthesis using an LMI approach with bisection.
 
     Synthesis method based on Section 5.3.3 of [CF24]_.
+
+    Examples
+    --------
+    H-infinity controller synthesis with default settings
+
+    >>> K, N, gamma, info = dkpy.HinfSynLmiBisection().synthesize(P, n_y, n_u)
+
+    H-infinity controller synthesis with CLARABEL
+
+    >>> K, N, gamma, info = dkpy.HinfSynLmiBisection(
+    ...     bisection_atol=1e-4,
+    ...     bisection_rtol=1e-3,
+    ...     max_iterations=20,
+    ...     initial_guess=10,
+    ...     lmi_strictness=1e-8,
+    ...     solver_params={
+    ...         "solver": "CLARABEL",
+    ...         "tol_gap_abs": 1e-9,
+    ...         "tol_gap_rel": 1e-9,
+    ...         "tol_feas": 1e-9,
+    ...         "tol_infeas_abs": 1e-9,
+    ...         "tol_infeas_rel": 1e-9,
+    ...     },
+    ... ).synthesize(P, n_y, n_u)
     """
 
     def __init__(
@@ -649,11 +736,13 @@ def _auto_lmi_strictness(
             mosek_params = solver_params["mosek_params"]
             tol = np.max(
                 [
+                    # For conic problems
                     mosek_params.get("MSK_DPAR_INTPNT_CO_TOL_DFEAS", 1e-8),
                     mosek_params.get("MSK_DPAR_INTPNT_CO_TOL_INFEAS", 1e-12),
                     mosek_params.get("MSK_DPAR_INTPNT_CO_TOL_MU_RED", 1e-8),
                     mosek_params.get("MSK_DPAR_INTPNT_CO_TOL_PFEAS", 1e-8),
                     mosek_params.get("MSK_DPAR_INTPNT_CO_TOL_REL_GAP", 1e-8),
+                    # For linear problems
                     mosek_params.get("MSK_DPAR_INTPNT_TOL_DFEAS", 1e-8),
                     mosek_params.get("MSK_DPAR_INTPNT_TOL_INFEAS", 1e-10),
                     mosek_params.get("MSK_DPAR_INTPNT_TOL_MU_RED", 1e-16),
