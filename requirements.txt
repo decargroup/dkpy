@@ -2,6 +2,7 @@ numpy
 scipy
 control
 cvxpy
+joblib
 slycot
 pytest
 pytest-regressions

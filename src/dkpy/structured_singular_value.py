@@ -6,9 +6,11 @@ __all__ = [
 ]
 
 import abc
-from typing import Dict, Tuple, Any, Optional, List
+from typing import Dict, Tuple, Any, Optional
 
 import numpy as np
+import cvxpy
+import joblib
 
 
 class StructuredSingularValue(metaclass=abc.ABCMeta):
@@ -115,3 +117,56 @@ class SsvLmiBisection(StructuredSingularValue):
         block_structure: np.ndarray,
     ) -> Tuple[np.ndarray, np.ndarray, Dict[str, Any]]:
         pass
+
+
+def _variable_from_block_structure(block_structure: np.ndarray) -> cvxpy.Variable:
+    """Get optimization variable with specified block structure.
+
+    Parameters
+    ----------
+    block_structure : np.ndarray
+        2D array with 2 columns and as many rows as uncertainty blocks
+        in Delta. The columns represent the number of rows and columns in
+        each uncertainty block.
+
+    Returns
+    -------
+    cvxpy.Variable
+        CVXPY variable with specified block structure.
+    """
+    X_lst = []
+    for i in range(block_structure.shape[0]):
+        row = []
+        for j in range(block_structure.shape[0]):
+            if i == j:
+                # If on the block diagonal, insert variable
+                if block_structure[i, 0] <= 0:
+                    raise NotImplementedError(
+                        "Real perturbations are not yet supported."
+                    )
+                if block_structure[i, 1] <= 0:
+                    raise NotImplementedError(
+                        "Diagonal perturbations are not yet supported."
+                    )
+                if block_structure[i, 0] != block_structure[i, 1]:
+                    raise NotImplementedError(
+                        "Nonsquare perturbations are not yet supported."
+                    )
+                if i == block_structure.shape[0] - 1:
+                    # Last scaling is always identity
+                    row.append(np.eye(block_structure[i, 0]))
+                else:
+                    # Every other scaling is either a scalar or a scalar
+                    # multiplied by identity
+                    if block_structure[i, 0] == 1:
+                        xi = cvxpy.Variable((1, 1), complex=True, name=f"x{i}")
+                        row.append(xi)
+                    else:
+                        xi = cvxpy.Variable(1, complex=True, name=f"x{i}")
+                        row.append(xi * np.eye(block_structure[i, 0]))
+            else:
+                # If off the block diagonal, insert zeros
+                row.append(np.zeros((block_structure[i, 0], block_structure[j, 1])))
+        X_lst.append(row)
+    X = cvxpy.bmat(X_lst)
+    return X
