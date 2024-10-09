@@ -21,7 +21,7 @@ import slycot
 class ControllerSynthesis(metaclass=abc.ABCMeta):
     """Controller synthesis base class."""
 
-    @abc.abstractclassmethod
+    @abc.abstractmethod
     def synthesize(
         self,
         P: control.StateSpace,

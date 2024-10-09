@@ -9,9 +9,19 @@ Controller synthesis
    dkpy.HinfSynLmiBisection
 
 
+Structured singular value
+=========================
+
+.. autosummary::
+   :toctree: _autosummary/
+
+   dkpy.SsvLmiBisection
+
+
 Extending ``dkpy``
 ==================
 .. autosummary::
    :toctree: _autosummary/
 
    dkpy.ControllerSynthesis
+   dkpy.StructuredSingularValue
