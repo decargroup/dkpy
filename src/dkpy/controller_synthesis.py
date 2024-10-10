@@ -65,6 +65,7 @@ class HinfSynSlicot(ControllerSynthesis):
     --------
     H-infinity controller synthesis
 
+    >>> P, n_y, n_u = example_scherer1997
     >>> K, N, gamma, info = dkpy.HinfSynSlicot().synthesize(P, n_y, n_u)
     """
 
@@ -96,6 +97,7 @@ class HinfSynLmi(ControllerSynthesis):
     --------
     H-infinity controller synthesis with default settings
 
+    >>> P, n_y, n_u = example_scherer1997
     >>> K, N, gamma, info = dkpy.HinfSynLmi().synthesize(P, n_y, n_u)
 
     H-infinity controller synthesis with CLARABEL
@@ -369,6 +371,7 @@ class HinfSynLmiBisection(ControllerSynthesis):
     --------
     H-infinity controller synthesis with default settings
 
+    >>> P, n_y, n_u = example_scherer1997
     >>> K, N, gamma, info = dkpy.HinfSynLmiBisection().synthesize(P, n_y, n_u)
 
     H-infinity controller synthesis with CLARABEL
