@@ -6,11 +6,15 @@ __all__ = [
 ]
 
 import abc
-from typing import Dict, Tuple, Any, Optional
+import warnings
+from typing import Any, Dict, Optional, Tuple
 
-import numpy as np
 import cvxpy
 import joblib
+import numpy as np
+import scipy.linalg
+
+from . import utilities
 
 
 class StructuredSingularValue(metaclass=abc.ABCMeta):
@@ -48,6 +52,9 @@ class SsvLmiBisection(StructuredSingularValue):
     """Structured singular value using an LMI approach with bisection.
 
     Synthesis method based on Section 4.25 of [CF24]_.
+
+    Examples
+    --------
     """
 
     def __init__(
@@ -116,7 +123,179 @@ class SsvLmiBisection(StructuredSingularValue):
         N_omega: np.ndarray,
         block_structure: np.ndarray,
     ) -> Tuple[np.ndarray, np.ndarray, Dict[str, Any]]:
-        pass
+        # Solver settings
+        solver_params = (
+            {
+                "solver": cvxpy.CLARABEL,
+                "tol_gap_abs": 1e-9,
+                "tol_gap_rel": 1e-9,
+                "tol_feas": 1e-9,
+                "tol_infeas_abs": 1e-9,
+                "tol_infeas_rel": 1e-9,
+            }
+            if self.solver_params is None
+            else self.solver_params
+        )
+        lmi_strictness = (
+            utilities._auto_lmi_strictness(solver_params)
+            if self.lmi_strictness is None
+            else self.lmi_strictness
+        )
+        if self.objective == "minimize":
+            constant_objective = False
+        elif self.objective == "constant":
+            constant_objective = True
+        else:
+            raise ValueError("`objective` must be `'minimize'` or `'constant'`.")
+
+        def _ssv_at_omega(
+            N_omega: np.ndarray,
+        ) -> Tuple[float, np.ndarray, Dict[str, Any]]:
+            """Compute the structured singular value at a given frequency.
+
+            Split into its own function to allow parallelization over
+            frequencies with ``joblib``.
+
+            Parameters
+            ----------
+            N_omega : np.ndarray
+                Closed-loop tranfer function evaluated at a given frequency.
+
+            Returns
+            -------
+            Tuple[float, np.ndarray, Dict[str, Any]]
+                Structured singular value, D-scaling, and solution information.
+                If the structured singular value cannot be computed, the first
+                two elements of the tuple are ``None``, but solution
+                information is still returned.
+
+            Raises
+            ------
+            ValueError
+                If ``objective`` is incorrectly set.
+            """
+            info = {}
+            # Get an optimization variable that shares its block structure with
+            # the D-scalings
+            X = _variable_from_block_structure(block_structure)
+            # Set objective function
+            if constant_objective:
+                objective = cvxpy.Minimize(1)
+            else:
+                # `X` should have a real diagonal because it's Hermitian, but
+                # CVXPY does not realize this
+                objective = cvxpy.Minimize(cvxpy.real(cvxpy.trace(X)))
+            # Set upper bound on structured singular value squared as a parameter
+            gamma_sq = cvxpy.Parameter(1, name="gamma_sq")
+            # Set up the constraints
+            constraints = [
+                X.conj().T == X,
+                X >> lmi_strictness,
+                N_omega.conj().T @ X @ N_omega - gamma_sq * X << -lmi_strictness,
+            ]
+            # Put everything together in the optimization problem
+            problem = cvxpy.Problem(objective, constraints)
+            # Make sure initial guess is high enough
+            gamma_high = self.initial_guess
+            gammas = []
+            problems = []
+            results = []
+            n_iterations = 0
+            for i in range(self.max_iterations):
+                n_iterations += 1
+                gammas.append(gamma_high)
+                try:
+                    # Update gamma and solve optimization problem
+                    problem.param_dict["gamma_sq"].value = np.array([gamma_high**2])
+                    with warnings.catch_warnings():
+                        # Ignore warnings since some problems may be infeasible
+                        warnings.simplefilter("ignore")
+                        result = problem.solve(**solver_params)
+                        problems.append(problem)
+                        results.append(result)
+                except cvxpy.SolverError:
+                    gamma_high *= 2
+                    continue
+                if isinstance(result, str) or (problem.status != "optimal"):
+                    gamma_high *= 2
+                else:
+                    break
+            else:
+                info["status"] = "Could not find feasible initial `gamma`."
+                info["gammas"] = gammas
+                info["problems"] = problems
+                info["results"] = results
+                info["iterations"] = n_iterations
+                return None, None, info
+            # Check if ``gamma`` was increased.
+            if gamma_high > self.initial_guess:
+                warnings.warn(
+                    f"Had to increase initial guess from {self.initial_guess} "
+                    f"to {gamma_high}. Consider increasing the initial guess."
+                )
+            # Start iteration
+            gamma_low = 0
+            for i in range(self.max_iterations):
+                n_iterations += 1
+                gammas.append((gamma_high + gamma_low) / 2)
+                try:
+                    # Update gamma and solve optimization problem
+                    problem.param_dict["gamma_sq"].value = np.array([gammas[-1] ** 2])
+                    with warnings.catch_warnings():
+                        # Ignore warnings since some problems may be infeasible
+                        warnings.simplefilter("ignore")
+                        result = problem.solve(**solver_params)
+                        problems.append(problem)
+                        results.append(result)
+                except cvxpy.SolverError:
+                    gamma_low = gammas[-1]
+                    continue
+                if isinstance(result, str) or (problem.status != "optimal"):
+                    gamma_low = gammas[-1]
+                else:
+                    gamma_high = gammas[-1]
+                    # Only terminate if last iteration succeeded to make sure
+                    # ``X`` has a value
+                    if np.isclose(
+                        gamma_high,
+                        gamma_low,
+                        rtol=self.bisection_rtol,
+                        atol=self.bisection_atol,
+                    ):
+                        break
+            else:
+                # Terminated due to max iterations
+                info["status"] = "Reached maximum number of iterations."
+                info["gammas"] = gammas
+                info["problems"] = problems
+                info["results"] = results
+                info["iterations"] = n_iterations
+                return None, None, info
+            # Save info
+            info["status"] = "Bisection succeeded."
+            info["gammas"] = gammas
+            info["problems"] = problems
+            info["results"] = results
+            info["iterations"] = n_iterations
+            D_omega = scipy.linalg.cholesky(X.value)
+            return (gammas[-1], D_omega, info)
+
+        # Compute structured singular value and D scales for each frequency
+        joblib_results = joblib.Parallel(n_jobs=self.n_jobs)(
+            [
+                joblib.delayed(_ssv_at_omega)(N_omega[:, :, i])
+                for i in range(N_omega.shape[2])
+            ]
+        )
+        # Extract and return results
+        mu_lst, D_scales_lst, info_lst = tuple(zip(*joblib_results))
+        mu = np.array(mu_lst)
+        D_scales = np.moveaxis(np.array(D_scales_lst), 0, 2)
+        info = {k: [d[k] for d in info_lst] for k in info_lst[0].keys()}
+        info["solver_params"] = solver_params
+        info["lmi_strictness"] = lmi_strictness
+        info["constant_objective"] = constant_objective
+        return mu, D_scales, info
 
 
 def _variable_from_block_structure(block_structure: np.ndarray) -> cvxpy.Variable:

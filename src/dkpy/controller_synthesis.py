@@ -8,14 +8,16 @@ __all__ = [
 ]
 
 import abc
-from typing import Any, Dict, Optional, Tuple
 import warnings
+from typing import Any, Dict, Optional, Tuple
 
 import control
 import cvxpy
 import numpy as np
 import scipy.linalg
 import slycot
+
+from . import utilities
 
 
 class ControllerSynthesis(metaclass=abc.ABCMeta):
@@ -200,7 +202,7 @@ class HinfSynLmi(ControllerSynthesis):
         )
         info["solver_params"] = solver_params
         lmi_strictness = (
-            _auto_lmi_strictness(solver_params)
+            utilities._auto_lmi_strictness(solver_params)
             if self.lmi_strictness is None
             else self.lmi_strictness
         )
@@ -458,7 +460,7 @@ class HinfSynLmiBisection(ControllerSynthesis):
         solver_params["warm_start"] = True  # Force warm start for bisection
         info["solver_params"] = solver_params
         lmi_strictness = (
-            _auto_lmi_strictness(solver_params)
+            utilities._auto_lmi_strictness(solver_params)
             if self.lmi_strictness is None
             else self.lmi_strictness
         )
@@ -588,8 +590,8 @@ class HinfSynLmiBisection(ControllerSynthesis):
                 gamma_low = gammas[-1]
             else:
                 gamma_high = gammas[-1]
-                # Only terminate if last iteration succeeded to make sure ``X``
-                # has a value.
+                # Only terminate if last iteration succeeded to make sure
+                # variables have values
                 if np.isclose(
                     gamma_high,
                     gamma_low,
@@ -689,84 +691,3 @@ class HinfSynLmiBisection(ControllerSynthesis):
         )
         N = P.lft(K)
         return K, N, gamma.value.item(), info
-
-
-def _auto_lmi_strictness(
-    solver_params: Dict[str, Any],
-    scale: float = 10,
-) -> float:
-    """Autoselect LMI strictness based on solver settings.
-
-    Parameters
-    ----------
-    solver_params : Dict[str, Any]
-        Arguments that would be passed to :func:`cvxpy.Problem.solve`.
-    scale : float = 10
-        LMI strictness is ``scale`` times larger than the largest solver
-        tolerance.
-
-    Returns
-    -------
-    float
-        LMI strictness.
-
-    Raises
-    ------
-    ValueError
-        If the solver specified is not recognized by CVXPY.
-    """
-    if solver_params["solver"] == cvxpy.CLARABEL:
-        tol = np.max(
-            [
-                solver_params.get("tol_gap_abs", 1e-8),
-                solver_params.get("tol_feas", 1e-8),
-                solver_params.get("tol_infeas_abs", 1e-8),
-            ]
-        )
-    elif solver_params["solver"] == cvxpy.COPT:
-        tol = np.max(
-            [
-                solver_params.get("AbsGap", 1e-6),
-                solver_params.get("DualTol", 1e-6),
-                solver_params.get("FeasTol", 1e-6),
-            ]
-        )
-    elif solver_params["solver"] == cvxpy.MOSEK:
-        if "mosek_params" in solver_params.keys():
-            mosek_params = solver_params["mosek_params"]
-            tol = np.max(
-                [
-                    # For conic problems
-                    mosek_params.get("MSK_DPAR_INTPNT_CO_TOL_DFEAS", 1e-8),
-                    mosek_params.get("MSK_DPAR_INTPNT_CO_TOL_INFEAS", 1e-12),
-                    mosek_params.get("MSK_DPAR_INTPNT_CO_TOL_MU_RED", 1e-8),
-                    mosek_params.get("MSK_DPAR_INTPNT_CO_TOL_PFEAS", 1e-8),
-                    mosek_params.get("MSK_DPAR_INTPNT_CO_TOL_REL_GAP", 1e-8),
-                    # For linear problems
-                    mosek_params.get("MSK_DPAR_INTPNT_TOL_DFEAS", 1e-8),
-                    mosek_params.get("MSK_DPAR_INTPNT_TOL_INFEAS", 1e-10),
-                    mosek_params.get("MSK_DPAR_INTPNT_TOL_MU_RED", 1e-16),
-                    mosek_params.get("MSK_DPAR_INTPNT_TOL_PFEAS", 1e-8),
-                    mosek_params.get("MSK_DPAR_INTPNT_TOL_REL_GAP", 1e-8),
-                ]
-            )
-        else:
-            # If neither ``mosek_params`` nor ``eps`` are set, default to 1e-8
-            tol = solver_params.get("eps", 1e-8)
-    elif solver_params["solver"] == cvxpy.CVXOPT:
-        tol = np.max(
-            [
-                solver_params.get("abstol", 1e-7),
-                solver_params.get("feastol", 1e-7),
-            ]
-        )
-    elif solver_params["solver"] == cvxpy.SDPA:
-        tol = solver_params.get("epsilonStar", 1e-7)
-    elif solver_params["solver"] == cvxpy.SCS:
-        tol = solver_params.get("eps", 1e-4)
-    else:
-        raise ValueError(
-            f"Solver {solver_params['solver']} is not a CVXPY-supported SDP solver."
-        )
-    strictness = scale * tol
-    return strictness

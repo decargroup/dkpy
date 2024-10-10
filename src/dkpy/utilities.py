@@ -1,11 +1,17 @@
 """Transfer function and state-space manipulation utilities."""
 
-__all__ = ["_ensure_tf", "_tf_close_coeff", "_tf_combine"]
+__all__ = [
+    "_ensure_tf",
+    "_tf_close_coeff",
+    "_tf_combine",
+    "_auto_lmi_strictness",
+]
 
 
-from typing import Union, List
+from typing import Any, Dict, List, Union
 
 import control
+import cvxpy
 import numpy as np
 from numpy.typing import ArrayLike
 
@@ -156,9 +162,7 @@ def _tf_combine(
     dt_set = set(dt_list)
     dt_set.discard(None)
     if len(dt_set) > 1:
-        raise ValueError(
-            f"Timesteps of transfer functions are mismatched: {dt_set}"
-        )
+        raise ValueError(f"Timesteps of transfer functions are mismatched: {dt_set}")
     elif len(dt_set) == 0:
         dt = None
     else:
@@ -185,3 +189,84 @@ def _tf_combine(
             den.append(den_row)
     G_tf = control.TransferFunction(num, den, dt=dt)
     return G_tf
+
+
+def _auto_lmi_strictness(
+    solver_params: Dict[str, Any],
+    scale: float = 10,
+) -> float:
+    """Autoselect LMI strictness based on solver settings.
+
+    Parameters
+    ----------
+    solver_params : Dict[str, Any]
+        Arguments that would be passed to :func:`cvxpy.Problem.solve`.
+    scale : float = 10
+        LMI strictness is ``scale`` times larger than the largest solver
+        tolerance.
+
+    Returns
+    -------
+    float
+        LMI strictness.
+
+    Raises
+    ------
+    ValueError
+        If the solver specified is not recognized by CVXPY.
+    """
+    if solver_params["solver"] == cvxpy.CLARABEL:
+        tol = np.max(
+            [
+                solver_params.get("tol_gap_abs", 1e-8),
+                solver_params.get("tol_feas", 1e-8),
+                solver_params.get("tol_infeas_abs", 1e-8),
+            ]
+        )
+    elif solver_params["solver"] == cvxpy.COPT:
+        tol = np.max(
+            [
+                solver_params.get("AbsGap", 1e-6),
+                solver_params.get("DualTol", 1e-6),
+                solver_params.get("FeasTol", 1e-6),
+            ]
+        )
+    elif solver_params["solver"] == cvxpy.MOSEK:
+        if "mosek_params" in solver_params.keys():
+            mosek_params = solver_params["mosek_params"]
+            tol = np.max(
+                [
+                    # For conic problems
+                    mosek_params.get("MSK_DPAR_INTPNT_CO_TOL_DFEAS", 1e-8),
+                    mosek_params.get("MSK_DPAR_INTPNT_CO_TOL_INFEAS", 1e-12),
+                    mosek_params.get("MSK_DPAR_INTPNT_CO_TOL_MU_RED", 1e-8),
+                    mosek_params.get("MSK_DPAR_INTPNT_CO_TOL_PFEAS", 1e-8),
+                    mosek_params.get("MSK_DPAR_INTPNT_CO_TOL_REL_GAP", 1e-8),
+                    # For linear problems
+                    mosek_params.get("MSK_DPAR_INTPNT_TOL_DFEAS", 1e-8),
+                    mosek_params.get("MSK_DPAR_INTPNT_TOL_INFEAS", 1e-10),
+                    mosek_params.get("MSK_DPAR_INTPNT_TOL_MU_RED", 1e-16),
+                    mosek_params.get("MSK_DPAR_INTPNT_TOL_PFEAS", 1e-8),
+                    mosek_params.get("MSK_DPAR_INTPNT_TOL_REL_GAP", 1e-8),
+                ]
+            )
+        else:
+            # If neither ``mosek_params`` nor ``eps`` are set, default to 1e-8
+            tol = solver_params.get("eps", 1e-8)
+    elif solver_params["solver"] == cvxpy.CVXOPT:
+        tol = np.max(
+            [
+                solver_params.get("abstol", 1e-7),
+                solver_params.get("feastol", 1e-7),
+            ]
+        )
+    elif solver_params["solver"] == cvxpy.SDPA:
+        tol = solver_params.get("epsilonStar", 1e-7)
+    elif solver_params["solver"] == cvxpy.SCS:
+        tol = solver_params.get("eps", 1e-4)
+    else:
+        raise ValueError(
+            f"Solver {solver_params['solver']} is not a CVXPY-supported SDP solver."
+        )
+    strictness = scale * tol
+    return strictness

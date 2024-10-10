@@ -8,7 +8,7 @@ import dkpy
 
 
 class TestVariableFromBlockStructure:
-    """Test :func:`dkpy.structured_singular_value._variable_from_block_structure`."""
+    """Test :func:`_variable_from_block_structure`."""
 
     @pytest.mark.parametrize(
         "block_structure, variable_exp",
@@ -53,7 +53,7 @@ class TestVariableFromBlockStructure:
         ],
     )
     def test_variable_from_block_structure(self, block_structure, variable_exp):
-        """Test :func:`dkpy.structured_singular_value._variable_from_block_structure`."""
+        """Test :func:`_variable_from_block_structure`."""
         variable = dkpy.structured_singular_value._variable_from_block_structure(
             block_structure,
         )
