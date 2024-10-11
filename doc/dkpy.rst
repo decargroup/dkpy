@@ -1,3 +1,11 @@
+Transfer function fit
+=====================
+
+.. autosummary::
+   :toctree: _autosummary/
+
+   dkpy.TfFitSlicot
+
 Controller synthesis
 ====================
 
@@ -25,3 +33,4 @@ Extending ``dkpy``
 
    dkpy.ControllerSynthesis
    dkpy.StructuredSingularValue
+   dkpy.TransferFunctionFit
