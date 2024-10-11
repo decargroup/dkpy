@@ -8,35 +8,6 @@ import scipy.linalg
 import dkpy
 
 
-def _tf_mat_mul(tf, mat):
-    """TODO Remove."""
-    out = np.zeros(mat.shape, dtype=object)
-    for i in range(mat.shape[0]):
-        for j in range(mat.shape[1]):
-            out[i, j] = mat[i, j] * tf
-    out_comb = _combine(out)
-    return out_comb
-
-
-def _combine(G):
-    """TODO Remove."""
-    G = np.array(G)
-    num = []
-    den = []
-    for i_out in range(G.shape[0]):
-        for j_out in range(G[i_out, 0].noutputs):
-            num_row = []
-            den_row = []
-            for i_in in range(G.shape[1]):
-                for j_in in range(G[i_out, i_in].ninputs):
-                    num_row.append(G[i_out, i_in].num[j_out][j_in])
-                    den_row.append(G[i_out, i_in].den[j_out][j_in])
-            num.append(num_row)
-            den.append(den_row)
-    G_tf = control.TransferFunction(num, den, dt=G[0][0].dt)
-    return G_tf
-
-
 @pytest.fixture(autouse=True)
 def add_dkpy(doctest_namespace):
     """Add ``dkpy`` to namespace."""
@@ -79,15 +50,21 @@ def add_example_skogestad2006(doctest_namespace):
             [108.2, -109.6],
         ]
     )
-    G = _tf_mat_mul(control.TransferFunction([1], [75, 1]), G0)
-    # Weights
-    Wp = _tf_mat_mul(
-        control.TransferFunction([10, 1], [10, 1e-5]),
-        0.5 * np.eye(2),
+    G = control.append(
+        control.TransferFunction([1], [75, 1]),
+        control.TransferFunction([1], [75, 1]),
+    ) * control.TransferFunction(
+        G0.reshape(2, 2, 1),
+        np.ones((2, 2, 1)),
     )
-    Wi = _tf_mat_mul(
+    # Weights
+    Wp = 0.5 * control.append(
+        control.TransferFunction([10, 1], [10, 1e-5]),
+        control.TransferFunction([10, 1], [10, 1e-5]),
+    )
+    Wi = control.append(
         control.TransferFunction([1, 0.2], [0.5, 1]),
-        np.eye(2),
+        control.TransferFunction([1, 0.2], [0.5, 1]),
     )
     G.name = "G"
     Wp.name = "Wp"
@@ -123,8 +100,15 @@ def add_example_skogestad2006(doctest_namespace):
     n_y = 2
     n_u = 2
     # Inverse-based controller
-    K = _tf_mat_mul(
-        control.TransferFunction([75, 1], [1, 1e-5]),
-        0.7 * scipy.linalg.inv(G0),
+    K = (
+        0.7
+        * control.append(
+            control.TransferFunction([75, 1], [1, 1e-5]),
+            control.TransferFunction([75, 1], [1, 1e-5]),
+        )
+        * control.TransferFunction(
+            scipy.linalg.inv(G0).reshape(2, 2, 1),
+            np.ones((2, 2, 1)),
+        )
     )
     doctest_namespace["example_skogestad2006"] = P, n_y, n_u, K

@@ -66,8 +66,8 @@ class SsvLmiBisection(StructuredSingularValue):
     >>> mus, Ds, info = dkpy.SsvLmiBisection(n_jobs=None).compute_ssv(
     ...     N_omega,
     ...     block_structure,
-    ... )  # doctest: +SKIP
-    >>> np.max(mus)  # doctest: +SKIP
+    ... )
+    >>> np.max(mus)
     5.7726
     """
 
