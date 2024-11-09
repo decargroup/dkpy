@@ -11,6 +11,9 @@ from typing import Optional, Tuple
 import control
 import numpy as np
 import scipy.linalg
+import slycot
+
+from . import utilities
 
 
 class TransferFunctionFit(metaclass=abc.ABCMeta):
@@ -31,7 +34,8 @@ class TransferFunctionFit(metaclass=abc.ABCMeta):
         omega : np.ndarray
             Angular frequencies (rad/s).
         D_omega : np.ndarray
-            Transfer matrix evaluated at each frequency.
+            Transfer matrix evaluated at each frequency, with frequency as last
+            dimension.
         order : int
             Transfer function order to fit.
         block_structure : np.ndarray
@@ -50,9 +54,6 @@ class TransferFunctionFit(metaclass=abc.ABCMeta):
 class TfFitSlicot(TransferFunctionFit):
     """Fit transfer matrix with SLICOT."""
 
-    def __init__(self):
-        pass
-
     def fit(
         self,
         omega: np.ndarray,
@@ -60,7 +61,35 @@ class TfFitSlicot(TransferFunctionFit):
         order: int = 0,
         block_structure: Optional[np.ndarray] = None,
     ) -> Tuple[control.StateSpace, control.StateSpace]:
-        pass
+        # Get mask
+        if block_structure is None:
+            mask = np.ones((D_omega.shape[0], D_omega.shape[1]), dtype=bool)
+        else:
+            mask = _mask_from_block_structure(block_structure)
+        # Transfer matrix
+        tf_array = np.zeros((D_omega.shape[0], D_omega.shape[1]), dtype=object)
+        # Fit SISO transfer functions
+        for row in range(D_omega.shape[0]):
+            for col in range(D_omega.shape[1]):
+                if mask[row, col]:
+                    n, A, B, C, D = slycot.sb10yd(
+                        discfl=0,  # Continuous-time
+                        flag=1,  # Constrain stable, minimum phase
+                        lendat=omega.shape[0],
+                        rfrdat=np.real(D_omega[row, col, :]),
+                        ifrdat=np.imag(D_omega[row, col, :]),
+                        omega=omega,
+                        n=order,
+                        tol=0,  # Length of cache array
+                    )
+                    sys = control.StateSpace(A, B, C, D)
+                    tf_array[row, col] = control.ss2tf(sys)
+                else:
+                    tf_array[row, col] = control.TransferFunction([0], [1])
+        tf = utilities._tf_combine(tf_array)
+        ss = control.tf2ss(tf)
+        ss_inv = _invert_biproper_ss(ss)
+        return ss, ss_inv
 
 
 def _mask_from_block_structure(block_structure: np.ndarray) -> np.ndarray:

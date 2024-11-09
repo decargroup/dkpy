@@ -5,6 +5,68 @@ import pytest
 import dkpy
 
 
+class TestTfFitSlicot:
+    """Test :class:`TfFitSlicot`."""
+
+    @pytest.mark.parametrize(
+        "omega, tf, order, block_structure, atol",
+        [
+            (
+                np.logspace(-2, 2, 100),
+                control.TransferFunction([10], [1]),
+                0,
+                None,
+                1e-6,
+            ),
+            (
+                np.logspace(-2, 2, 100),
+                control.TransferFunction([1, 1], [1, 10]),
+                1,
+                None,
+                1e-2,
+            ),
+            (
+                np.logspace(-2, 2, 100),
+                control.TransferFunction(
+                    [
+                        [
+                            [1, 1],
+                            [1, 1],
+                        ],
+                        [
+                            [1, 1],
+                            [1, 1],
+                        ],
+                    ],
+                    [
+                        [
+                            [1, 10],
+                            [1, 10],
+                        ],
+                        [
+                            [1, 10],
+                            [1, 10],
+                        ],
+                    ],
+                ),
+                1,
+                None,
+                1e-4,
+            ),
+        ],
+    )
+    def test_tf_fit_slicot(self, omega, tf, order, block_structure, atol):
+        """Test :class:`TfFitSlicot`."""
+        D_omega = tf(1j * omega)
+        if D_omega.ndim == 1:
+            D_omega = D_omega.reshape((1, 1, -1))
+        tf_fit, _ = dkpy.TfFitSlicot().fit(omega, D_omega, order, block_structure)
+        D_omega_fit = tf_fit(1j * omega)
+        if D_omega_fit.ndim == 1:
+            D_omega_fit = D_omega_fit.reshape((1, 1, -1))
+        np.testing.assert_allclose(D_omega, D_omega_fit, atol=atol)
+
+
 class TestMaskFromBlockStructure:
     """Test :func:`_mask_from_block_strucure`."""
 
