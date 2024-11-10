@@ -5,12 +5,17 @@ __all__ = [
 ]
 
 import abc
-from typing import Any, Dict, Tuple
+from typing import Any, Dict, Tuple, Union
 
 import control
 import numpy as np
 
-from . import controller_synthesis, fit_transfer_functions, structured_singular_value
+from . import (
+    controller_synthesis,
+    fit_transfer_functions,
+    structured_singular_value,
+    utilities,
+)
 
 
 class DkIteration(metaclass=abc.ABCMeta):
@@ -66,7 +71,7 @@ class DkIteration(metaclass=abc.ABCMeta):
         raise NotImplementedError()
 
 
-def _get_initial_d_scales(block_structure: np.ndarray) -> control.TransferFunction:
+def _get_initial_d_scales(block_structure: np.ndarray) -> control.StateSpace:
     """Generate initial identity D-scales based on block structure.
 
     Parameters
@@ -78,23 +83,36 @@ def _get_initial_d_scales(block_structure: np.ndarray) -> control.TransferFuncti
 
     Returns
     -------
-    control.TransferFunction
+    control.StateSpace
         Identity D-scales.
     """
-    pass
+    tf_lst = []
+    for i in range(block_structure.shape[0]):
+        if block_structure[i, 0] <= 0:
+            raise NotImplementedError("Real perturbations are not yet supported.")
+        if block_structure[i, 1] <= 0:
+            raise NotImplementedError("Diagonal perturbations are not yet supported.")
+        if block_structure[i, 0] != block_structure[i, 1]:
+            raise NotImplementedError("Nonsquare perturbations are not yet supported.")
+        tf_lst.append(utilities._tf_eye(block_structure[i, 0], dt=0))
+    X = control.append(*tf_lst)
+    return X
 
 
 def _augment_d_scales(
-    d_scales: control.TransferFunction,
+    D: Union[control.TransferFunction, control.StateSpace],
+    D_inv: Union[control.TransferFunction, control.StateSpace],
     n_y: int,
     n_u: int,
-) -> control.TransferFunction:
+) -> Tuple[control.StateSpace, control.StateSpace]:
     """Augment D-scales with passthrough to account for outputs and inputs.
 
     Parameters
     ----------
-    d_scales : control.TransferFunction
+    D : Union[control.TransferFunction, control.StateSpace]
         D-scales.
+    D_inv : Union[control.TransferFunction, control.StateSpace]
+        Inverse D-scales.
     n_y : int
         Number of measurements (controller inputs).
     n_u : int
@@ -102,7 +120,9 @@ def _augment_d_scales(
 
     Returns
     -------
-    control.TransferFunction
-        Augmented D-scales.
+    Tuple[control.StateSpace, control.StateSpace]
+        Augmented D-scales and inverse D-scales.
     """
-    pass
+    D_aug = control.append(D, utilities._tf_eye(n_y))
+    D_aug_inv = control.append(D_inv, utilities._tf_eye(n_u))
+    return (D_aug, D_aug_inv)
