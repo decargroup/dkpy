@@ -1,3 +1,5 @@
+"""Test :mod:`fit_transfer_functions`."""
+
 import control
 import numpy as np
 import pytest

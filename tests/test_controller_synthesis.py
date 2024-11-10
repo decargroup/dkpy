@@ -2,7 +2,6 @@
 
 import control
 import numpy as np
-import pytest
 
 import dkpy
 
