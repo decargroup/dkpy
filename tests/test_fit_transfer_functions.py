@@ -81,6 +81,62 @@ class TestTfFitSlicot:
                 None,
                 1e-2,
             ),
+            (
+                np.logspace(-2, 2, 100),
+                control.TransferFunction(
+                    [
+                        [
+                            [1, 1],
+                            [0],
+                        ],
+                        [
+                            [0],
+                            [1, 2],
+                        ],
+                    ],
+                    [
+                        [
+                            [1, 10],
+                            [1],
+                        ],
+                        [
+                            [1],
+                            [1, 9],
+                        ],
+                    ],
+                ),
+                1,
+                np.array([[1, 1], [1, 1]]),
+                1e-2,
+            ),
+            (
+                np.logspace(-2, 2, 100),
+                control.TransferFunction(
+                    [
+                        [
+                            [1, 1],
+                            [0],
+                        ],
+                        [
+                            [0],
+                            [1, 2],
+                        ],
+                    ],
+                    [
+                        [
+                            [1, 10],
+                            [1],
+                        ],
+                        [
+                            [1],
+                            [1, 9],
+                        ],
+                    ],
+                ),
+                1,
+                np.array([[2, 2]]),
+                1e-2,
+            ),
         ],
     )
     def test_tf_fit_slicot(self, omega, tf, order, block_structure, atol):
@@ -93,6 +149,76 @@ class TestTfFitSlicot:
         if D_omega_fit.ndim == 1:
             D_omega_fit = D_omega_fit.reshape((1, 1, -1))
         np.testing.assert_allclose(D_omega, D_omega_fit, atol=atol)
+
+    @pytest.mark.parametrize(
+        "omega, tf, order, block_structure",
+        [
+            (
+                np.logspace(-2, 2, 100),
+                control.TransferFunction(
+                    [
+                        [
+                            [1, 1],
+                            [1, 1],
+                        ],
+                        [
+                            [1, 1],
+                            [1, 1],
+                        ],
+                    ],
+                    [
+                        [
+                            [1, 10],
+                            [1, 10],
+                        ],
+                        [
+                            [1, 10],
+                            [1, 10],
+                        ],
+                    ],
+                ),
+                1,
+                None,
+            ),
+            (
+                np.logspace(-2, 2, 100),
+                control.TransferFunction(
+                    [
+                        [
+                            [1, 1],
+                            [1, 1],
+                            [1, 1],
+                        ],
+                        [
+                            [1, 1],
+                            [1, 1],
+                            [1, 1],
+                        ],
+                    ],
+                    [
+                        [
+                            [1, 10],
+                            [1, 9],
+                            [1, 7],
+                        ],
+                        [
+                            [1, 8],
+                            [1, 6],
+                            [1, 10],
+                        ],
+                    ],
+                ),
+                1,
+                None,
+            ),
+        ],
+    )
+    def test_tf_fit_slicot_error(self, omega, tf, order, block_structure):
+        with pytest.raises(ValueError):
+            D_omega = tf(1j * omega)
+            if D_omega.ndim == 1:
+                D_omega = D_omega.reshape((1, 1, -1))
+            tf_fit, _ = dkpy.TfFitSlicot().fit(omega, D_omega, order, block_structure)
 
 
 class TestMaskFromBlockStructure:

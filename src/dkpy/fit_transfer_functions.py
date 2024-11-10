@@ -85,7 +85,7 @@ class TfFitSlicot(TransferFunctionFit):
                     sys = control.StateSpace(A, B, C, D)
                     tf_array[row, col] = control.ss2tf(sys)
                 else:
-                    tf_array[row, col] = control.TransferFunction([0], [1])
+                    tf_array[row, col] = control.TransferFunction([0], [1], dt=0)
         tf = utilities._tf_combine(tf_array)
         ss = control.tf2ss(tf)
         ss_inv = _invert_biproper_ss(ss)
@@ -135,12 +135,17 @@ def _invert_biproper_ss(ss: control.StateSpace) -> control.StateSpace:
 
     Raises
     ------
-    scipy.linalg.LinAlgError
+    ValueError
         If the system's ``D`` matrix is singular.
     ValueError
         If the system's ``D`` matrix is nonsquare.
     """
-    Di = scipy.linalg.inv(ss.D)
+    if ss.D.shape[0] != ss.D.shape[1]:
+        raise ValueError("State-space `D` matrix is nonsquare.")
+    try:
+        Di = scipy.linalg.inv(ss.D)
+    except scipy.linalg.LinAlgError:
+        raise ValueError("State-space `D` matrix is singular.")
     Ai = ss.A - ss.B @ Di @ ss.C
     Bi = ss.B @ Di
     Ci = -Di @ ss.C
