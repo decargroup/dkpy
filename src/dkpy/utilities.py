@@ -4,6 +4,7 @@ __all__ = [
     "_ensure_tf",
     "_tf_close_coeff",
     "_tf_combine",
+    "_tf_eye",
     "_auto_lmi_strictness",
 ]
 
@@ -189,6 +190,33 @@ def _tf_combine(
             den.append(den_row)
     G_tf = control.TransferFunction(num, den, dt=dt)
     return G_tf
+
+
+def _tf_eye(
+    n: int,
+    dt: Union[None, bool, float] = None,
+) -> control.TransferFunction:
+    """Transfer function identity matrix.
+
+    Parameters
+    ----------
+    n : int
+        Dimension.
+    dt : Union[None, bool, float]
+        Timestep (s). Based on the ``control`` package, ``True`` indicates a
+        discrete-time system with unspecified timestep, ``0`` indicates a
+        continuous-time system, and ``None`` indicates a continuous- or
+        discrete-time system with unspecified timestep.
+
+    Returns
+    -------
+    control.TransferFunction
+        Identity transfer matrix.
+    """
+    num = np.eye(n).reshape(n, n, 1)
+    den = np.ones((n, n, 1))
+    eye = control.TransferFunction(num, den, dt=dt)
+    return eye
 
 
 def _auto_lmi_strictness(

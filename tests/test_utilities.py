@@ -404,6 +404,57 @@ class TestTfCombine:
             dkpy._tf_combine(tf_array)
 
 
+class TestTfEye:
+    """Test :func:`_tf_eye`."""
+
+    @pytest.mark.parametrize(
+        "n, dt, tf_exp",
+        [
+            (
+                1,
+                None,
+                control.TransferFunction([1], [1], dt=None),
+            ),
+            (
+                2,
+                0,
+                control.TransferFunction(
+                    [
+                        [[1], [0]],
+                        [[0], [1]],
+                    ],
+                    [
+                        [[1], [1]],
+                        [[1], [1]],
+                    ],
+                    dt=0,
+                ),
+            ),
+            (
+                2,
+                1e-3,
+                control.TransferFunction(
+                    [
+                        [[1], [0], [0]],
+                        [[0], [1], [0]],
+                        [[0], [0], [1]],
+                    ],
+                    [
+                        [[1], [1], [1]],
+                        [[1], [1], [1]],
+                        [[1], [1], [1]],
+                    ],
+                    dt=1e-3,
+                ),
+            ),
+        ],
+    )
+    def test_tf_eye(self, n, dt, tf_exp):
+        """Test :func:`_tf_eye`."""
+        tf = dkpy._tf_eye(n, dt)
+        assert dkpy._tf_close_coeff(tf, tf)
+
+
 class TestAutoLmiStrictness:
     """Test :func:`_auto_lmi_strictness`."""
 
