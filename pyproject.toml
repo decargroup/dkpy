@@ -19,7 +19,7 @@ authors = [
   {name="James Richard Forbes", email="james.richard.forbes@mcgill.ca"},
 ]
 description = "D-K iteration in Python"
-readme = "README.md"
+readme = "README.rst"
 license = {file = "LICENSE"}
 classifiers = [
     "Programming Language :: Python :: 3",
