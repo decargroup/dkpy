@@ -4,7 +4,7 @@ build-backend = "hatchling.build"
 
 [project]
 name = "dkpy"
-version = "0.1.1"
+version = "0.1.2"
 dependencies = [
     "numpy>=1.21.0,<2",
     "scipy>=1.7.0",
