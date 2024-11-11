@@ -3,4 +3,4 @@
 dkpy
 ====
 
-``dkpy`` is a DK-iteration library written in Python.
+``dkpy`` is a D-K iteration library written in Python.

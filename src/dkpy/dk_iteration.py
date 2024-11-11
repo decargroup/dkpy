@@ -1,4 +1,4 @@
-"""DK-iteration classes."""
+"""D-K iteration classes."""
 
 __all__ = [
     "DkIteration",
@@ -20,7 +20,7 @@ from . import (
 
 
 class DkIteration(metaclass=abc.ABCMeta):
-    """DK-iteration base class."""
+    """D-K iteration base class."""
 
     def __init__(
         self,
@@ -81,7 +81,7 @@ class DkIteration(metaclass=abc.ABCMeta):
 
 
 class DkIterFixedOrder(DkIteration):
-    """DK-iteration with a fixed number of iterations and fixed fit order."""
+    """D-K iteration with a fixed number of iterations and fixed fit order."""
 
     def __init__(
         self,

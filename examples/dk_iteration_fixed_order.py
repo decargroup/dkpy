@@ -1,4 +1,4 @@
-"""DK-iteration with fixed number of iterations and fit order."""
+"""D-K iteration with fixed number of iterations and fit order."""
 
 import control
 import numpy as np
@@ -7,7 +7,7 @@ import dkpy
 
 
 def main():
-    """DK-iteration with fixed number of iterations and fit order."""
+    """D-K iteration with fixed number of iterations and fit order."""
     # Plant
     G0 = np.array(
         [
