@@ -2,6 +2,7 @@
 
 __all__ = [
     "DkIteration",
+    "DkIterFixedOrder",
 ]
 
 import abc
@@ -47,6 +48,8 @@ class DkIteration(metaclass=abc.ABCMeta):
         P: control.StateSpace,
         n_y: int,
         n_u: int,
+        omega: np.ndarray,
+        block_structure: np.ndarray,
     ) -> Tuple[control.StateSpace, control.StateSpace, float, Dict[str, Any]]:
         """Synthesize controller.
 
@@ -59,6 +62,12 @@ class DkIteration(metaclass=abc.ABCMeta):
             Number of measurements (controller inputs).
         n_u : int
             Number of controller outputs.
+        omega : np.ndarray
+            Angular frequencies to evaluate D-scales (rad/s).
+        block_structure : np.ndarray
+            2D array with 2 columns and as many rows as uncertainty blocks
+            in Delta. The columns represent the number of rows and columns in
+            each uncertainty block.
 
         Returns
         -------
@@ -69,6 +78,91 @@ class DkIteration(metaclass=abc.ABCMeta):
             still returned.
         """
         raise NotImplementedError()
+
+
+class DkIterFixedOrder(DkIteration):
+    """DK-iteration with a fixed number of iterations and fixed fit order."""
+
+    def __init__(
+        self,
+        controller_synthesis: controller_synthesis.ControllerSynthesis,
+        structured_singular_value: structured_singular_value.StructuredSingularValue,
+        transfer_function_fit: fit_transfer_functions.TransferFunctionFit,
+        n_iterations: int,
+        fit_order: int,
+    ):
+        """Instantiate :class:`DkIterFixedOrder`.
+
+        Parameters
+        ----------
+        controller_synthesis : dkpy.ControllerSynthesis
+            A controller synthesis object.
+        structured_singular_value : dkpy.StructuredSingularValue
+            A structured singular value computation object.
+        transfer_function_fit : dkpy.TransferFunctionFit
+            A transfer function fit object.
+        n_iterations : int
+            Number of iterations.
+        fit_order : int
+            D-scale fit order.
+        """
+        self.controller_synthesis = controller_synthesis
+        self.structured_singular_value = structured_singular_value
+        self.transfer_function_fit = transfer_function_fit
+        self.n_iterations = n_iterations
+        self.fit_order = fit_order
+
+    def synthesize(
+        self,
+        P: control.StateSpace,
+        n_y: int,
+        n_u: int,
+        omega: np.ndarray,
+        block_structure: np.ndarray,
+    ) -> Tuple[control.StateSpace, control.StateSpace, float, Dict[str, Any]]:
+        # Solution information
+        info = {}
+        # Set up initial D-scales
+        D = _get_initial_d_scales(block_structure)
+        D_inv = _get_initial_d_scales(block_structure)
+        D_aug, D_aug_inv = _augment_d_scales(D, D_inv, n_y=n_y, n_u=n_u)
+        # Start iteration
+        for i in range(self.n_iterations):
+            # Synthesize controller
+            K, _, gamma, info = self.controller_synthesis.synthesize(
+                D_aug * P * D_aug_inv,
+                n_y,
+                n_u,
+            )
+            N = P.lft(K)
+            # Compute structured singular values on grid
+            N_omega = N(1j * omega)
+            mus, Ds, info = self.structured_singular_value.compute_ssv(
+                N_omega,
+                block_structure=block_structure,
+            )
+            # Fit transfer functions to gridded D-scales
+            D_fit, D_fit_inv = self.transfer_function_fit.fit(
+                omega,
+                Ds,
+                order=self.fit_order,
+                block_structure=block_structure,
+            )
+            # Augment D_scales with identity transfer functions
+            D_aug, D_aug_inv = _augment_d_scales(
+                D_fit,
+                D_fit_inv,
+                n_y=n_y,
+                n_u=n_u,
+            )
+        # Synthesize controller one last time
+        K, _, gamma, info = self.controller_synthesis.synthesize(
+            D_aug * P * D_aug_inv,
+            n_y,
+            n_u,
+        )
+        N = P.lft(K)
+        return (K, N, np.max(mus), info)
 
 
 def _get_initial_d_scales(block_structure: np.ndarray) -> control.StateSpace:
