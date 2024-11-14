@@ -67,7 +67,7 @@ class SsvLmiBisection(StructuredSingularValue):
     ...     N_omega,
     ...     block_structure,
     ... )
-    >>> np.max(mus)
+    >>> float(np.max(mus))
     5.7726
     """
 
