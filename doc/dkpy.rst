@@ -4,7 +4,7 @@ Transfer function fit
 .. autosummary::
    :toctree: _autosummary/
 
-   dkpy.TfFitSlicot
+   dkpy.fit_transfer_functions.TfFitSlicot
 
 Controller synthesis
 ====================
@@ -12,9 +12,9 @@ Controller synthesis
 .. autosummary::
    :toctree: _autosummary/
 
-   dkpy.HinfSynSlicot
-   dkpy.HinfSynLmi
-   dkpy.HinfSynLmiBisection
+   dkpy.controller_synthesis.HinfSynSlicot
+   dkpy.controller_synthesis.HinfSynLmi
+   dkpy.controller_synthesis.HinfSynLmiBisection
 
 
 Structured singular value
@@ -23,7 +23,7 @@ Structured singular value
 .. autosummary::
    :toctree: _autosummary/
 
-   dkpy.SsvLmiBisection
+   dkpy.structured_singular_value.SsvLmiBisection
 
 
 Extending ``dkpy``
@@ -31,6 +31,6 @@ Extending ``dkpy``
 .. autosummary::
    :toctree: _autosummary/
 
-   dkpy.ControllerSynthesis
-   dkpy.StructuredSingularValue
-   dkpy.TransferFunctionFit
+   dkpy.controller_synthesis.ControllerSynthesis
+   dkpy.structured_singular_value.StructuredSingularValue
+   dkpy.fit_transfer_functions.TransferFunctionFit
