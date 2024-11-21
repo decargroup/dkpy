@@ -5,14 +5,13 @@ channels:
 dependencies:
   - slycot
   - pip
-  - pip:
-    - numpy
-    - scipy
-    - control
-    - cvxpy
-    - joblib
-    - pytest
-    - pytest-regressions
-    - sphinx
-    - sphinx-rtd-theme
-    - ruff
+  - numpy
+  - scipy
+  - control
+  - cvxpy
+  - joblib
+  - pytest
+  - pytest-regressions
+  - sphinx
+  - sphinx-rtd-theme
+  - ruff
