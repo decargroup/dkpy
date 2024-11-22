@@ -37,6 +37,9 @@ solvers = ["mosek>=9.2.49"]
 [tool.pytest.ini_options]
 addopts = "--doctest-modules --doctest-continue-on-failure"
 doctest_optionflags = "NORMALIZE_WHITESPACE NUMBER ELLIPSIS"
+pythonpath = [
+  "src",
+]
 python_files = [
     "test_*.py",
     "*_example_*.py",
