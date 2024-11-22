@@ -269,8 +269,6 @@ class TestMaskFromBlockStructure:
         np.testing.assert_allclose(mask_exp, mask)
 
 
-# TODO
-@pytest.mark.xfail
 class TestInvertBiproperSs:
     """Test :func:`_invert_biproper_ss`."""
 
@@ -288,8 +286,8 @@ class TestInvertBiproperSs:
         ss_inv = dkpy.fit_transfer_functions._invert_biproper_ss(ss)
         eye_l = control.minreal(ss * ss_inv, verbose=False)
         eye_r = control.minreal(ss_inv * ss, verbose=False)
+        omega = np.logspace(-3, 3, 100)
         for eye in [eye_l, eye_r]:
-            np.testing.assert_allclose(eye.A, np.zeros_like(eye.A))
-            np.testing.assert_allclose(eye.B, np.zeros_like(eye.B))
-            np.testing.assert_allclose(eye.C, np.zeros_like(eye.C))
-            np.testing.assert_allclose(eye.D, np.eye(eye.D.shape[0]))
+            mag, _, _ = eye.frequency_response(omega)
+            np.testing.assert_allclose(1, eye.dcgain())
+            np.testing.assert_allclose(np.ones_like(mag), mag)
