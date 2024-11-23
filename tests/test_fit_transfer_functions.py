@@ -88,6 +88,34 @@ class TestTfFitSlicot:
                 control.TransferFunction(
                     [
                         [
+                            [1, 2, 1],
+                            [1, 2, 1],
+                        ],
+                        [
+                            [1, 2, 1],
+                            [1, 2, 1],
+                        ],
+                    ],
+                    [
+                        [
+                            [1, 10, 1],
+                            [1, 9, 2],
+                        ],
+                        [
+                            [1, 8, 3],
+                            [1, 10, 4],
+                        ],
+                    ],
+                ),
+                2 * np.ones((2, 2)),
+                None,
+                1e-2,
+            ),
+            (
+                np.logspace(-2, 2, 100),
+                control.TransferFunction(
+                    [
+                        [
                             [1, 1],
                             [0],
                         ],
@@ -108,6 +136,34 @@ class TestTfFitSlicot:
                     ],
                 ),
                 1,
+                np.array([[1, 1], [1, 1]]),
+                1e-2,
+            ),
+            (
+                np.logspace(-2, 2, 100),
+                control.TransferFunction(
+                    [
+                        [
+                            [1, 1],
+                            [0],
+                        ],
+                        [
+                            [0],
+                            [1],
+                        ],
+                    ],
+                    [
+                        [
+                            [1, 10],
+                            [1],
+                        ],
+                        [
+                            [1],
+                            [1],
+                        ],
+                    ],
+                ),
+                np.diag([1, 1]),
                 np.array([[1, 1], [1, 1]]),
                 1e-2,
             ),
