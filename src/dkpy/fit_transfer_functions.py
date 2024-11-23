@@ -6,7 +6,7 @@ __all__ = [
 ]
 
 import abc
-from typing import Optional, Tuple
+from typing import Optional, Tuple, Union
 
 import control
 import numpy as np
@@ -24,7 +24,7 @@ class TransferFunctionFit(metaclass=abc.ABCMeta):
         self,
         omega: np.ndarray,
         D_omega: np.ndarray,
-        order: int = 0,
+        order: Union[int, np.ndarray] = 0,
         block_structure: Optional[np.ndarray] = None,
     ) -> Tuple[control.StateSpace, control.StateSpace]:
         """Fit transfer matrix to magnitudes.
@@ -36,8 +36,8 @@ class TransferFunctionFit(metaclass=abc.ABCMeta):
         D_omega : np.ndarray
             Transfer matrix evaluated at each frequency, with frequency as last
             dimension.
-        order : int
-            Transfer function order to fit.
+        order : Union[int, np.ndarray]
+            Transfer function order to fit. Can be specified per-entry.
         block_structure : np.ndarray
             2D array with 2 columns and as many rows as uncertainty blocks
             in Delta. The columns represent the number of rows and columns in
@@ -47,6 +47,12 @@ class TransferFunctionFit(metaclass=abc.ABCMeta):
         -------
         Tuple[control.StateSpace, control.StateSpace]
             Fit state-space system and its inverse.
+
+        Raises
+        ------
+        ValueError
+            If ``order`` is an array but its dimensions are inconsistent with
+            ``block_structure``.
         """
         raise NotImplementedError()
 
@@ -58,7 +64,7 @@ class TfFitSlicot(TransferFunctionFit):
         self,
         omega: np.ndarray,
         D_omega: np.ndarray,
-        order: int = 0,
+        order: Union[int, np.ndarray] = 0,
         block_structure: Optional[np.ndarray] = None,
     ) -> Tuple[control.StateSpace, control.StateSpace]:
         # Get mask
@@ -66,6 +72,13 @@ class TfFitSlicot(TransferFunctionFit):
             mask = np.ones((D_omega.shape[0], D_omega.shape[1]), dtype=bool)
         else:
             mask = _mask_from_block_structure(block_structure)
+        # Check order dimensions
+        orders = order if isinstance(order, np.ndarray) else order * np.ones_like(mask)
+        if orders.shape != mask.shape:
+            raise ValueError(
+                "`order` must be an integer or an array whose dimensions are "
+                "consistent with `block_structure`."
+            )
         # Transfer matrix
         tf_array = np.zeros((D_omega.shape[0], D_omega.shape[1]), dtype=object)
         # Fit SISO transfer functions
@@ -79,7 +92,7 @@ class TfFitSlicot(TransferFunctionFit):
                         rfrdat=np.real(D_omega[row, col, :]),
                         ifrdat=np.imag(D_omega[row, col, :]),
                         omega=omega,
-                        n=order,
+                        n=orders[row, col],
                         tol=0,  # Length of cache array
                     )
                     sys = control.StateSpace(A, B, C, D, dt=0)
