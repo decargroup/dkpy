@@ -54,6 +54,9 @@ class ControllerSynthesis(metaclass=abc.ABCMeta):
         ------
         ValueError
             If the solver specified is not recognized by CVXPY.
+        ValueError
+            If the generalized plant is not continuous-time
+            (i.e., if ``p.dt != 0``).
         """
         raise NotImplementedError()
 
@@ -80,6 +83,8 @@ class HinfSynSlicot(ControllerSynthesis):
         n_u: int,
     ) -> Tuple[control.StateSpace, control.StateSpace, float, Dict[str, Any]]:
         info = {}
+        if P.dt != 0:
+            raise ValueError("Generalized plant must be continuous-time (`P.dt = 0`).")
         try:
             K, N, gamma, rcond = control.hinfsyn(P, n_y, n_u)
         except slycot.exceptions.SlycotError:
@@ -189,6 +194,8 @@ class HinfSynLmi(ControllerSynthesis):
         n_u: int,
     ) -> Tuple[control.StateSpace, control.StateSpace, float, Dict[str, Any]]:
         info = {}
+        if P.dt != 0:
+            raise ValueError("Generalized plant must be continuous-time (`P.dt = 0`).")
         # Solver settings
         solver_params = (
             {
@@ -448,6 +455,8 @@ class HinfSynLmiBisection(ControllerSynthesis):
         n_u: int,
     ) -> Tuple[control.StateSpace, control.StateSpace, float, Dict[str, Any]]:
         info = {}
+        if P.dt != 0:
+            raise ValueError("Generalized plant must be continuous-time (`P.dt = 0`).")
         # Solver settings
         solver_params = (
             {
