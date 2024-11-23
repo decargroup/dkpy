@@ -82,7 +82,7 @@ class TfFitSlicot(TransferFunctionFit):
                         n=order,
                         tol=0,  # Length of cache array
                     )
-                    sys = control.StateSpace(A, B, C, D)
+                    sys = control.StateSpace(A, B, C, D, dt=0)
                     tf_array[row, col] = control.ss2tf(sys)
                 else:
                     tf_array[row, col] = control.TransferFunction([0], [1], dt=0)

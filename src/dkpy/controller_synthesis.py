@@ -357,6 +357,7 @@ class HinfSynLmi(ControllerSynthesis):
             B_c,
             C_c,
             D_c,
+            dt=0,
         )
         N = P.lft(K)
         return K, N, gamma.value.item(), info
@@ -691,6 +692,7 @@ class HinfSynLmiBisection(ControllerSynthesis):
             B_c,
             C_c,
             D_c,
+            dt=0,
         )
         N = P.lft(K)
         return K, N, gamma.value.item(), info
