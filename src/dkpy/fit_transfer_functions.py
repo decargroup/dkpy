@@ -69,7 +69,7 @@ class TfFitSlicot(TransferFunctionFit):
     ) -> Tuple[control.StateSpace, control.StateSpace]:
         # Get mask
         if block_structure is None:
-            mask = np.ones((D_omega.shape[0], D_omega.shape[1]), dtype=bool)
+            mask = -1 * np.ones((D_omega.shape[0], D_omega.shape[1]), dtype=int)
         else:
             mask = _mask_from_block_structure(block_structure)
         # Check order dimensions
@@ -84,7 +84,11 @@ class TfFitSlicot(TransferFunctionFit):
         # Fit SISO transfer functions
         for row in range(D_omega.shape[0]):
             for col in range(D_omega.shape[1]):
-                if mask[row, col]:
+                if mask[row, col] == 0:
+                    tf_array[row, col] = control.TransferFunction([0], [1], dt=0)
+                elif mask[row, col] == 1:
+                    tf_array[row, col] = control.TransferFunction([1], [1], dt=0)
+                else:
                     n, A, B, C, D = slycot.sb10yd(
                         discfl=0,  # Continuous-time
                         flag=1,  # Constrain stable, minimum phase
@@ -97,8 +101,6 @@ class TfFitSlicot(TransferFunctionFit):
                     )
                     sys = control.StateSpace(A, B, C, D, dt=0)
                     tf_array[row, col] = control.ss2tf(sys)
-                else:
-                    tf_array[row, col] = control.TransferFunction([0], [1], dt=0)
         tf = utilities._tf_combine(tf_array)
         ss = control.tf2ss(tf)
         ss_inv = _invert_biproper_ss(ss)
@@ -106,7 +108,10 @@ class TfFitSlicot(TransferFunctionFit):
 
 
 def _mask_from_block_structure(block_structure: np.ndarray) -> np.ndarray:
-    """Create a binary mask from a specified block structure.
+    """Create a mask from a specified block structure.
+
+    Entries known to be zero are set to 0. Entries known to be one are set to
+    1. Entries to be fit numerically are set to -1.
 
     Parameters
     ----------
@@ -118,7 +123,8 @@ def _mask_from_block_structure(block_structure: np.ndarray) -> np.ndarray:
     Returns
     -------
     np.ndarray
-        Array of booleans indicating nonzero elements in the block structure.
+        Array of integers indicating zero, one, and unknown elements in the
+        block structure.
     """
     X_lst = []
     for i in range(block_structure.shape[0]):
@@ -128,7 +134,11 @@ def _mask_from_block_structure(block_structure: np.ndarray) -> np.ndarray:
             raise NotImplementedError("Diagonal perturbations are not yet supported.")
         if block_structure[i, 0] != block_structure[i, 1]:
             raise NotImplementedError("Nonsquare perturbations are not yet supported.")
-        X_lst.append(np.eye(block_structure[i, 0], dtype=bool))
+        # Set last scaling to identity
+        if i == block_structure.shape[0] - 1:
+            X_lst.append(np.eye(block_structure[i, 0], dtype=int))
+        else:
+            X_lst.append(-1 * np.eye(block_structure[i, 0], dtype=int))
     X = scipy.linalg.block_diag(*X_lst)
     return X
 
