@@ -436,7 +436,102 @@ class DkIterFixedOrder(DkIteration):
 class DkIterListOrder(DkIteration):
     """D-K iteration with a fixed list of fit orders."""
 
-    pass
+    def __init__(
+        self,
+        controller_synthesis: controller_synthesis.ControllerSynthesis,
+        structured_singular_value: structured_singular_value.StructuredSingularValue,
+        transfer_function_fit: fit_transfer_functions.TransferFunctionFit,
+        fit_orders: List[Union[int, np.ndarray]],
+    ):
+        """Instantiate :class:`DkIterListOrder`.
+
+        Parameters
+        ----------
+        controller_synthesis : dkpy.ControllerSynthesis
+            A controller synthesis object.
+        structured_singular_value : dkpy.StructuredSingularValue
+            A structured singular value computation object.
+        transfer_function_fit : dkpy.TransferFunctionFit
+            A transfer function fit object.
+        fit_order : List[Union[int, np.ndarray]]
+            D-scale fit orders.
+        """
+        self.controller_synthesis = controller_synthesis
+        self.structured_singular_value = structured_singular_value
+        self.transfer_function_fit = transfer_function_fit
+        self.fit_orders = fit_orders
+
+    def synthesize(
+        self,
+        P: control.StateSpace,
+        n_y: int,
+        n_u: int,
+        omega: np.ndarray,
+        block_structure: np.ndarray,
+    ) -> Tuple[
+        control.StateSpace,
+        control.StateSpace,
+        float,
+        List[DScaleFitInfo],
+        Dict[str, Any],
+    ]:
+        # Solution information
+        info = {}
+        d_scale_fit_info = []
+        # Set up initial D-scales
+        D = _get_initial_d_scales(block_structure)
+        D_inv = _get_initial_d_scales(block_structure)
+        D_aug, D_aug_inv = _augment_d_scales(D, D_inv, n_y=n_y, n_u=n_u)
+        # Start iteration
+        for fit_order in self.fit_orders:
+            # Synthesize controller
+            K, _, gamma, info = self.controller_synthesis.synthesize(
+                D_aug * P * D_aug_inv,
+                n_y,
+                n_u,
+            )
+            N = P.lft(K)
+            # Compute structured singular values on grid
+            N_omega = N(1j * omega)
+            mu_omega, D_omega, info = self.structured_singular_value.compute_ssv(
+                N_omega,
+                block_structure=block_structure,
+            )
+            # Fit transfer functions to gridded D-scales
+            D_fit, D_fit_inv = self.transfer_function_fit.fit(
+                omega,
+                D_omega,
+                order=fit_order,
+                block_structure=block_structure,
+            )
+            # Add D-scale fit info
+            d_scale_fit_info.append(
+                DScaleFitInfo.create_from_fit(
+                    omega,
+                    mu_omega,
+                    D_omega,
+                    P,
+                    K,
+                    D_fit,
+                    D_fit_inv,
+                    block_structure,
+                )
+            )
+            # Augment D-scales with identity transfer functions
+            D_aug, D_aug_inv = _augment_d_scales(
+                D_fit,
+                D_fit_inv,
+                n_y=n_y,
+                n_u=n_u,
+            )
+        # Synthesize controller one last time
+        K, _, gamma, info = self.controller_synthesis.synthesize(
+            D_aug * P * D_aug_inv,
+            n_y,
+            n_u,
+        )
+        N = P.lft(K)
+        return (K, N, np.max(mu_omega), d_scale_fit_info, info)
 
 
 def _get_initial_d_scales(block_structure: np.ndarray) -> control.StateSpace:
