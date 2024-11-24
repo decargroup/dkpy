@@ -42,14 +42,11 @@ pythonpath = [
 ]
 python_files = [
     "test_*.py",
-    "*_example_*.py",
 ]
 python_functions = [
     "test*",
-    "example*",
 ]
 testpaths = [
     "tests",
     "src",
-    "examples",
 ]

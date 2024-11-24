@@ -6,7 +6,7 @@ import numpy as np
 import dkpy
 
 
-def main():
+def example_dk_iter_fixed_order():
     """D-K iteration with fixed number of iterations and fit order."""
     # Plant
     G0 = np.array(
@@ -96,4 +96,4 @@ def main():
 
 
 if __name__ == "__main__":
-    main()
+    example_dk_iter_fixed_order()
