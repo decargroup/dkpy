@@ -2,6 +2,7 @@
 
 import control
 import numpy as np
+from matplotlib import pyplot as plt
 
 import dkpy
 
@@ -70,7 +71,7 @@ def example_dk_iter_fixed_order():
             lmi_strictness=1e-7,
             solver_params=dict(
                 solver="MOSEK",
-                eps=1e-9,
+                eps=1e-8,
             ),
         ),
         structured_singular_value=dkpy.SsvLmiBisection(
@@ -90,9 +91,25 @@ def example_dk_iter_fixed_order():
 
     omega = np.logspace(-3, 3, 61)
     block_structure = np.array([[1, 1], [1, 1], [2, 2]])
-    K, N, mu, info = dk_iter.synthesize(P, n_y, n_u, omega, block_structure)
+    K, N, mu, d_scale_fit_info, info = dk_iter.synthesize(
+        P,
+        n_y,
+        n_u,
+        omega,
+        block_structure,
+    )
 
     print(mu)
+
+    fig, ax = plt.subplots()
+    for i, ds in enumerate(d_scale_fit_info):
+        ds.plot_mu(ax=ax, plot_kw=dict(label=f"iter{i}"))
+
+    ax = None
+    for i, ds in enumerate(d_scale_fit_info):
+        _, ax = ds.plot_D(ax=ax, plot_kw=dict(label=f"iter{i}"))
+
+    plt.show()
 
 
 if __name__ == "__main__":

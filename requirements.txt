@@ -4,6 +4,7 @@ control
 cvxpy
 joblib
 slycot
+matplotlib
 pytest
 pytest-regressions
 sphinx

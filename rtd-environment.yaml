@@ -10,6 +10,7 @@ dependencies:
   - control
   - cvxpy
   - joblib
+  - matplotlib
   - pytest
   - pytest-regressions
   - sphinx
