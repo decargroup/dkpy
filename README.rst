@@ -44,3 +44,15 @@ Example
     omega = np.logspace(-3, 3, 61)
     block_structure = np.array([[1, 1], [1, 1], [2, 2]])
     K, N, mu, info = dk_iter.synthesize(P, n_y, n_u, omega, block_structure)
+
+Contributing
+============
+
+To install the pre-commit hook, run
+
+.. code-block:: sh
+
+   $ pip install -r requirements.txt
+   $ pre-commit install
+
+in the repository root.

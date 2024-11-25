@@ -4,16 +4,11 @@ channels:
   - defaults
 dependencies:
   - slycot
-  - pip
   - numpy
   - scipy
   - control
   - cvxpy
   - joblib
   - matplotlib
-  - pytest
-  - pytest-regressions
   - sphinx
   - sphinx-rtd-theme
-  - pre-commit
-  - ruff
