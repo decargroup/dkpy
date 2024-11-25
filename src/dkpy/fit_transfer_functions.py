@@ -7,6 +7,7 @@ __all__ = [
 
 import abc
 from typing import Optional, Tuple, Union
+import warnings
 
 import control
 import numpy as np
@@ -87,6 +88,13 @@ class TfFitSlicot(TransferFunctionFit):
                 if mask[row, col] == 0:
                     tf_array[row, col] = control.TransferFunction([0], [1], dt=0)
                 elif mask[row, col] == 1:
+                    if isinstance(order, np.ndarray) and (orders[row, col] != 0):
+                        warnings.warn(
+                            "Entries of `order` in last uncertainty block "
+                            "should be 0 since those transfer functions are "
+                            "known to be 1. Ignoring value of "
+                            f"`order[{row}, {col}]`."
+                        )
                     tf_array[row, col] = control.TransferFunction([1], [1], dt=0)
                 else:
                     n, A, B, C, D = slycot.sb10yd(
