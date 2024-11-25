@@ -56,3 +56,19 @@ To install the pre-commit hook, run
    $ pre-commit install
 
 in the repository root.
+
+Citation
+========
+
+If you use this software in your research, please cite it as below or see
+``CITATION.cff``.
+
+.. code-block:: bibtex
+
+    @software{dahdah_dkpy_2024,
+        title={{decargroup/dkpy}},
+        url={https://github.com/decargroup/dkpy},
+        author={Steven Dahdah and James Richard Forbes},
+        version = {{v0.1.4}},
+        year={2024},
+    }
