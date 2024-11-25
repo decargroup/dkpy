@@ -15,4 +15,5 @@ dependencies:
   - pytest-regressions
   - sphinx
   - sphinx-rtd-theme
+  - pre-commit
   - ruff

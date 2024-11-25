@@ -10,4 +10,5 @@ pytest-regressions
 sphinx
 sphinx-rtd-theme
 ruff
+pre-commit
 mosek>=9.2.49
