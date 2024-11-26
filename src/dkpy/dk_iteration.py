@@ -601,6 +601,7 @@ class DkIterOrderCallback(DkIteration):
                 block_structure=block_structure,
             )
             fit_order, done = self.fit_order_callback(
+                self,
                 iteration,
                 omega,
                 mu_omega,

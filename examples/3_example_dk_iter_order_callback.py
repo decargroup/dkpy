@@ -67,6 +67,7 @@ def example_dk_iter_fixed_order():
     n_u = 2
 
     def callback(
+        dk_iteration,
         iteration,
         omega,
         mu_omega,
@@ -75,10 +76,34 @@ def example_dk_iter_fixed_order():
         K,
         block_structure,
     ):
-        if iteration == 0:
-            return (4, False)
-        else:
-            return (4, True)
+        d_info = []
+        for fit_order in range(5):
+            D_fit, D_fit_inv = dk_iteration.transfer_function_fit.fit(
+                omega,
+                D_omega,
+                order=fit_order,
+                block_structure=block_structure,
+            )
+            d_info.append(
+                dkpy.DScaleFitInfo.create_from_fit(
+                    omega,
+                    mu_omega,
+                    D_omega,
+                    P,
+                    K,
+                    D_fit,
+                    D_fit_inv,
+                    block_structure,
+                )
+            )
+        fig, ax = plt.subplots()
+        d_info[0].plot_mu(ax=ax, plot_kw=dict(label="true"), hide="mu_fit_omega")
+        for i, ds in enumerate(d_info):
+            ds.plot_mu(ax=ax, plot_kw=dict(label=f"order={i}"), hide="mu_omega")
+        plt.show()
+        selected_order = int(input("Selected order: "))
+        done = input("Done? (y/N): ") == "y"
+        return (selected_order, done)
 
     dk_iter = dkpy.DkIterOrderCallback(
         controller_synthesis=dkpy.HinfSynLmi(
