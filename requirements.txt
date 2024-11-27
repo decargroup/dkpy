@@ -1,14 +1,19 @@
+# Dependencies
 numpy
 scipy
 control
+slycot
 cvxpy
 joblib
-slycot
 matplotlib
+
+# Extra solvers
+mosek>=9.2.49
+
+# Development
 pytest
 pytest-regressions
 sphinx
 sphinx-rtd-theme
 ruff==0.8.0
 pre-commit
-mosek>=9.2.49
