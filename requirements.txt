@@ -17,3 +17,6 @@ sphinx
 sphinx-rtd-theme
 ruff==0.8.0
 pre-commit
+
+# Examples
+PyQt6
