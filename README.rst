@@ -69,6 +69,6 @@ If you use this software in your research, please cite it as below or see
         title={{decargroup/dkpy}},
         url={https://github.com/decargroup/dkpy},
         author={Steven Dahdah and James Richard Forbes},
-        version = {{v0.1.4}},
+        version = {{v0.1.5}},
         year={2024},
     }
