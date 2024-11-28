@@ -163,7 +163,7 @@ class TestTfFitSlicot:
                         ],
                     ],
                 ),
-                np.diag([1, 1]),
+                np.diag([1, 0]),
                 np.array([[1, 1], [1, 1]]),
                 1e-2,
             ),
