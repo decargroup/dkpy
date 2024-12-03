@@ -86,9 +86,9 @@ def _ensure_tf(
 
     Raises
     ------
-    dkpy.DimensionError
+    ValueError
         If input cannot be converted to a transfer function.
-    dkpy.TimestepError
+    ValueError
         If the timesteps do not match.
     """
     # If the input is already a transfer function, return it right away
@@ -139,9 +139,9 @@ def _tf_combine(
 
     Raises
     ------
-    dkpy.TimestepError
+    ValueError
         If timesteps of transfer functions do not match.
-    dkpy.DimensionError
+    ValueError
         If ``tf_array`` has incorrect dimensions.
 
     Examples
