@@ -201,8 +201,8 @@ class TestEnsureTf:
             dkpy._ensure_tf(arraylike_or_tf, dt)
 
 
-class TestTfCombine:
-    """Test :func:`_tf_combine`."""
+class TestTfCombineSplit:
+    """Test :func:`_tf_combine` and :func:`_tf_split`."""
 
     @pytest.mark.parametrize(
         "tf_array, tf",
@@ -363,6 +363,102 @@ class TestTfCombine:
         assert dkpy._tf_close_coeff(tf_combined, tf)
 
     @pytest.mark.parametrize(
+        "tf_array, tf",
+        [
+            (
+                np.array(
+                    [
+                        [control.TransferFunction([1], [1, 1])],
+                    ],
+                    dtype=object,
+                ),
+                control.TransferFunction(
+                    [
+                        [[1]],
+                    ],
+                    [
+                        [[1, 1]],
+                    ],
+                ),
+            ),
+            (
+                np.array(
+                    [
+                        [control.TransferFunction([1], [1, 1])],
+                        [control.TransferFunction([2], [1, 0])],
+                    ],
+                    dtype=object,
+                ),
+                control.TransferFunction(
+                    [
+                        [[1]],
+                        [[2]],
+                    ],
+                    [
+                        [[1, 1]],
+                        [[1, 0]],
+                    ],
+                ),
+            ),
+            (
+                np.array(
+                    [
+                        [control.TransferFunction([1], [1, 1], dt=1)],
+                        [control.TransferFunction([2], [1, 0], dt=1)],
+                    ],
+                    dtype=object,
+                ),
+                control.TransferFunction(
+                    [
+                        [[1]],
+                        [[2]],
+                    ],
+                    [
+                        [[1, 1]],
+                        [[1, 0]],
+                    ],
+                    dt=1,
+                ),
+            ),
+            (
+                np.array(
+                    [
+                        [control.TransferFunction([2], [1], dt=0.1)],
+                        [control.TransferFunction([2], [1, 0], dt=0.1)],
+                    ],
+                    dtype=object,
+                ),
+                control.TransferFunction(
+                    [
+                        [[2]],
+                        [[2]],
+                    ],
+                    [
+                        [[1]],
+                        [[1, 0]],
+                    ],
+                    dt=0.1,
+                ),
+            ),
+        ],
+    )
+    def test_split(self, tf_array, tf):
+        """Test splitting transfer functions."""
+        tf_split = dkpy._tf_split(tf)
+        # Test entry-by-entry
+        for i in range(tf_split.shape[0]):
+            for j in range(tf_split.shape[1]):
+                assert dkpy._tf_close_coeff(
+                    tf_split[i, j],
+                    tf_array[i, j],
+                )
+        # Test combined
+        assert dkpy._tf_close_coeff(
+            dkpy._tf_combine(tf_split),
+            dkpy._tf_combine(tf_array),
+        )
+
+    @pytest.mark.parametrize(
         "tf_array, exception",
         [
             # Wrong timesteps
@@ -431,7 +527,7 @@ class TestTfEye:
                 ),
             ),
             (
-                2,
+                3,
                 1e-3,
                 control.TransferFunction(
                     [
@@ -452,7 +548,79 @@ class TestTfEye:
     def test_tf_eye(self, n, dt, tf_exp):
         """Test :func:`_tf_eye`."""
         tf = dkpy._tf_eye(n, dt)
-        assert dkpy._tf_close_coeff(tf, tf)
+        assert dkpy._tf_close_coeff(tf, tf_exp)
+
+
+class TestTfZeros:
+    """Test :func:`_tf_zeros`."""
+
+    @pytest.mark.parametrize(
+        "m, n, dt, tf_exp",
+        [
+            (
+                1,
+                1,
+                None,
+                control.TransferFunction([0], [1], dt=None),
+            ),
+            (
+                2,
+                3,
+                None,
+                control.TransferFunction(
+                    [
+                        [[0], [0], [0]],
+                        [[0], [0], [0]],
+                    ],
+                    [
+                        [[1], [1], [1]],
+                        [[1], [1], [1]],
+                    ],
+                    dt=None,
+                ),
+            ),
+        ],
+    )
+    def test_tf_zeros(self, m, n, dt, tf_exp):
+        """Test :func:`_tf_zeros`."""
+        tf = dkpy._tf_zeros(m, n, dt)
+        assert dkpy._tf_close_coeff(tf, tf_exp)
+
+
+class TestTfOnes:
+    """Test :func:`_tf_ones`."""
+
+    @pytest.mark.parametrize(
+        "m, n, dt, tf_exp",
+        [
+            (
+                1,
+                1,
+                None,
+                control.TransferFunction([1], [1], dt=None),
+            ),
+            (
+                2,
+                3,
+                None,
+                control.TransferFunction(
+                    [
+                        [[1], [1], [1]],
+                        [[1], [1], [1]],
+                    ],
+                    [
+                        [[1], [1], [1]],
+                        [[1], [1], [1]],
+                    ],
+                    dt=None,
+                ),
+            ),
+        ],
+    )
+    def test_tf_ones(self, m, n, dt, tf_exp):
+        """Test :func:`_tf_ones`."""
+        tf = dkpy._tf_ones(m, n, dt)
+        assert dkpy._tf_close_coeff(tf, tf_exp)
 
 
 class TestAutoLmiStrictness:
