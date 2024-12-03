@@ -4,6 +4,7 @@ __all__ = [
     "_ensure_tf",
     "_tf_close_coeff",
     "_tf_combine",
+    "_tf_split",
     "_tf_eye",
     "_tf_zeros",
     "_tf_ones",
@@ -192,6 +193,55 @@ def _tf_combine(
             den.append(den_row)
     G_tf = control.TransferFunction(num, den, dt=dt)
     return G_tf
+
+
+def _tf_split(tf: control.TransferFunction) -> np.ndarray:
+    """Split MIMO transfer function into NumPy array of SISO tranfer functions.
+
+    Parameters
+    ----------
+    tf : control.TransferFunction
+        MIMO transfer function to split.
+
+    Returns
+    -------
+    np.ndarray
+        NumPy array of SISO transfer functions.
+
+    Examples
+    --------
+    Split a MIMO transfer function
+
+    >>> G = control.TransferFunction(
+    ...     [
+    ...         [[87.8], [-86.4]],
+    ...         [[108.2], [-109.6]],
+    ...     ],
+    ...     [
+    ...         [[1, 1], [1, 1]],
+    ...         [[1, 1], [1, 1]],
+    ...     ],
+    ... )
+    >>> dkpy._tf_split(G)
+    array([[TransferFunction(array([87.8]), array([1, 1])),
+            TransferFunction(array([-86.4]), array([1, 1]))],
+           [TransferFunction(array([108.2]), array([1, 1])),
+            TransferFunction(array([-109.6]), array([1, 1]))]], dtype=object)
+    """
+    tf_split_lst = []
+    for i_out in range(tf.noutputs):
+        row = []
+        for i_in in range(tf.ninputs):
+            row.append(
+                control.TransferFunction(
+                    tf.num[i_out][i_in],
+                    tf.den[i_out][i_in],
+                    dt=tf.dt,
+                )
+            )
+        tf_split_lst.append(row)
+    tf_split = np.array(tf_split_lst, dtype=object)
+    return tf_split
 
 
 def _tf_eye(
