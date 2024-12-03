@@ -431,7 +431,7 @@ class TestTfEye:
                 ),
             ),
             (
-                2,
+                3,
                 1e-3,
                 control.TransferFunction(
                     [
@@ -452,7 +452,79 @@ class TestTfEye:
     def test_tf_eye(self, n, dt, tf_exp):
         """Test :func:`_tf_eye`."""
         tf = dkpy._tf_eye(n, dt)
-        assert dkpy._tf_close_coeff(tf, tf)
+        assert dkpy._tf_close_coeff(tf, tf_exp)
+
+
+class TestTfZeros:
+    """Test :func:`_tf_zeros`."""
+
+    @pytest.mark.parametrize(
+        "m, n, dt, tf_exp",
+        [
+            (
+                1,
+                1,
+                None,
+                control.TransferFunction([0], [1], dt=None),
+            ),
+            (
+                2,
+                3,
+                None,
+                control.TransferFunction(
+                    [
+                        [[0], [0], [0]],
+                        [[0], [0], [0]],
+                    ],
+                    [
+                        [[1], [1], [1]],
+                        [[1], [1], [1]],
+                    ],
+                    dt=None,
+                ),
+            ),
+        ],
+    )
+    def test_tf_zeros(self, m, n, dt, tf_exp):
+        """Test :func:`_tf_zeros`."""
+        tf = dkpy._tf_zeros(m, n, dt)
+        assert dkpy._tf_close_coeff(tf, tf_exp)
+
+
+class TestTfOnes:
+    """Test :func:`_tf_ones`."""
+
+    @pytest.mark.parametrize(
+        "m, n, dt, tf_exp",
+        [
+            (
+                1,
+                1,
+                None,
+                control.TransferFunction([1], [1], dt=None),
+            ),
+            (
+                2,
+                3,
+                None,
+                control.TransferFunction(
+                    [
+                        [[1], [1], [1]],
+                        [[1], [1], [1]],
+                    ],
+                    [
+                        [[1], [1], [1]],
+                        [[1], [1], [1]],
+                    ],
+                    dt=None,
+                ),
+            ),
+        ],
+    )
+    def test_tf_ones(self, m, n, dt, tf_exp):
+        """Test :func:`_tf_ones`."""
+        tf = dkpy._tf_ones(m, n, dt)
+        assert dkpy._tf_close_coeff(tf, tf_exp)
 
 
 class TestAutoLmiStrictness:
