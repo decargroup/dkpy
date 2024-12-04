@@ -194,6 +194,78 @@ class DkIteration(metaclass=abc.ABCMeta):
         """
         raise NotImplementedError()
 
+    def _get_fit_order(
+        self,
+        i: int,
+        omega: np.ndarray,
+        mu_omega: np.ndarray,
+        D_omega: np.ndarray,
+        P: control.StateSpace,
+        K: control.StateSpace,
+        block_structure: np.ndarray,
+    ) -> Union[int, np.ndarray]:
+        """Get D-scale fit order.
+
+        Parameters
+        ----------
+        omega : np.ndarray
+            Angular frequencies to evaluate D-scales (rad/s).
+        mu_omega : np.ndarray
+            Numerically computed structured singular value at each frequency.
+        D_omega : np.ndarray
+            Numerically computed D-scale magnitude at each frequency.
+        P : control.StateSpace
+            Generalized plant.
+        K : control.StateSpace
+            Controller.
+        block_structure : np.ndarray
+            2D array with 2 columns and as many rows as uncertainty blocks
+            in Delta. The columns represent the number of rows and columns in
+            each uncertainty block.
+
+        Returns
+        -------
+        Union[int, np.ndarray]
+            D-scale fit order.
+        """
+        raise NotImplementedError()
+
+    def _continue_iteration(
+        self,
+        i: int,
+        omega: np.ndarray,
+        mu_omega: np.ndarray,
+        D_omega: np.ndarray,
+        P: control.StateSpace,
+        K: control.StateSpace,
+        block_structure: np.ndarray,
+    ) -> bool:
+        """Determine if D-K iteration should continue.
+
+        Parameters
+        ----------
+        omega : np.ndarray
+            Angular frequencies to evaluate D-scales (rad/s).
+        mu_omega : np.ndarray
+            Numerically computed structured singular value at each frequency.
+        D_omega : np.ndarray
+            Numerically computed D-scale magnitude at each frequency.
+        P : control.StateSpace
+            Generalized plant.
+        K : control.StateSpace
+            Controller.
+        block_structure : np.ndarray
+            2D array with 2 columns and as many rows as uncertainty blocks
+            in Delta. The columns represent the number of rows and columns in
+            each uncertainty block.
+
+        Returns
+        -------
+        bool
+            Whether or not D-K iteration should continue.
+        """
+        raise NotImplementedError()
+
 
 class DkIterFixedOrder(DkIteration):
     """D-K iteration with a fixed number of iterations and fixed fit order."""
