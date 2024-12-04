@@ -230,7 +230,7 @@ class DkIteration(metaclass=abc.ABCMeta):
         """
         raise NotImplementedError()
 
-    # TODO REPLACE WITH ITERATOR?
+    # TODO Replace with iterator or generator?
     def _continue_iteration(
         self,
         i: int,
