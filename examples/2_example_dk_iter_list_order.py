@@ -107,11 +107,11 @@ def example_dk_iter_fixed_order():
 
     fig, ax = plt.subplots()
     for i, ds in enumerate(d_scale_fit_info):
-        ds.plot_mu(ax=ax, plot_kw=dict(label=f"iter{i}"))
+        dkpy.plot_mu(ds, ax=ax, plot_kw=dict(label=f"iter{i}"))
 
     ax = None
     for i, ds in enumerate(d_scale_fit_info):
-        _, ax = ds.plot_D(ax=ax, plot_kw=dict(label=f"iter{i}"))
+        _, ax = dkpy.plot_D(ds, ax=ax, plot_kw=dict(label=f"iter{i}"))
 
     plt.show()
 

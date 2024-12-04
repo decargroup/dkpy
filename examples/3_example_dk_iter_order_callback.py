@@ -97,9 +97,9 @@ def example_dk_iter_fixed_order():
                 )
             )
         fig, ax = plt.subplots()
-        d_info[0].plot_mu(ax=ax, plot_kw=dict(label="true"), hide="mu_fit_omega")
+        dkpy.plot_mu(d_info[0], ax=ax, plot_kw=dict(label="true"), hide="mu_fit_omega")
         for i, ds in enumerate(d_info):
-            ds.plot_mu(ax=ax, plot_kw=dict(label=f"order={i}"), hide="mu_omega")
+            dkpy.plot_mu(ds, ax=ax, plot_kw=dict(label=f"order={i}"), hide="mu_omega")
         plt.show()
         selected_order = int(input("Selected order: "))
         done = input("Done? (y/N): ") == "y"
@@ -141,11 +141,11 @@ def example_dk_iter_fixed_order():
 
     fig, ax = plt.subplots()
     for i, ds in enumerate(d_scale_fit_info):
-        ds.plot_mu(ax=ax, plot_kw=dict(label=f"iter{i}"))
+        dkpy.plot_mu(ds, ax=ax, plot_kw=dict(label=f"iter{i}"))
 
     ax = None
     for i, ds in enumerate(d_scale_fit_info):
-        _, ax = ds.plot_D(ax=ax, plot_kw=dict(label=f"iter{i}"))
+        _, ax = dkpy.plot_D(ds, ax=ax, plot_kw=dict(label=f"iter{i}"))
 
     plt.show()
 
