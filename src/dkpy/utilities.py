@@ -154,6 +154,19 @@ def _tf_combine(
     ...     [s / (s + 2)],
     ... ])
     TransferFunction([[array([1])], [array([1, 0])]], [[array([1, 1])], [array([1, 2])]])
+
+    Combine NumPy arrays with transfer functions
+
+    >>> dkpy._tf_combine([
+    ...     [np.eye(2), np.zeros((2, 1))],
+    ...     [np.zeros((1, 2)), control.TransferFunction([1], [1, 0])],
+    ... ])
+    TransferFunction([[array([1.]), array([0.]), array([0.])],
+                      [array([0.]), array([1.]), array([0.])],
+                      [array([0.]), array([0.]), array([1])]],
+                     [[array([1.]), array([1.]), array([1.])],
+                      [array([1.]), array([1.]), array([1.])],
+                      [array([1.]), array([1.]), array([1, 0])]])
     """
     # Find common timebase or raise error
     dt_list = []
