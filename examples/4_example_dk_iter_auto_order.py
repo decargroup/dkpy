@@ -87,8 +87,8 @@ def example_dk_iter_auto_order():
         transfer_function_fit=dkpy.TfFitSlicot(),
         max_mu=1,
         max_mu_fit_error=1e-2,
-        max_iterations=None,
-        max_fit_order=None,
+        max_iterations=3,
+        max_fit_order=4,
     )
 
     omega = np.logspace(-3, 3, 61)
