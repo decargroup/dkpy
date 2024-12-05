@@ -195,13 +195,9 @@ class DkIteration(metaclass=abc.ABCMeta):
         info = {}
         d_scale_fit_info = []
         iteration = 0
-        # Set up initial D-scales
-        D = _get_initial_d_scales(block_structure)
-        D_inv = _get_initial_d_scales(block_structure)
-        D_aug, D_aug_inv = _augment_d_scales(D, D_inv, n_y=n_y, n_u=n_u)
         # Initialize iteration
         K, _, gamma, info = self.controller_synthesis.synthesize(
-            D_aug * P * D_aug_inv,
+            P,
             n_y,
             n_u,
         )
@@ -399,34 +395,6 @@ class DkIterListOrder(DkIteration):
             return self.fit_orders[iteration]
         else:
             return None
-
-
-def _get_initial_d_scales(block_structure: np.ndarray) -> control.StateSpace:
-    """Generate initial identity D-scales based on block structure.
-
-    Parameters
-    ----------
-    block_structure : np.ndarray
-        2D array with 2 columns and as many rows as uncertainty blocks
-        in Delta. The columns represent the number of rows and columns in
-        each uncertainty block.
-
-    Returns
-    -------
-    control.StateSpace
-        Identity D-scales.
-    """
-    tf_lst = []
-    for i in range(block_structure.shape[0]):
-        if block_structure[i, 0] <= 0:
-            raise NotImplementedError("Real perturbations are not yet supported.")
-        if block_structure[i, 1] <= 0:
-            raise NotImplementedError("Diagonal perturbations are not yet supported.")
-        if block_structure[i, 0] != block_structure[i, 1]:
-            raise NotImplementedError("Nonsquare perturbations are not yet supported.")
-        tf_lst.append(utilities._tf_eye(block_structure[i, 0], dt=0))
-    X = control.append(*tf_lst)
-    return X
 
 
 def _augment_d_scales(
