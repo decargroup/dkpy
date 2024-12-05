@@ -492,6 +492,65 @@ class TestTfCombineSplit:
                 ],
                 ValueError,
             ),
+            # Incompatible dimensions
+            (
+                [
+                    [
+                        control.TransferFunction(
+                            [
+                                [
+                                    [1],
+                                ]
+                            ],
+                            [
+                                [
+                                    [1, 1],
+                                ]
+                            ],
+                        ),
+                        control.TransferFunction(
+                            [
+                                [[2], [1]],
+                                [[1], [3]],
+                            ],
+                            [
+                                [[1, 0], [1, 0]],
+                                [[1, 0], [1, 0]],
+                            ],
+                        ),
+                    ],
+                ],
+                ValueError,
+            ),
+            (
+                [
+                    [
+                        control.TransferFunction(
+                            [
+                                [[2], [1]],
+                                [[1], [3]],
+                            ],
+                            [
+                                [[1, 0], [1, 0]],
+                                [[1, 0], [1, 0]],
+                            ],
+                        ),
+                        control.TransferFunction(
+                            [
+                                [
+                                    [1],
+                                ]
+                            ],
+                            [
+                                [
+                                    [1, 1],
+                                ]
+                            ],
+                        ),
+                    ],
+                ],
+                ValueError,
+            ),
         ],
     )
     def test_error_combine(self, tf_array, exception):

@@ -86,9 +86,9 @@ def _ensure_tf(
 
     Raises
     ------
-    dkpy.DimensionError
+    ValueError
         If input cannot be converted to a transfer function.
-    dkpy.TimestepError
+    ValueError
         If the timesteps do not match.
     """
     # If the input is already a transfer function, return it right away
@@ -139,9 +139,9 @@ def _tf_combine(
 
     Raises
     ------
-    dkpy.TimestepError
+    ValueError
         If timesteps of transfer functions do not match.
-    dkpy.DimensionError
+    ValueError
         If ``tf_array`` has incorrect dimensions.
 
     Examples
@@ -154,6 +154,19 @@ def _tf_combine(
     ...     [s / (s + 2)],
     ... ])
     TransferFunction([[array([1])], [array([1, 0])]], [[array([1, 1])], [array([1, 2])]])
+
+    Combine NumPy arrays with transfer functions
+
+    >>> dkpy._tf_combine([
+    ...     [np.eye(2), np.zeros((2, 1))],
+    ...     [np.zeros((1, 2)), control.TransferFunction([1], [1, 0])],
+    ... ])
+    TransferFunction([[array([1.]), array([0.]), array([0.])],
+                      [array([0.]), array([1.]), array([0.])],
+                      [array([0.]), array([0.]), array([1])]],
+                     [[array([1.]), array([1.]), array([1.])],
+                      [array([1.]), array([1.]), array([1.])],
+                      [array([1.]), array([1.]), array([1, 0])]])
     """
     # Find common timebase or raise error
     dt_list = []
@@ -181,11 +194,15 @@ def _tf_combine(
     # Iterate over
     num = []
     den = []
-    for row in ensured_tf_array:
+    for row_index, row in enumerate(ensured_tf_array):
         for j_out in range(row[0].noutputs):
             num_row = []
             den_row = []
             for col in row:
+                if col.noutputs != row[0].noutputs:
+                    raise ValueError(
+                        f"Mismatched number of transfer function outputs in row {row_index}."
+                    )
                 for j_in in range(col.ninputs):
                     num_row.append(col.num[j_out][j_in])
                     den_row.append(col.den[j_out][j_in])
