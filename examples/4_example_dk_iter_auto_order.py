@@ -7,53 +7,7 @@ from matplotlib import pyplot as plt
 import dkpy
 
 
-class MyDkIter(dkpy.DkIteration):
-    """Custom D-K iteration class with interactive order selection."""
-
-    def _get_fit_order(
-        self,
-        iteration,
-        omega,
-        mu_omega,
-        D_omega,
-        P,
-        K,
-        block_structure,
-    ):
-        d_info = []
-        for fit_order in range(5):
-            D_fit, D_fit_inv = self.transfer_function_fit.fit(
-                omega,
-                D_omega,
-                order=fit_order,
-                block_structure=block_structure,
-            )
-            d_info.append(
-                dkpy.DScaleFitInfo.create_from_fit(
-                    omega,
-                    mu_omega,
-                    D_omega,
-                    P,
-                    K,
-                    D_fit,
-                    D_fit_inv,
-                    block_structure,
-                )
-            )
-        fig, ax = plt.subplots()
-        dkpy.plot_mu(d_info[0], ax=ax, plot_kw=dict(label="true"), hide="mu_fit_omega")
-        for i, ds in enumerate(d_info):
-            dkpy.plot_mu(ds, ax=ax, plot_kw=dict(label=f"order={i}"), hide="mu_omega")
-        print("Close plot to continue...")
-        plt.show()
-        selected_order_str = input("Select order (<Enter> to end iteration): ")
-        if selected_order_str == "":
-            return None
-        else:
-            return int(selected_order_str)
-
-
-def example_dk_iter_fixed_order():
+def example_dk_iter_auto_order():
     """D-K iteration with fixed number of iterations and fit order."""
     # Plant
     G0 = np.array(
@@ -112,7 +66,7 @@ def example_dk_iter_fixed_order():
     n_y = 2
     n_u = 2
 
-    dk_iter = MyDkIter(
+    dk_iter = dkpy.DkIterAutoOrder(
         controller_synthesis=dkpy.HinfSynLmi(
             lmi_strictness=1e-7,
             solver_params=dict(
@@ -131,6 +85,10 @@ def example_dk_iter_fixed_order():
             ),
         ),
         transfer_function_fit=dkpy.TfFitSlicot(),
+        max_mu=1,
+        max_mu_fit_error=1e-2,
+        max_iterations=None,
+        max_fit_order=None,
     )
 
     omega = np.logspace(-3, 3, 61)
@@ -157,4 +115,4 @@ def example_dk_iter_fixed_order():
 
 
 if __name__ == "__main__":
-    example_dk_iter_fixed_order()
+    example_dk_iter_auto_order()
