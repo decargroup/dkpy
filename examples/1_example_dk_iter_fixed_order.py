@@ -43,7 +43,7 @@ def example_dk_iter_fixed_order():
         block_structure,
     )
 
-    print(mu)
+    print(f"mu={mu}")
 
     fig, ax = plt.subplots()
     for i, ds in enumerate(d_scale_fit_info):

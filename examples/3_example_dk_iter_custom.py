@@ -1,6 +1,5 @@
 """D-K iteration with fixed number of iterations and fit order."""
 
-import control
 import numpy as np
 from matplotlib import pyplot as plt
 
@@ -88,7 +87,7 @@ def example_dk_iter_custom():
         block_structure,
     )
 
-    print(mu)
+    print(f"mu={mu}")
 
     fig, ax = plt.subplots()
     for i, ds in enumerate(d_scale_fit_info):

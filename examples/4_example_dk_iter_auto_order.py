@@ -1,10 +1,13 @@
 """D-K iteration with fixed number of iterations and fit order."""
 
-import control
+import logging
+
 import numpy as np
 from matplotlib import pyplot as plt
 
 import dkpy
+
+logging.basicConfig(level=logging.INFO)
 
 
 def example_dk_iter_auto_order():
@@ -46,7 +49,7 @@ def example_dk_iter_auto_order():
         block_structure,
     )
 
-    print(mu)
+    print(f"mu={mu}")
 
     fig, ax = plt.subplots()
     for i, ds in enumerate(d_scale_fit_info):
