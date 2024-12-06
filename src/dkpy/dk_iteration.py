@@ -9,7 +9,8 @@ __all__ = [
 ]
 
 import abc
-from typing import Any, Dict, List, Tuple, Union, Optional
+import logging
+from typing import Any, Dict, List, Optional, Tuple, Union
 
 import control
 import numpy as np
@@ -437,6 +438,8 @@ class DkIterAutoOrder(DkIteration):
         self.max_mu_fit_error = max_mu_fit_error
         self.max_iterations = max_iterations
         self.max_fit_order = max_fit_order
+        self._log = logging.getLogger(self.__class__.__name__)
+        self._log.addHandler(logging.NullHandler())
 
     def _get_fit_order(
         self,
@@ -448,12 +451,15 @@ class DkIterAutoOrder(DkIteration):
         K: control.StateSpace,
         block_structure: np.ndarray,
     ) -> Optional[Union[int, np.ndarray]]:
+        self._log.info(f"Iteration: {iteration}")
         # Check termination conditions
         if (self.max_iterations is not None) and (iteration >= self.max_iterations):
-            # TODO LOG
+            self._log.info(
+                "Iteration terminated: reached maximum number of iterations."
+            )
             return None
         if np.max(mu_omega) < self.max_mu:
-            # TODO LOG
+            self._log.info("Iteration terminated: reached structured singular value.")
             return None
         # Determine fit order
         fit_order = 0
@@ -477,13 +483,18 @@ class DkIterAutoOrder(DkIteration):
             )
             error = np.abs(mu_omega - d_scale_fit_info.mu_fit_omega)
             relative_error = np.max(error / np.max(np.abs(mu_omega)))
+            self._log.info(f"Order {fit_order} relative error: {relative_error}")
             relative_errors.append(relative_error)
             if (self.max_fit_order is not None) and (fit_order >= self.max_fit_order):
-                # TODO LOG
-                return int(np.argmin(relative_errors))
+                best_order = int(np.argmin(relative_errors))
+                self._log.info(f"Reached max fit order, selecting order {best_order}.")
+                return best_order
             if relative_error >= self.max_mu_fit_error:
                 fit_order += 1
             else:
+                self._log.info(
+                    f"Reached structured singular value target with order {best_order}."
+                )
                 return fit_order
 
 
