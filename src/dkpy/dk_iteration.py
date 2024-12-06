@@ -448,7 +448,6 @@ class DkIterAutoOrder(DkIteration):
         K: control.StateSpace,
         block_structure: np.ndarray,
     ) -> Optional[Union[int, np.ndarray]]:
-        print(f"{iteration}")  # TODO
         # Check termination conditions
         if (self.max_iterations is not None) and (iteration >= self.max_iterations):
             # TODO LOG
@@ -478,7 +477,6 @@ class DkIterAutoOrder(DkIteration):
             )
             error = np.abs(mu_omega - d_scale_fit_info.mu_fit_omega)
             relative_error = np.max(error / np.max(np.abs(mu_omega)))
-            print(f"    {fit_order}: {relative_error}")  # TODO
             relative_errors.append(relative_error)
             if (self.max_fit_order is not None) and (fit_order >= self.max_fit_order):
                 # TODO LOG
