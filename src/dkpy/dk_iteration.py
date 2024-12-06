@@ -5,6 +5,7 @@ __all__ = [
     "DkIteration",
     "DkIterFixedOrder",
     "DkIterListOrder",
+    "DkIterAutoOrder",
 ]
 
 import abc
@@ -395,6 +396,97 @@ class DkIterListOrder(DkIteration):
             return self.fit_orders[iteration]
         else:
             return None
+
+
+class DkIterAutoOrder(DkIteration):
+    """D-K iteration with a fixed list of fit orders."""
+
+    def __init__(
+        self,
+        controller_synthesis: controller_synthesis.ControllerSynthesis,
+        structured_singular_value: structured_singular_value.StructuredSingularValue,
+        transfer_function_fit: fit_transfer_functions.TransferFunctionFit,
+        max_mu: float = 1,
+        max_mu_fit_error: float = 1e-2,
+        max_iterations: Optional[int] = None,
+        max_fit_order: Optional[int] = None,
+    ):
+        """Instantiate :class:`DkIterListOrder`.
+
+        Parameters
+        ----------
+        controller_synthesis : dkpy.ControllerSynthesis
+            A controller synthesis object.
+        structured_singular_value : dkpy.StructuredSingularValue
+            A structured singular value computation object.
+        transfer_function_fit : dkpy.TransferFunctionFit
+            A transfer function fit object.
+        max_mu : float
+            Maximum acceptable structured singular value.
+        max_mu_fit_error : float
+            Maximum relative fit error for structured singular value.
+        max_iterations : Optional[int]
+            Maximum number of iterations. If ``None``, there is no upper limit.
+        max_fit_order : Optional[int]
+            Maximum fit order. If ``None``, there is no upper limit.
+        """
+        self.controller_synthesis = controller_synthesis
+        self.structured_singular_value = structured_singular_value
+        self.transfer_function_fit = transfer_function_fit
+        self.max_mu = max_mu
+        self.max_mu_fit_error = max_mu_fit_error
+        self.max_iterations = max_iterations
+        self.max_fit_order = max_fit_order
+
+    def _get_fit_order(
+        self,
+        iteration: int,
+        omega: np.ndarray,
+        mu_omega: np.ndarray,
+        D_omega: np.ndarray,
+        P: control.StateSpace,
+        K: control.StateSpace,
+        block_structure: np.ndarray,
+    ) -> Optional[Union[int, np.ndarray]]:
+        print(f"{iteration}")  # TODO
+        # Check termination conditions
+        if (self.max_iterations is not None) and (iteration >= self.max_iterations):
+            # TODO LOG
+            return None
+        if np.max(mu_omega) < self.max_mu:
+            # TODO LOG
+            return None
+        # Determine fit order
+        fit_order = 0
+        relative_errors = []
+        while True:
+            D_fit, D_fit_inv = self.transfer_function_fit.fit(
+                omega,
+                D_omega,
+                order=fit_order,
+                block_structure=block_structure,
+            )
+            d_scale_fit_info = DScaleFitInfo.create_from_fit(
+                omega,
+                mu_omega,
+                D_omega,
+                P,
+                K,
+                D_fit,
+                D_fit_inv,
+                block_structure,
+            )
+            error = np.abs(mu_omega - d_scale_fit_info.mu_fit_omega)
+            relative_error = np.max(error / np.max(np.abs(mu_omega)))
+            print(f"    {fit_order}: {relative_error}")  # TODO
+            relative_errors.append(relative_error)
+            if (self.max_fit_order is not None) and (fit_order >= self.max_fit_order):
+                # TODO LOG
+                return int(np.argmin(relative_errors))
+            if relative_error >= self.max_mu_fit_error:
+                fit_order += 1
+            else:
+                return fit_order
 
 
 def _augment_d_scales(
