@@ -58,7 +58,7 @@ class SsvLmiBisection(StructuredSingularValue):
 
     Structured singular value computation from [SP06]_
 
-    >>> P, n_y, n_u, K = example_skogestad2006
+    >>> P, n_y, n_u, K = example_skogestad2006_p325
     >>> block_structure = np.array([[1, 1], [1, 1], [2, 2]])
     >>> omega = np.logspace(-3, 3, 61)
     >>> N = P.lft(K)
