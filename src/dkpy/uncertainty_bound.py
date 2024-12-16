@@ -44,4 +44,20 @@ def _identify_uncertainty_upper_bound(
         The uncertainty bound, a nonminimum-phase, asymptotically stable,
         bibroper, transfer function.
     """
+    # TODO Add checks to confirm that all user-input parameters are ok
+
+    # Form the gain upper bound array
+    # TODO Form the residuals depending on the chosen uncertainty structure
+    # TODO Compute their frequency responses
+    # TODO Compute their gain responses, i.e., their m.s.v. responses
+
+    # TODO Define the optimization variable
+
+    # TODO Pose the problem objective
+
+    # TODO Pose the problem constraints
+
+    # TODO Solve the optimization
+
+    # TODO Extract the optimizer and form the upper bound filter
     raise NotImplementedError()
