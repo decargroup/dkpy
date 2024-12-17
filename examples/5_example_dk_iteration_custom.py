@@ -21,7 +21,7 @@ class MyDkIter(dkpy.DkIteration):
     ):
         d_info = []
         for fit_order in range(5):
-            D_fit, D_fit_inv = self.transfer_function_fit.fit(
+            D_fit, D_fit_inv = self.d_scale_fit.fit(
                 omega,
                 D_omega,
                 order=fit_order,
