@@ -1,20 +1,16 @@
 """D-K iteration with fixed number of iterations and fit order."""
 
-import logging
-
 import numpy as np
 from matplotlib import pyplot as plt
 
 import dkpy
 
-logging.basicConfig(level=logging.INFO)
 
-
-def example_dk_iter_auto_order():
-    """D-K iteration automatically selected fit orders."""
+def example_dk_iter_interactive():
+    """D-K iteration with interactively selected fit orders."""
     eg = dkpy.example_skogestad2006_p325()
 
-    dk_iter = dkpy.DkIterAutoOrder(
+    dk_iter = dkpy.DkIterInteractiveOrder(
         controller_synthesis=dkpy.HinfSynLmi(
             lmi_strictness=1e-7,
             solver_params=dict(
@@ -33,9 +29,6 @@ def example_dk_iter_auto_order():
             ),
         ),
         d_scale_fit=dkpy.DScaleFitSlicot(),
-        max_mu=1,
-        max_mu_fit_error=1e-2,
-        max_iterations=3,
         max_fit_order=4,
     )
 
@@ -63,4 +56,4 @@ def example_dk_iter_auto_order():
 
 
 if __name__ == "__main__":
-    example_dk_iter_auto_order()
+    example_dk_iter_interactive()

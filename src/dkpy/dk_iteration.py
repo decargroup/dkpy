@@ -6,6 +6,7 @@ __all__ = [
     "DkIterFixedOrder",
     "DkIterListOrder",
     "DkIterAutoOrder",
+    "DkIterInteractiveOrder",
 ]
 
 import abc
@@ -15,10 +16,12 @@ from typing import Any, Dict, List, Optional, Tuple, Union
 import control
 import numpy as np
 import scipy.linalg
+from matplotlib import pyplot as plt
 
 from . import (
     controller_synthesis,
     d_scale_fit,
+    plotting,
     structured_singular_value,
     utilities,
 )
@@ -400,7 +403,7 @@ class DkIterListOrder(DkIteration):
 
 
 class DkIterAutoOrder(DkIteration):
-    """D-K iteration with a fixed list of fit orders."""
+    """D-K iteration with automatically selected fit orders."""
 
     def __init__(
         self,
@@ -496,6 +499,93 @@ class DkIterAutoOrder(DkIteration):
                     f"Reached structured singular value target with order {best_order}."
                 )
                 return fit_order
+
+
+class DkIterInteractiveOrder(DkIteration):
+    """D-K iteration with interactively selected fit orders."""
+
+    def __init__(
+        self,
+        controller_synthesis: controller_synthesis.ControllerSynthesis,
+        structured_singular_value: structured_singular_value.StructuredSingularValue,
+        d_scale_fit: d_scale_fit.DScaleFit,
+        max_fit_order: int = 4,
+    ):
+        """Instantiate :class:`DkIterInteractiveOrder`.
+
+        Parameters
+        ----------
+        controller_synthesis : dkpy.ControllerSynthesis
+            A controller synthesis object.
+        structured_singular_value : dkpy.StructuredSingularValue
+            A structured singular value computation object.
+        d_scale_fit : dkpy.DScaleFit
+            A D-scale fit object.
+        max_fit_order : int
+            Maximum fit order.
+        """
+        self.controller_synthesis = controller_synthesis
+        self.structured_singular_value = structured_singular_value
+        self.d_scale_fit = d_scale_fit
+        self.max_fit_order = max_fit_order
+
+    def _get_fit_order(
+        self,
+        iteration,
+        omega,
+        mu_omega,
+        D_omega,
+        P,
+        K,
+        block_structure,
+    ):
+        d_info = []
+        for fit_order in range(self.max_fit_order + 1):
+            D_fit, D_fit_inv = self.transfer_function_fit.fit(
+                omega,
+                D_omega,
+                order=fit_order,
+                block_structure=block_structure,
+            )
+            d_info.append(
+                DScaleFitInfo.create_from_fit(
+                    omega,
+                    mu_omega,
+                    D_omega,
+                    P,
+                    K,
+                    D_fit,
+                    D_fit_inv,
+                    block_structure,
+                )
+            )
+        fig, ax = plt.subplots()
+        plotting.plot_mu(
+            d_info[0],
+            ax=ax,
+            plot_kw=dict(label="true"),
+            hide="mu_fit_omega",
+        )
+        for i, ds in enumerate(d_info):
+            plotting.plot_mu(
+                ds,
+                ax=ax,
+                plot_kw=dict(label=f"order={i}"),
+                hide="mu_omega",
+            )
+        print("Close plot to continue...")
+        plt.show()
+        selected_order_str = input("Select order (<Enter> to end iteration): ")
+        if selected_order_str == "":
+            print("Iteration ended.")
+            selected_order = None
+        else:
+            try:
+                selected_order = int(selected_order_str)
+            except ValueError:
+                print("Unable to parse input. Iteration ended.")
+                selected_order = None
+        return selected_order
 
 
 def _augment_d_scales(

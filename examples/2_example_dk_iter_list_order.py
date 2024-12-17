@@ -7,7 +7,7 @@ import dkpy
 
 
 def example_dk_iter_list_order():
-    """D-K iteration with fixed number of iterations and fit order."""
+    """D-K iteration with a list of fit orders."""
     eg = dkpy.example_skogestad2006_p325()
 
     dk_iter = dkpy.DkIterListOrder(

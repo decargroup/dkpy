@@ -40,9 +40,19 @@ class MyDkIter(dkpy.DkIteration):
                 )
             )
         fig, ax = plt.subplots()
-        dkpy.plot_mu(d_info[0], ax=ax, plot_kw=dict(label="true"), hide="mu_fit_omega")
+        dkpy.plot_mu(
+            d_info[0],
+            ax=ax,
+            plot_kw=dict(label="true"),
+            hide="mu_fit_omega",
+        )
         for i, ds in enumerate(d_info):
-            dkpy.plot_mu(ds, ax=ax, plot_kw=dict(label=f"order={i}"), hide="mu_omega")
+            dkpy.plot_mu(
+                ds,
+                ax=ax,
+                plot_kw=dict(label=f"order={i}"),
+                hide="mu_omega",
+            )
         print("Close plot to continue...")
         plt.show()
         selected_order_str = input("Select order (<Enter> to end iteration): ")
