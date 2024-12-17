@@ -49,7 +49,25 @@ Minimizing ``µ`` is much more challenging than minimizing the H-infinity norm.
 D-K iteration is one method to do so. It relies on the fact that an upper bound
 for ``µ`` is::
 
-    µ(M) ≤ σ—()
+    µ(M) ≤ min σ̅(DMD⁻¹)
+            D
+
+where ``D`` is a complex matrix whose structure commutes with ``Δ``. More
+specifically, for each full block in ``Δ``, the corresponding entry of ``D`` is
+``d I``, where ``d`` is a scalar and ``I`` is the identity matrix. If ``Δ`` has
+any entries of the form ``δ I``, then ``D`` has a full block in the
+corresponding entry.
+
+D-K iteration has the following steps, where ``D`` is initially identity.
+
+#. Augment ``P`` with ``D`` and ``D⁻¹``, then synthesize an H-infinity controller.
+#. Compute ``µ`` and ``D`` for the closed-loop system without the D-scalings
+   over a range of discrete frequencies.
+#. Fit a transfer matrix to ``D`` and repeat. Stop when ``µ < 1``.
+
+The D-K iteration process is represented by ``dkpy.DkIteration``. The steps of
+the process are represented by ``dkpy.ControllerSynthesis``,
+``dkpy.StructuredSingularValue``, and ``dkpy.DScaleFit``.
 
 Example
 =======
