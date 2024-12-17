@@ -13,7 +13,7 @@ will be made until version 1.0.0.
 D-K iteration
 =============
 
-Diagram::
+The standard robust control problem has the form::
 
               ┌─────────┐          
               │         │          
@@ -30,6 +30,9 @@ Diagram::
        u └────┤    K    │◄───┘ y   
               │         │          
               └─────────┘          
+
+where $\mathcal{P}$ is the generalized plant, $\mathcal{K}$ is the controller,
+and $\Delta$ is an uncertainty block, where ${\|\Delta\|}_\infty \leq 1$.
 
 Example
 =======
