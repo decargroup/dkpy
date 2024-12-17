@@ -13,6 +13,8 @@ will be made until version 1.0.0.
 D-K iteration
 =============
 
+Diagram::
+
               ┌─────────┐          
               │         │          
       w2 ┌────┤  Delta  │◄───┐ z2  
