@@ -31,8 +31,9 @@ The standard robust control problem has the form::
               │         │          
               └─────────┘          
 
-where $\mathcal{P}$ is the generalized plant, $\mathcal{K}$ is the controller,
-and $\Delta$ is an uncertainty block, where ${\|\Delta\|}_\infty \leq 1$.
+where :math:`\mathcal{P}` is the generalized plant, :math:`\mathcal{K}` is the
+controller, and :math:`\Delta` is an uncertainty block, where
+:math:`{\|\Delta\|}_\infty \leq 1`.
 
 Example
 =======
