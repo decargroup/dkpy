@@ -18,32 +18,27 @@ Example
     import dkpy
     import numpy as np
 
-    dk_iter = dkpy.DkIterFixedOrder(
-        controller_synthesis=dkpy.HinfSynLmi(
-            lmi_strictness=1e-7,
-            solver_params=dict(
-                solver="MOSEK",
-                eps=1e-9,
-            ),
-        ),
-        structured_singular_value=dkpy.SsvLmiBisection(
-            bisection_atol=1e-5,
-            bisection_rtol=1e-5,
-            max_iterations=1000,
-            lmi_strictness=1e-7,
-            solver_params=dict(
-                solver="MOSEK",
-                eps=1e-9,
-            ),
-        ),
-        transfer_function_fit=dkpy.TfFitSlicot(),
-        n_iterations=3,
-        fit_order=4,
+    # Load an example
+    eg = dkpy.example_skogestad2006_p325()
+
+    # Set up the D-K iteration method
+    dk_iter = dkpy.DkIterListOrder(
+        controller_synthesis=dkpy.HinfSynLmi(),
+        structured_singular_value=dkpy.SsvLmiBisection(),
+        d_scale_fit=dkpy.DScaleFitSlicot(),
+        fit_orders=[4, 4, 4],
     )
 
+    # Synthesize a controller
     omega = np.logspace(-3, 3, 61)
     block_structure = np.array([[1, 1], [1, 1], [2, 2]])
-    K, N, mu, info = dk_iter.synthesize(P, n_y, n_u, omega, block_structure)
+    K, N, mu, d_scale_fit_info, info = dk_iter.synthesize(
+        eg["P"],
+        eg["n_y"],
+        eg["n_u"],
+        omega,
+        block_structure,
+    )
 
 Contributing
 ============
