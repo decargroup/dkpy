@@ -1,7 +1,7 @@
 "Uncertainty bound identification."
 
 import numpy as np
-from scipy.linalg import solve
+import scipy.linalg
 import control
 
 from typing import List
@@ -67,26 +67,49 @@ def _identify_uncertainty_upper_bound(
         if unc_str == "a":
             res = off - nom
         elif unc_str == "mi":
-            res = solve(nom, off - nom)
+            res = scipy.linalg.solve(nom, off - nom)
         elif unc_str == "mo":
-            res = solve(nom.H, (off - nom).H).H
+            res = scipy.linalg.solve(nom.H, (off - nom).H).H
         elif unc_str == "ia":
-            pre = solve(off, off - nom)
-            res = solve(nom.H, pre.H).H
+            pre = scipy.linalg.solve(off, off - nom)
+            res = scipy.linalg.solve(nom.H, pre.H).H
         elif unc_str == "imi":
-            res = solve(off, off - nom)
+            res = scipy.linalg.solve(off, off - nom)
         elif unc_str == "imo":
-            res = solve(off.H, (off - nom).H).H
+            res = scipy.linalg.solve(off.H, (off - nom).H).H
         return res
 
-    # TODO Compute their frequency responses
     nom_resp: np.ndarray = None
     if nom_model.dt == 0:
         nom_resp = nom_model(1e0j * freq_rng)
     else:
         nom_resp = nom_model(np.exp(1e0j * freq_rng))
 
-    # TODO Compute their gain responses, i.e., their m.s.v. responses
+    off_nom_resp: np.ndarray = np.zeros(ny, nu, nw, nk)
+    for k in range(nk):
+        if nom_model.dt == 0:
+            off_nom_resp[:, :, :, k] = off_nom_models[k](1e0j * freq_rng)
+        else:
+            off_nom_resp[:, :, :, k] = off_nom_models[k](np.exp(1e0j * freq_rng))
+
+    # TODO Improve the block below with numpy.vectorize
+    res_resp: np.ndarray = np.zeros(ny, nu, nw, nk)
+    for k in range(nk):
+        for w in range(nw):
+            res_resp[:, :, w, k] = _form_residual_response(
+                nom_resp[:, :, w],
+                off_nom_resp[:, :, w, k],
+                unc_str,
+            )
+
+    # TODO Improve the below block with numpy.vectorize
+    res_msv_resp: np.ndarray = np.zeros(nw, nk)
+    for k in range(nk):
+        for w in range(nw):
+            s = scipy.linalg.svd(a=res_resp[:, :, w, k], compute_uv=False)
+            res_msv_resp[w, k] = s[0]
+
+    res_msv_resp_ub: np.ndarray = np.max(a=res_msv_resp, axis=1)
 
     # TODO Define the optimization variable
 
