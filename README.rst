@@ -13,10 +13,21 @@ will be made until version 1.0.0.
 D-K iteration
 =============
 
-.. image:: doc/_static/generalized_plant.png
-   :height: 33 %
-   :width: 33 %
-   :align: left
+              ┌─────────┐          
+              │         │          
+      w2 ┌────┤  Delta  │◄───┐ z2  
+         │    │         │    │     
+         │    └─────────┘    │     
+         │    ┌─────────┐    │     
+         └───►│         ├────┘     
+    w1 ──────►│    P    ├──────► z1
+         ┌───►│         ├────┐     
+         │    └─────────┘    │     
+         │    ┌─────────┐    │     
+         │    │         │    │     
+       u └────┤    K    │◄───┘ y   
+              │         │          
+              └─────────┘          
 
 Example
 =======
