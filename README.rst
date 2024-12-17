@@ -16,6 +16,7 @@ D-K iteration
 .. image:: doc/_static/generalized_plant.png
    :height: 33 %
    :width: 33 %
+   :align: left
 
 Example
 =======
