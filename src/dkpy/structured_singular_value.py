@@ -237,7 +237,8 @@ class SsvLmiBisection(StructuredSingularValue):
             else:
                 info["status"] = "Could not find feasible initial `gamma`."
                 info["gammas"] = gammas
-                info["problems"] = problems
+                info["solver_stats"] = [p.solver_stats for p in problems]
+                info["size_metrics"] = [p.size_metrics for p in problems]
                 info["results"] = results
                 info["iterations"] = n_iterations
                 return None, None, info
@@ -281,14 +282,16 @@ class SsvLmiBisection(StructuredSingularValue):
                 # Terminated due to max iterations
                 info["status"] = "Reached maximum number of iterations."
                 info["gammas"] = gammas
-                info["problems"] = problems
+                info["solver_stats"] = [p.solver_stats for p in problems]
+                info["size_metrics"] = [p.size_metrics for p in problems]
                 info["results"] = results
                 info["iterations"] = n_iterations
                 return None, None, info
             # Save info
             info["status"] = "Bisection succeeded."
             info["gammas"] = gammas
-            info["problems"] = problems
+            info["solver_stats"] = [p.solver_stats for p in problems]
+            info["size_metrics"] = [p.size_metrics for p in problems]
             info["results"] = results
             info["iterations"] = n_iterations
             D_omega = scipy.linalg.cholesky(X.value)
