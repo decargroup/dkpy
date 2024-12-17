@@ -51,6 +51,12 @@ def _identify_uncertainty_upper_bound(
     # Form the gain upper bound array
     # TODO Form the residuals depending on the chosen uncertainty structure
 
+    # Dimensions of the problem
+    ny: int = nom_model.noutputs
+    nu: int = nom_model.ninputs
+    nk: int = len(off_nom_models)
+    nw: int = np.size(freq_rng)
+
     def _form_residual_response(
         nom: np.ndarray,
         off: np.ndarray,
@@ -74,6 +80,12 @@ def _identify_uncertainty_upper_bound(
         return res
 
     # TODO Compute their frequency responses
+    nom_resp: np.ndarray = None
+    if nom_model.dt == 0:
+        nom_resp = nom_model(1e0j * freq_rng)
+    else:
+        nom_resp = nom_model(np.exp(1e0j * freq_rng))
+
     # TODO Compute their gain responses, i.e., their m.s.v. responses
 
     # TODO Define the optimization variable
