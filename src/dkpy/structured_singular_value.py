@@ -63,11 +63,11 @@ class SsvLmiBisection(StructuredSingularValue):
     >>> omega = np.logspace(-3, 3, 61)
     >>> N = P.lft(K)
     >>> N_omega = N(1j * omega)
-    >>> mus, Ds, info = dkpy.SsvLmiBisection(n_jobs=None).compute_ssv(
+    >>> mu_omega, D_omega, info = dkpy.SsvLmiBisection(n_jobs=None).compute_ssv(
     ...     N_omega,
     ...     block_structure,
     ... )
-    >>> float(np.max(mus))
+    >>> float(np.max(mu_omega))
     5.7726
     """
 

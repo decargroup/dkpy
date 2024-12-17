@@ -70,6 +70,8 @@ class HinfSynSlicot(ControllerSynthesis):
 
     >>> P, n_y, n_u = example_scherer1997_p907
     >>> K, N, gamma, info = dkpy.HinfSynSlicot().synthesize(P, n_y, n_u)
+    >>> gamma
+    9.5080
     """
 
     def __init__(self):
@@ -104,6 +106,8 @@ class HinfSynLmi(ControllerSynthesis):
 
     >>> P, n_y, n_u = example_scherer1997_p907
     >>> K, N, gamma, info = dkpy.HinfSynLmi().synthesize(P, n_y, n_u)
+    >>> gamma
+    9.5081
 
     H-infinity controller synthesis with CLARABEL
 
@@ -128,6 +132,8 @@ class HinfSynLmi(ControllerSynthesis):
     ...         "eps": 1e-4,
     ...     },
     ... ).synthesize(P, n_y, n_u)
+    >>> gamma
+    9.5783
 
     H-infinity controller synthesis with MOSEK (simple settings)
 
@@ -399,6 +405,8 @@ class HinfSynLmiBisection(ControllerSynthesis):
     ...         "tol_infeas_rel": 1e-9,
     ...     },
     ... ).synthesize(P, n_y, n_u)
+    >>> gamma
+    9.5093
     """
 
     def __init__(

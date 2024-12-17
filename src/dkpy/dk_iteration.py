@@ -109,6 +109,31 @@ class DScaleFitInfo:
         -------
         DScaleFitInfo
             Instance of :class:`DScaleFitInfo`
+
+        Examples
+        --------
+        Create a ``DScaleFitInfo`` object from fit data
+
+        >>> P, n_y, n_u, K = example_skogestad2006_p325
+        >>> block_structure = np.array([[1, 1], [1, 1], [2, 2]])
+        >>> omega = np.logspace(-3, 3, 61)
+        >>> N = P.lft(K)
+        >>> N_omega = N(1j * omega)
+        >>> mu_omega, D_omega, info = dkpy.SsvLmiBisection(n_jobs=None).compute_ssv(
+        ...     N_omega,
+        ...     block_structure,
+        ... )
+        >>> D, D_inv = dkpy.DScaleFitSlicot().fit(omega, D_omega, 2, block_structure)
+        >>> d_scale_fit_info = DScaleFitInfo.create_from_fit(
+        ...     omega,
+        ...     mu_omega,
+        ...     D_omega,
+        ...     P,
+        ...     K,
+        ...     D,
+        ...     D_inv,
+        ...     block_structure,
+        ... )
         """
         # Compute ``mu(omega)`` based on fit D-scales
         N = P.lft(K)
@@ -613,6 +638,32 @@ def plot_mu(
     -------
     Tuple[plt.Figure, plt.Axes]
         Matplotlib :class:`plt.Figure` and :class:`plt.Axes` objects.
+
+    Examples
+    --------
+    Create a ``DScaleFitInfo`` object from fit data and plot ``mu``
+
+    >>> P, n_y, n_u, K = example_skogestad2006_p325
+    >>> block_structure = np.array([[1, 1], [1, 1], [2, 2]])
+    >>> omega = np.logspace(-3, 3, 61)
+    >>> N = P.lft(K)
+    >>> N_omega = N(1j * omega)
+    >>> mu_omega, D_omega, info = dkpy.SsvLmiBisection(n_jobs=None).compute_ssv(
+    ...     N_omega,
+    ...     block_structure,
+    ... )
+    >>> D, D_inv = dkpy.DScaleFitSlicot().fit(omega, D_omega, 2, block_structure)
+    >>> d_scale_fit_info = DScaleFitInfo.create_from_fit(
+    ...     omega,
+    ...     mu_omega,
+    ...     D_omega,
+    ...     P,
+    ...     K,
+    ...     D,
+    ...     D_inv,
+    ...     block_structure,
+    ... )
+    >>> fig, ax = dkpy.plot_mu(d_scale_fit_info)
     """
     # Create figure if not provided
     if ax is None:
@@ -620,6 +671,8 @@ def plot_mu(
     else:
         fig = ax.get_figure()
     # Set label
+    if plot_kw is None:
+        plot_kw = {}
     label = plot_kw.pop("label", "mu")
     label_mu_omega = label + ""
     label_mu_fit_omega = label + "_fit"
@@ -676,6 +729,32 @@ def plot_D(
     Tuple[plt.Figure, np.ndarray]
         Matplotlib :class:`plt.Figure` object and two-dimensional array of
         :class:`plt.Axes` objects.
+
+    Examples
+    --------
+    Create a ``DScaleFitInfo`` object from fit data and plot ``D``
+
+    >>> P, n_y, n_u, K = example_skogestad2006_p325
+    >>> block_structure = np.array([[1, 1], [1, 1], [2, 2]])
+    >>> omega = np.logspace(-3, 3, 61)
+    >>> N = P.lft(K)
+    >>> N_omega = N(1j * omega)
+    >>> mu_omega, D_omega, info = dkpy.SsvLmiBisection(n_jobs=None).compute_ssv(
+    ...     N_omega,
+    ...     block_structure,
+    ... )
+    >>> D, D_inv = dkpy.DScaleFitSlicot().fit(omega, D_omega, 2, block_structure)
+    >>> d_scale_fit_info = DScaleFitInfo.create_from_fit(
+    ...     omega,
+    ...     mu_omega,
+    ...     D_omega,
+    ...     P,
+    ...     K,
+    ...     D,
+    ...     D_inv,
+    ...     block_structure,
+    ... )
+    >>> fig, ax = dkpy.plot_D(d_scale_fit_info)
     """
     mask = d_scale_fit._mask_from_block_structure(d_scale_info.block_structure)
     # Create figure if not provided
@@ -688,6 +767,8 @@ def plot_D(
     else:
         fig = ax[0, 0].get_figure()
     # Set label
+    if plot_kw is None:
+        plot_kw = {}
     label = plot_kw.pop("label", "D")
     label_D_omega = label + ""
     label_D_fit_omega = label + "_fit"
