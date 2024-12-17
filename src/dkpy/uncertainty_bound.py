@@ -1,6 +1,7 @@
 "Uncertainty bound identification."
 
 import numpy as np
+from scipy.linalg import solve
 import control
 
 from typing import List
@@ -9,7 +10,7 @@ from typing import List
 def _identify_uncertainty_upper_bound(
     nom_model: control.LTI,
     off_nom_models: List[control.LTI],
-    unc_struct: str,
+    unc_str: str,
     freq_rng: np.ndarray,
     order: int,
 ) -> control.TransferFunction:
@@ -22,7 +23,7 @@ def _identify_uncertainty_upper_bound(
     off_nom_models : List[control.LTI]
         A list of the off-nominal models. Must be of the same shape as
         nom_model.
-    unc_struct : {'a', 'im', 'om', 'ia', 'iim', 'iom'}
+    unc_str : {'a', 'im', 'om', 'ia', 'iim', 'iom'}
         The uncertainty structure with respect to which to identify an
         uncertainty bound. One of the following options.
         'a' : Additive uncertainty
@@ -45,9 +46,28 @@ def _identify_uncertainty_upper_bound(
         bibroper, transfer function.
     """
     # TODO Add checks to confirm that all user-input parameters are ok
-
+    if unc_str not in {"a", "mi", "mo", "ia", "imi", "imo"}:
+        raise ValueError("Invalid `unc_str` argument.")
     # Form the gain upper bound array
     # TODO Form the residuals depending on the chosen uncertainty structure
+
+    def _form_residual_response(nom, off, unc_str):
+        res = None
+        if unc_str == "a":
+            res = off - nom
+        elif unc_str == "mi":
+            res = solve(nom, off - nom)
+        elif unc_str == "mo":
+            res = solve(nom.H, (off - nom).H).H
+        elif unc_str == "ia":
+            pre = solve(off, off - nom)
+            res = solve(nom.H, pre.H).H
+        elif unc_str == "imi":
+            res = solve(off, off - nom)
+        elif unc_str == "imo":
+            res = solve(off.H, (off - nom).H).H
+        return res
+
     # TODO Compute their frequency responses
     # TODO Compute their gain responses, i.e., their m.s.v. responses
 
