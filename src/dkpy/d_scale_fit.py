@@ -70,7 +70,7 @@ class DScaleFitSlicot(DScaleFit):
     >>> omega = np.logspace(-3, 3, 61)
     >>> N = P.lft(K)
     >>> N_omega = N(1j * omega)
-    >>> mu_omega, D_omega, info = dkpy.SsvLmiBisection(n_jobs=None).compute_ssv(
+    >>> mu_omega, D_omega, info = dkpy.SsvLmiBisection().compute_ssv(
     ...     N_omega,
     ...     block_structure,
     ... )
