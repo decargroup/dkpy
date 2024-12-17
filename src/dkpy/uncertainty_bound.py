@@ -51,7 +51,12 @@ def _identify_uncertainty_upper_bound(
     # Form the gain upper bound array
     # TODO Form the residuals depending on the chosen uncertainty structure
 
-    def _form_residual_response(nom, off, unc_str):
+    def _form_residual_response(
+        nom: np.ndarray,
+        off: np.ndarray,
+        unc_str: str,
+    ) -> np.ndarray:
+        """Compute the residual frequency response matrix."""
         res = None
         if unc_str == "a":
             res = off - nom
