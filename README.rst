@@ -32,8 +32,24 @@ The standard robust control problem has the form::
               │         │          
               └─────────┘          
 
-where :raw-math:`$P$` is the generalized plant, ``K`` is the controller, and ``Δ``
-is an uncertain LTI system where
+where ``P`` is the generalized plant, ``K`` is the controller, and ``Δ`` is an
+uncertain LTI system whose H-infinity norm is less than or equal to 1.
+
+Synthesizing a controller that makes the transfer matrix from ``w1`` to ``z1``
+have an H-infinity norm less than 1 guarantees robust stability by the small
+gain theorem.
+
+When ``Δ`` has structure (*e.g.*, ``Δ = diag(Δ1, Δ2)``), this approach is too
+conservative. Robust stability can instead be achieved by synthesizing a
+controller whose **structured singular value**, ``µ``, is less than 1. Robust
+performance problems can also be viewed as robust stability problems with
+structured uncertainty.
+
+Minimizing ``µ`` is much more challenging than minimizing the H-infinity norm.
+D-K iteration is one method to do so. It relies on the fact that an upper bound
+for ``µ`` is::
+
+    µ(M) ≤ σ—()
 
 Example
 =======
