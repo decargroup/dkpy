@@ -1,5 +1,4 @@
-.. role:: raw-math(raw)
-    :format: latex html
+.. role:: class(code)
 
 dkpy
 ====
@@ -65,9 +64,12 @@ D-K iteration has the following steps, where ``D`` is initially identity.
    over a range of discrete frequencies.
 #. Fit a transfer matrix to ``D`` and repeat. Stop when ``µ < 1``.
 
-The D-K iteration process is represented by ``dkpy.DkIteration``. The steps of
-the process are represented by ``dkpy.ControllerSynthesis``,
-``dkpy.StructuredSingularValue``, and ``dkpy.DScaleFit``.
+The D-K iteration process is represented by :class:`dkpy.DkIteration`. The
+steps of the process are represented by
+
+#. :class:`dkpy.ControllerSynthesis`,
+#. :class:`dkpy.StructuredSingularValue`, and
+#. :class:`dkpy.DScaleFit`.
 
 Example
 =======
