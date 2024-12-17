@@ -1,3 +1,6 @@
+.. role:: raw-math(raw)
+    :format: latex html
+
 dkpy
 ====
 
@@ -29,12 +32,8 @@ The standard robust control problem has the form::
               │         │          
               └─────────┘          
 
-where ``P`` is the generalized plant, ``K`` is the controller, and ``Δ`` is an
-uncertain LTI system where
-
-.. math::
-
-    \|\Delta\|
+where :raw-math:`$P$` is the generalized plant, ``K`` is the controller, and ``Δ``
+is an uncertain LTI system where
 
 Example
 =======
