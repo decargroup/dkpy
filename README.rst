@@ -10,6 +10,11 @@ library written in Python, aiming to build upon
 The package is currently a work-in-progress, and no API stability guarantees
 will be made until version 1.0.0.
 
+D-K iteration
+=============
+
+.. image:: doc/_static/generalized_plant.png
+
 Example
 =======
 
