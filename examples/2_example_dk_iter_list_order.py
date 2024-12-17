@@ -28,7 +28,7 @@ def example_dk_iter_list_order():
                 eps=1e-9,
             ),
         ),
-        transfer_function_fit=dkpy.TfFitSlicot(),
+        d_scale_fit=dkpy.DScaleFitSlicot(),
         # fit_orders=[4, 4, 4],
         fit_orders=[
             np.diag([4, 4, 0, 0]),

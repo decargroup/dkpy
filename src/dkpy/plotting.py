@@ -9,7 +9,7 @@ from typing import Any, Dict, Tuple, Optional
 import numpy as np
 from matplotlib import pyplot as plt
 
-from . import dk_iteration, fit_transfer_functions
+from . import dk_iteration, d_scale_fit
 
 
 def plot_mu(
@@ -100,9 +100,7 @@ def plot_D(
         Matplotlib :class:`plt.Figure` object and two-dimensional array of
         :class:`plt.Axes` objects.
     """
-    mask = fit_transfer_functions._mask_from_block_structure(
-        d_scale_info.block_structure
-    )
+    mask = d_scale_fit._mask_from_block_structure(d_scale_info.block_structure)
     # Create figure if not provided
     if ax is None:
         fig, ax = plt.subplots(

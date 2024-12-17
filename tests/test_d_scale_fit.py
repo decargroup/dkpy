@@ -1,4 +1,4 @@
-"""Test :mod:`fit_transfer_functions`."""
+"""Test :mod:`d_scale_fit`."""
 
 import control
 import numpy as np
@@ -8,7 +8,7 @@ import dkpy
 
 
 class TestTfFitSlicot:
-    """Test :class:`TfFitSlicot`."""
+    """Test :class:`DScaleFitSlicot`."""
 
     @pytest.mark.parametrize(
         "omega, tf, order, block_structure, atol",
@@ -198,11 +198,11 @@ class TestTfFitSlicot:
         ],
     )
     def test_tf_fit_slicot(self, omega, tf, order, block_structure, atol):
-        """Test :class:`TfFitSlicot`."""
+        """Test :class:`DScaleFitSlicot`."""
         D_omega = tf(1j * omega)
         if D_omega.ndim == 1:
             D_omega = D_omega.reshape((1, 1, -1))
-        tf_fit, _ = dkpy.TfFitSlicot().fit(omega, D_omega, order, block_structure)
+        tf_fit, _ = dkpy.DScaleFitSlicot().fit(omega, D_omega, order, block_structure)
         D_omega_fit = tf_fit(1j * omega)
         if D_omega_fit.ndim == 1:
             D_omega_fit = D_omega_fit.reshape((1, 1, -1))
@@ -276,7 +276,9 @@ class TestTfFitSlicot:
             D_omega = tf(1j * omega)
             if D_omega.ndim == 1:
                 D_omega = D_omega.reshape((1, 1, -1))
-            tf_fit, _ = dkpy.TfFitSlicot().fit(omega, D_omega, order, block_structure)
+            tf_fit, _ = dkpy.DScaleFitSlicot().fit(
+                omega, D_omega, order, block_structure
+            )
 
 
 class TestMaskFromBlockStructure:
@@ -321,7 +323,7 @@ class TestMaskFromBlockStructure:
     )
     def test_mask_from_block_structure(self, block_structure, mask_exp):
         """Test :func:`_mask_from_block_strucure`."""
-        mask = dkpy.fit_transfer_functions._mask_from_block_structure(block_structure)
+        mask = dkpy.d_scale_fit._mask_from_block_structure(block_structure)
         np.testing.assert_allclose(mask_exp, mask)
 
 
@@ -339,7 +341,7 @@ class TestInvertBiproperSs:
     def test_invert_biproper_ss(self, tf):
         """Test :func:`_invert_biproper_ss`."""
         ss = control.tf2ss(tf)
-        ss_inv = dkpy.fit_transfer_functions._invert_biproper_ss(ss)
+        ss_inv = dkpy.d_scale_fit._invert_biproper_ss(ss)
         eye_l = control.minreal(ss * ss_inv, verbose=False)
         eye_r = control.minreal(ss_inv * ss, verbose=False)
         omega = np.logspace(-3, 3, 100)

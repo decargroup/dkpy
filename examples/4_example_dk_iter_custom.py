@@ -74,7 +74,7 @@ def example_dk_iter_custom():
                 eps=1e-9,
             ),
         ),
-        transfer_function_fit=dkpy.TfFitSlicot(),
+        d_scale_fit=dkpy.DScaleFitSlicot(),
     )
 
     omega = np.logspace(-3, 3, 61)

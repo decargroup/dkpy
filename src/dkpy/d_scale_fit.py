@@ -1,8 +1,8 @@
-"""Classes for fitting transfer functions to magnitudes."""
+"""Classes for fitting D-scale magnitudes."""
 
 __all__ = [
-    "TransferFunctionFit",
-    "TfFitSlicot",
+    "DScaleFit",
+    "DScaleFitSlicot",
 ]
 
 import abc
@@ -17,8 +17,8 @@ import slycot
 from . import utilities
 
 
-class TransferFunctionFit(metaclass=abc.ABCMeta):
-    """Transfer matrix fit base class."""
+class DScaleFit(metaclass=abc.ABCMeta):
+    """D-scale fit base class."""
 
     @abc.abstractmethod
     def fit(
@@ -28,7 +28,7 @@ class TransferFunctionFit(metaclass=abc.ABCMeta):
         order: Union[int, np.ndarray] = 0,
         block_structure: Optional[np.ndarray] = None,
     ) -> Tuple[control.StateSpace, control.StateSpace]:
-        """Fit transfer matrix to magnitudes.
+        """Fit D-scale magnitudes.
 
         Parameters
         ----------
@@ -58,8 +58,8 @@ class TransferFunctionFit(metaclass=abc.ABCMeta):
         raise NotImplementedError()
 
 
-class TfFitSlicot(TransferFunctionFit):
-    """Fit transfer matrix with SLICOT."""
+class DScaleFitSlicot(DScaleFit):
+    """Fit D-scale magnitudes with SLICOT."""
 
     def fit(
         self,

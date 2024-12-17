@@ -28,7 +28,7 @@ def example_dk_iter_fixed_order():
                 eps=1e-9,
             ),
         ),
-        transfer_function_fit=dkpy.TfFitSlicot(),
+        d_scale_fit=dkpy.DScaleFitSlicot(),
         n_iterations=3,
         fit_order=4,
     )

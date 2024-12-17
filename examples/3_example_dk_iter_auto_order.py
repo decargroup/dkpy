@@ -32,7 +32,7 @@ def example_dk_iter_auto_order():
                 eps=1e-9,
             ),
         ),
-        transfer_function_fit=dkpy.TfFitSlicot(),
+        d_scale_fit=dkpy.DScaleFitSlicot(),
         max_mu=1,
         max_mu_fit_error=1e-2,
         max_iterations=3,

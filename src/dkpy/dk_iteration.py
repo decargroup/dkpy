@@ -18,7 +18,7 @@ import scipy.linalg
 
 from . import (
     controller_synthesis,
-    fit_transfer_functions,
+    d_scale_fit,
     structured_singular_value,
     utilities,
 )
@@ -135,7 +135,7 @@ class DkIteration(metaclass=abc.ABCMeta):
         self,
         controller_synthesis: controller_synthesis.ControllerSynthesis,
         structured_singular_value: structured_singular_value.StructuredSingularValue,
-        transfer_function_fit: fit_transfer_functions.TransferFunctionFit,
+        d_scale_fit: d_scale_fit.DScaleFit,
     ):
         """Instantiate :class:`DkIteration`.
 
@@ -145,12 +145,12 @@ class DkIteration(metaclass=abc.ABCMeta):
             A controller synthesis object.
         structured_singular_value : dkpy.StructuredSingularValue
             A structured singular value computation object.
-        transfer_function_fit : dkpy.TransferFunctionFit
-            A transfer function fit object.
+        d_scale_fit : dkpy.DScaleFit
+            A D-scale fit object.
         """
         self.controller_synthesis = controller_synthesis
         self.structured_singular_value = structured_singular_value
-        self.transfer_function_fit = transfer_function_fit
+        self.d_scale_fit = d_scale_fit
 
     def synthesize(
         self,
@@ -225,7 +225,7 @@ class DkIteration(metaclass=abc.ABCMeta):
             if fit_order is None:
                 break
             # Fit transfer functions to gridded D-scales
-            D_fit, D_fit_inv = self.transfer_function_fit.fit(
+            D_fit, D_fit_inv = self.d_scale_fit.fit(
                 omega,
                 D_omega,
                 order=fit_order,
@@ -314,7 +314,7 @@ class DkIterFixedOrder(DkIteration):
         self,
         controller_synthesis: controller_synthesis.ControllerSynthesis,
         structured_singular_value: structured_singular_value.StructuredSingularValue,
-        transfer_function_fit: fit_transfer_functions.TransferFunctionFit,
+        d_scale_fit: d_scale_fit.DScaleFit,
         n_iterations: int,
         fit_order: Union[int, np.ndarray],
     ):
@@ -326,8 +326,8 @@ class DkIterFixedOrder(DkIteration):
             A controller synthesis object.
         structured_singular_value : dkpy.StructuredSingularValue
             A structured singular value computation object.
-        transfer_function_fit : dkpy.TransferFunctionFit
-            A transfer function fit object.
+        d_scale_fit : dkpy.DScaleFit
+            A D-scale fit object.
         n_iterations : int
             Number of iterations.
         fit_order : Union[int, np.ndarray]
@@ -335,7 +335,7 @@ class DkIterFixedOrder(DkIteration):
         """
         self.controller_synthesis = controller_synthesis
         self.structured_singular_value = structured_singular_value
-        self.transfer_function_fit = transfer_function_fit
+        self.d_scale_fit = d_scale_fit
         self.n_iterations = n_iterations
         self.fit_order = fit_order
 
@@ -362,7 +362,7 @@ class DkIterListOrder(DkIteration):
         self,
         controller_synthesis: controller_synthesis.ControllerSynthesis,
         structured_singular_value: structured_singular_value.StructuredSingularValue,
-        transfer_function_fit: fit_transfer_functions.TransferFunctionFit,
+        d_scale_fit: d_scale_fit.DScaleFit,
         fit_orders: List[Union[int, np.ndarray]],
     ):
         """Instantiate :class:`DkIterListOrder`.
@@ -373,14 +373,14 @@ class DkIterListOrder(DkIteration):
             A controller synthesis object.
         structured_singular_value : dkpy.StructuredSingularValue
             A structured singular value computation object.
-        transfer_function_fit : dkpy.TransferFunctionFit
-            A transfer function fit object.
+        d_scale_fit : dkpy.DScaleFit
+            A D-scale fit object.
         fit_order : List[Union[int, np.ndarray]]
             D-scale fit orders.
         """
         self.controller_synthesis = controller_synthesis
         self.structured_singular_value = structured_singular_value
-        self.transfer_function_fit = transfer_function_fit
+        self.d_scale_fit = d_scale_fit
         self.fit_orders = fit_orders
 
     def _get_fit_order(
@@ -406,7 +406,7 @@ class DkIterAutoOrder(DkIteration):
         self,
         controller_synthesis: controller_synthesis.ControllerSynthesis,
         structured_singular_value: structured_singular_value.StructuredSingularValue,
-        transfer_function_fit: fit_transfer_functions.TransferFunctionFit,
+        d_scale_fit: d_scale_fit.DScaleFit,
         max_mu: float = 1,
         max_mu_fit_error: float = 1e-2,
         max_iterations: Optional[int] = None,
@@ -420,8 +420,8 @@ class DkIterAutoOrder(DkIteration):
             A controller synthesis object.
         structured_singular_value : dkpy.StructuredSingularValue
             A structured singular value computation object.
-        transfer_function_fit : dkpy.TransferFunctionFit
-            A transfer function fit object.
+        d_scale_fit : dkpy.DScaleFit
+            A D-scale fit object.
         max_mu : float
             Maximum acceptable structured singular value.
         max_mu_fit_error : float
@@ -433,7 +433,7 @@ class DkIterAutoOrder(DkIteration):
         """
         self.controller_synthesis = controller_synthesis
         self.structured_singular_value = structured_singular_value
-        self.transfer_function_fit = transfer_function_fit
+        self.d_scale_fit = d_scale_fit
         self.max_mu = max_mu
         self.max_mu_fit_error = max_mu_fit_error
         self.max_iterations = max_iterations
@@ -465,7 +465,7 @@ class DkIterAutoOrder(DkIteration):
         fit_order = 0
         relative_errors = []
         while True:
-            D_fit, D_fit_inv = self.transfer_function_fit.fit(
+            D_fit, D_fit_inv = self.d_scale_fit.fit(
                 omega,
                 D_omega,
                 order=fit_order,
