@@ -1,5 +1,3 @@
-.. role:: class(code)
-
 dkpy
 ====
 
