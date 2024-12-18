@@ -9,8 +9,8 @@ dkpy
 .. image:: https://readthedocs.org/projects/dkpy/badge/?version=stable
     :target: https://dkpy.readthedocs.io/en/stable/?badge=stable
     :alt: Documentation status
-.. image:: https://zenodo.org/badge/DOI/10.5281/zenodo.14511317.svg
-  :target: https://doi.org/10.5281/zenodo.14511317
+.. image:: https://zenodo.org/badge/DOI/10.5281/zenodo.14511244.svg
+    :target: https://doi.org/10.5281/zenodo.14511244
     :alt: DOI
 
 ``dkpy`` is a `D-K iteration <https://doi.org/10.1109/ACC.1994.735077>`_
@@ -133,7 +133,9 @@ If you use this software in your research, please cite it as below or see
 
     @software{dahdah_dkpy_2024,
         title={{decargroup/dkpy}},
+        doi={10.5281/zenodo.14511244},
         url={https://github.com/decargroup/dkpy},
+        publisher={Zenodo},
         author={Steven Dahdah and James Richard Forbes},
         version = {{v0.1.6}},
         year={2024},
