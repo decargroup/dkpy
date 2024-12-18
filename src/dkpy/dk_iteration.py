@@ -180,6 +180,8 @@ class DkIteration(metaclass=abc.ABCMeta):
         self.controller_synthesis = controller_synthesis
         self.structured_singular_value = structured_singular_value
         self.d_scale_fit = d_scale_fit
+        self._log = logging.getLogger(self.__class__.__name__)
+        self._log.addHandler(logging.NullHandler())
 
     def synthesize(
         self,
@@ -241,6 +243,7 @@ class DkIteration(metaclass=abc.ABCMeta):
         # Start iteration
         while True:
             # Determine order of D-scale transfer function fit
+            self._log.info(f"Iteration: {iteration}, mu: {np.max(mu_omega)}")
             fit_order = self._get_fit_order(
                 iteration,
                 omega,
@@ -252,6 +255,7 @@ class DkIteration(metaclass=abc.ABCMeta):
             )
             # If ``fit_order`` is ``None``, stop the iteration
             if fit_order is None:
+                self._log.info("Iteration complete")
                 break
             # Fit transfer functions to gridded D-scales
             D_fit, D_fit_inv = self.d_scale_fit.fit(
@@ -384,9 +388,11 @@ class DkIterFixedOrder(DkIteration):
         >>> mu
         1.0360
         """
-        self.controller_synthesis = controller_synthesis
-        self.structured_singular_value = structured_singular_value
-        self.d_scale_fit = d_scale_fit
+        super().__init__(
+            controller_synthesis,
+            structured_singular_value,
+            d_scale_fit,
+        )
         self.n_iterations = n_iterations
         self.fit_order = fit_order
 
@@ -450,9 +456,11 @@ class DkIterListOrder(DkIteration):
         >>> mu
         1.0360
         """
-        self.controller_synthesis = controller_synthesis
-        self.structured_singular_value = structured_singular_value
-        self.d_scale_fit = d_scale_fit
+        super().__init__(
+            controller_synthesis,
+            structured_singular_value,
+            d_scale_fit,
+        )
         self.fit_orders = fit_orders
 
     def _get_fit_order(
@@ -527,15 +535,15 @@ class DkIterAutoOrder(DkIteration):
         >>> mu
         1.0360
         """
-        self.controller_synthesis = controller_synthesis
-        self.structured_singular_value = structured_singular_value
-        self.d_scale_fit = d_scale_fit
+        super().__init__(
+            controller_synthesis,
+            structured_singular_value,
+            d_scale_fit,
+        )
         self.max_mu = max_mu
         self.max_mu_fit_error = max_mu_fit_error
         self.max_iterations = max_iterations
         self.max_fit_order = max_fit_order
-        self._log = logging.getLogger(self.__class__.__name__)
-        self._log.addHandler(logging.NullHandler())
 
     def _get_fit_order(
         self,
@@ -547,15 +555,12 @@ class DkIterAutoOrder(DkIteration):
         K: control.StateSpace,
         block_structure: np.ndarray,
     ) -> Optional[Union[int, np.ndarray]]:
-        self._log.info(f"Iteration: {iteration}")
         # Check termination conditions
         if (self.max_iterations is not None) and (iteration >= self.max_iterations):
-            self._log.info(
-                "Iteration terminated: reached maximum number of iterations."
-            )
+            self._log.info("Iteration terminated: reached maximum number of iterations")
             return None
         if np.max(mu_omega) < self.max_mu:
-            self._log.info("Iteration terminated: reached structured singular value.")
+            self._log.info("Iteration terminated: reached structured singular value")
             return None
         # Determine fit order
         fit_order = 0
@@ -583,13 +588,13 @@ class DkIterAutoOrder(DkIteration):
             relative_errors.append(relative_error)
             if (self.max_fit_order is not None) and (fit_order >= self.max_fit_order):
                 best_order = int(np.argmin(relative_errors))
-                self._log.info(f"Reached max fit order, selecting order {best_order}.")
+                self._log.info(f"Reached max fit order, selecting order {best_order}")
                 return best_order
             if relative_error >= self.max_mu_fit_error:
                 fit_order += 1
             else:
                 self._log.info(
-                    f"Reached structured singular value target with order {best_order}."
+                    f"Reached structured singular value target with order {best_order}"
                 )
                 return fit_order
 
@@ -636,9 +641,11 @@ class DkIterInteractiveOrder(DkIteration):
         ...     block_structure,
         ... )  # doctest: +SKIP
         """
-        self.controller_synthesis = controller_synthesis
-        self.structured_singular_value = structured_singular_value
-        self.d_scale_fit = d_scale_fit
+        super().__init__(
+            controller_synthesis,
+            structured_singular_value,
+            d_scale_fit,
+        )
         self.max_fit_order = max_fit_order
 
     def _get_fit_order(

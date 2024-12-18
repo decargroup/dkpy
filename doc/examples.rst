@@ -50,29 +50,30 @@ with the lowest relative error is selected.
 
 Output::
 
-    INFO:DkIterAutoOrder:Iteration: 0
+    INFO:DkIterAutoOrder:Iteration: 0, mu: 1.1792325973510742
     INFO:DkIterAutoOrder:Order 0 relative error: 0.5122457769147215
     INFO:DkIterAutoOrder:Order 1 relative error: 0.34431183690576633
     INFO:DkIterAutoOrder:Order 2 relative error: 0.8970100659296376
     INFO:DkIterAutoOrder:Order 3 relative error: 0.030844892155775263
     INFO:DkIterAutoOrder:Order 4 relative error: 0.015896380940858944
-    INFO:DkIterAutoOrder:Reached max fit order, selecting order 4.
-    INFO:DkIterAutoOrder:Iteration: 1
+    INFO:DkIterAutoOrder:Reached max fit order, selecting order 4
+    INFO:DkIterAutoOrder:Iteration: 1, mu: 1.0256481170654297
     INFO:DkIterAutoOrder:Order 0 relative error: 9.350642790785383
     INFO:DkIterAutoOrder:Order 1 relative error: 1.327796980729705
     INFO:DkIterAutoOrder:Order 2 relative error: 7.58063969442474
     INFO:DkIterAutoOrder:Order 3 relative error: 0.13472058625314948
     INFO:DkIterAutoOrder:Order 4 relative error: 0.05262584627773765
-    INFO:DkIterAutoOrder:Reached max fit order, selecting order 4.
-    INFO:DkIterAutoOrder:Iteration: 2
+    INFO:DkIterAutoOrder:Reached max fit order, selecting order 4
+    INFO:DkIterAutoOrder:Iteration: 2, mu: 1.0201168060302734
     INFO:DkIterAutoOrder:Order 0 relative error: 28.96943897648902
     INFO:DkIterAutoOrder:Order 1 relative error: 3.9918344794684804
     INFO:DkIterAutoOrder:Order 2 relative error: 7.000978128580445
     INFO:DkIterAutoOrder:Order 3 relative error: 0.22159755671770862
     INFO:DkIterAutoOrder:Order 4 relative error: 0.06377761160336083
-    INFO:DkIterAutoOrder:Reached max fit order, selecting order 4.
-    INFO:DkIterAutoOrder:Iteration: 3
-    INFO:DkIterAutoOrder:Iteration terminated: reached maximum number of iterations.
+    INFO:DkIterAutoOrder:Reached max fit order, selecting order 4
+    INFO:DkIterAutoOrder:Iteration: 3, mu: 1.0132789611816406
+    INFO:DkIterAutoOrder:Iteration terminated: reached maximum number of iterations
+    INFO:DkIterAutoOrder:Iteration complete
     mu=1.0132789611816406
 
 .. image:: _static/plot_mu.png
