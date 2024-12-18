@@ -10,3 +10,6 @@ References
 .. [SP06] S. Skogestad and I. Postlethwaite, Multivariable Feedback Control:
    Analysis and Design. West Sussex, England: Wiley, 2006.
    ISBN 978-0-47-001168-3.
+.. [MA00] The MathWorks, Inc. "`ucover` Documentation". Natick, Massachusetts.
+   Accessed December 18, 2024. [Online]. Available:
+   https://www.mathworks.com/help/robust/ref/dynamicsystem.ucover.html.
