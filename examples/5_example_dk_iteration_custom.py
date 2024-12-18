@@ -1,4 +1,8 @@
-"""D-K iteration with fixed number of iterations and fit order."""
+"""D-K iteration with fixed number of iterations and fit order.
+
+If you don't have access to MOSEK, see the ``DkIteration`` object settings from
+the first two examples.
+"""
 
 import numpy as np
 from matplotlib import pyplot as plt
@@ -8,6 +12,19 @@ import dkpy
 
 class MyDkIter(dkpy.DkIteration):
     """Custom D-K iteration class with interactive order selection."""
+
+    def __init__(
+        self,
+        controller_synthesis,
+        structured_singular_value,
+        d_scale_fit,
+    ):
+        super().__init__(
+            controller_synthesis,
+            structured_singular_value,
+            d_scale_fit,
+        )
+        self.my_iter_count = 0
 
     def _get_fit_order(
         self,
@@ -19,47 +36,12 @@ class MyDkIter(dkpy.DkIteration):
         K,
         block_structure,
     ):
-        d_info = []
-        for fit_order in range(5):
-            D_fit, D_fit_inv = self.d_scale_fit.fit(
-                omega,
-                D_omega,
-                order=fit_order,
-                block_structure=block_structure,
-            )
-            d_info.append(
-                dkpy.DScaleFitInfo.create_from_fit(
-                    omega,
-                    mu_omega,
-                    D_omega,
-                    P,
-                    K,
-                    D_fit,
-                    D_fit_inv,
-                    block_structure,
-                )
-            )
-        fig, ax = plt.subplots()
-        dkpy.plot_mu(
-            d_info[0],
-            ax=ax,
-            plot_kw=dict(label="true"),
-            hide="mu_fit_omega",
-        )
-        for i, ds in enumerate(d_info):
-            dkpy.plot_mu(
-                ds,
-                ax=ax,
-                plot_kw=dict(label=f"order={i}"),
-                hide="mu_omega",
-            )
-        print("Close plot to continue...")
-        plt.show()
-        selected_order_str = input("Select order (<Enter> to end iteration): ")
-        if selected_order_str == "":
-            return None
+        print(f"Iteration {self.my_iter_count} with mu of {np.max(mu_omega)}")
+        if self.my_iter_count < 3:
+            self.my_iter_count += 1
+            return 4
         else:
-            return int(selected_order_str)
+            return None
 
 
 def example_dk_iter_custom():

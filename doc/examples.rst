@@ -124,8 +124,8 @@ Output::
 D-K iteration with a custom fit order selection method
 ------------------------------------------------------
 
-In this example, a custom D-K iteration class is used, roughly recreating the
-interactive method of the previous example.
+In this example, a custom D-K iteration class is used to stop the iteration
+after 3 iterations of 4th order fits.
 
 .. literalinclude:: ../examples/5_example_dk_iteration_custom.py
   :language: python

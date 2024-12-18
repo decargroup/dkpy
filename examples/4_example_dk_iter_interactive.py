@@ -1,4 +1,8 @@
-"""D-K iteration with fixed number of iterations and fit order."""
+"""D-K iteration with fixed number of iterations and fit order.
+
+If you don't have access to MOSEK, see the ``DkIteration`` object settings from
+the first two examples.
+"""
 
 import numpy as np
 from matplotlib import pyplot as plt

@@ -11,23 +11,8 @@ def example_dk_iter_fixed_order():
     eg = dkpy.example_skogestad2006_p325()
 
     dk_iter = dkpy.DkIterFixedOrder(
-        controller_synthesis=dkpy.HinfSynLmi(
-            lmi_strictness=1e-7,
-            solver_params=dict(
-                solver="MOSEK",
-                eps=1e-8,
-            ),
-        ),
-        structured_singular_value=dkpy.SsvLmiBisection(
-            bisection_atol=1e-5,
-            bisection_rtol=1e-5,
-            max_iterations=1000,
-            lmi_strictness=1e-7,
-            solver_params=dict(
-                solver="MOSEK",
-                eps=1e-9,
-            ),
-        ),
+        controller_synthesis=dkpy.HinfSynSlicot(),
+        structured_singular_value=dkpy.SsvLmiBisection(),
         d_scale_fit=dkpy.DScaleFitSlicot(),
         n_iterations=3,
         fit_order=4,
