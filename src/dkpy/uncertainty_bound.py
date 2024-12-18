@@ -1,7 +1,5 @@
 "Uncertainty bound identification."
 
-# Does this push?
-
 import numpy as np
 import scipy.linalg
 import control
