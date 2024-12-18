@@ -1,10 +1,23 @@
-Transfer function fit
+D-K iteration methods
 =====================
 
 .. autosummary::
    :toctree: _autosummary/
 
-   dkpy.fit_transfer_functions.TfFitSlicot
+   dkpy.DkIterFixedOrder
+   dkpy.DkIterListOrder
+   dkpy.DkIterAutoOrder
+   dkpy.DkIterInteractiveOrder
+
+D-K iteration extras
+====================
+
+.. autosummary::
+   :toctree: _autosummary/
+
+   dkpy.DScaleFitInfo
+   dkpy.plot_D
+   dkpy.plot_mu
 
 Controller synthesis
 ====================
@@ -12,9 +25,9 @@ Controller synthesis
 .. autosummary::
    :toctree: _autosummary/
 
-   dkpy.controller_synthesis.HinfSynSlicot
-   dkpy.controller_synthesis.HinfSynLmi
-   dkpy.controller_synthesis.HinfSynLmiBisection
+   dkpy.HinfSynSlicot
+   dkpy.HinfSynLmi
+   dkpy.HinfSynLmiBisection
 
 
 Structured singular value
@@ -23,14 +36,22 @@ Structured singular value
 .. autosummary::
    :toctree: _autosummary/
 
-   dkpy.structured_singular_value.SsvLmiBisection
+   dkpy.SsvLmiBisection
 
+D-scale fit
+===========
+
+.. autosummary::
+   :toctree: _autosummary/
+
+   dkpy.DScaleFitSlicot
 
 Extending ``dkpy``
 ==================
 .. autosummary::
    :toctree: _autosummary/
 
-   dkpy.controller_synthesis.ControllerSynthesis
-   dkpy.structured_singular_value.StructuredSingularValue
-   dkpy.fit_transfer_functions.TransferFunctionFit
+   dkpy.DkIteration
+   dkpy.ControllerSynthesis
+   dkpy.StructuredSingularValue
+   dkpy.DScaleFit

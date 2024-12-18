@@ -68,8 +68,10 @@ class HinfSynSlicot(ControllerSynthesis):
     --------
     H-infinity controller synthesis
 
-    >>> P, n_y, n_u = example_scherer1997
+    >>> P, n_y, n_u = example_scherer1997_p907
     >>> K, N, gamma, info = dkpy.HinfSynSlicot().synthesize(P, n_y, n_u)
+    >>> gamma
+    9.5080
     """
 
     def __init__(self):
@@ -102,8 +104,10 @@ class HinfSynLmi(ControllerSynthesis):
     --------
     H-infinity controller synthesis with default settings
 
-    >>> P, n_y, n_u = example_scherer1997
+    >>> P, n_y, n_u = example_scherer1997_p907
     >>> K, N, gamma, info = dkpy.HinfSynLmi().synthesize(P, n_y, n_u)
+    >>> gamma
+    9.5081
 
     H-infinity controller synthesis with CLARABEL
 
@@ -128,6 +132,8 @@ class HinfSynLmi(ControllerSynthesis):
     ...         "eps": 1e-4,
     ...     },
     ... ).synthesize(P, n_y, n_u)
+    >>> gamma
+    9.57
 
     H-infinity controller synthesis with MOSEK (simple settings)
 
@@ -286,7 +292,8 @@ class HinfSynLmi(ControllerSynthesis):
         # Solve problem
         result = problem.solve(**solver_params)
         info["result"] = result
-        info["problem"] = problem
+        info["solver_stats"] = problem.solver_stats
+        info["size_metrics"] = problem.size_metrics
         if isinstance(result, str) or (problem.status != "optimal"):
             return None, None, None, info
         # Extract controller
@@ -379,7 +386,7 @@ class HinfSynLmiBisection(ControllerSynthesis):
     --------
     H-infinity controller synthesis with default settings
 
-    >>> P, n_y, n_u = example_scherer1997
+    >>> P, n_y, n_u = example_scherer1997_p907
     >>> K, N, gamma, info = dkpy.HinfSynLmiBisection().synthesize(P, n_y, n_u)
 
     H-infinity controller synthesis with CLARABEL
@@ -399,6 +406,8 @@ class HinfSynLmiBisection(ControllerSynthesis):
     ...         "tol_infeas_rel": 1e-9,
     ...     },
     ... ).synthesize(P, n_y, n_u)
+    >>> gamma
+    9.5093
     """
 
     def __init__(
@@ -572,7 +581,8 @@ class HinfSynLmiBisection(ControllerSynthesis):
         else:
             info["status"] = "Could not find feasible initial `gamma`."
             info["gammas"] = gammas
-            info["problems"] = problems
+            info["solver_stats"] = [p.solver_stats for p in problems]
+            info["size_metrics"] = [p.size_metrics for p in problems]
             info["results"] = results
             info["iterations"] = n_iterations
             return None, None, None, info
@@ -616,14 +626,16 @@ class HinfSynLmiBisection(ControllerSynthesis):
             # Terminated due to max iterations
             info["status"] = "Reached maximum number of iterations."
             info["gammas"] = gammas
-            info["problems"] = problems
+            info["solver_stats"] = [p.solver_stats for p in problems]
+            info["size_metrics"] = [p.size_metrics for p in problems]
             info["results"] = results
             info["iterations"] = n_iterations
             return None, None, None, info
         # Save info
         info["status"] = "Bisection succeeded."
         info["gammas"] = gammas
-        info["problems"] = problems
+        info["solver_stats"] = [p.solver_stats for p in problems]
+        info["size_metrics"] = [p.size_metrics for p in problems]
         info["results"] = results
         info["iterations"] = n_iterations
         # Extract controller

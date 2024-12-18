@@ -1,8 +1,8 @@
-"""Classes for fitting transfer functions to magnitudes."""
+"""Classes for fitting D-scale magnitudes."""
 
 __all__ = [
-    "TransferFunctionFit",
-    "TfFitSlicot",
+    "DScaleFit",
+    "DScaleFitSlicot",
 ]
 
 import abc
@@ -17,8 +17,8 @@ import slycot
 from . import utilities
 
 
-class TransferFunctionFit(metaclass=abc.ABCMeta):
-    """Transfer matrix fit base class."""
+class DScaleFit(metaclass=abc.ABCMeta):
+    """D-scale fit base class."""
 
     @abc.abstractmethod
     def fit(
@@ -28,7 +28,7 @@ class TransferFunctionFit(metaclass=abc.ABCMeta):
         order: Union[int, np.ndarray] = 0,
         block_structure: Optional[np.ndarray] = None,
     ) -> Tuple[control.StateSpace, control.StateSpace]:
-        """Fit transfer matrix to magnitudes.
+        """Fit D-scale magnitudes.
 
         Parameters
         ----------
@@ -58,8 +58,44 @@ class TransferFunctionFit(metaclass=abc.ABCMeta):
         raise NotImplementedError()
 
 
-class TfFitSlicot(TransferFunctionFit):
-    """Fit transfer matrix with SLICOT."""
+class DScaleFitSlicot(DScaleFit):
+    """Fit D-scale magnitudes with SLICOT.
+
+    Examples
+    --------
+    Compute ``mu`` and ``D`` at each frequency and fit a transfer matrix to ``D``
+
+    >>> P, n_y, n_u, K = example_skogestad2006_p325
+    >>> block_structure = np.array([[1, 1], [1, 1], [2, 2]])
+    >>> omega = np.logspace(-3, 3, 61)
+    >>> N = P.lft(K)
+    >>> N_omega = N(1j * omega)
+    >>> mu_omega, D_omega, info = dkpy.SsvLmiBisection().compute_ssv(
+    ...     N_omega,
+    ...     block_structure,
+    ... )
+    >>> D, D_inv = dkpy.DScaleFitSlicot().fit(omega, D_omega, 2, block_structure)
+    >>> print(control.ss2tf(D[0, 0]))
+    <TransferFunction>: sys[3641]$indexed$converted
+    Inputs (1): ['u[0]']
+    Outputs (1): ['y[0]']
+    <BLANKLINE>
+    <BLANKLINE>
+    0.0157 s^2 + 0.257 s + 0.1391
+    -----------------------------
+      s^2 + 0.9658 s + 0.01424
+    <BLANKLINE>
+    >>> print(control.ss2tf(D[1, 1]))
+    <TransferFunction>: sys[3641]$indexed$converted
+    Inputs (1): ['u[1]']
+    Outputs (1): ['y[1]']
+    <BLANKLINE>
+    <BLANKLINE>
+    0.01573 s^2 + 0.2574 s + 0.1394
+    -------------------------------
+       s^2 + 0.9663 s + 0.01425
+    <BLANKLINE>
+    """
 
     def fit(
         self,

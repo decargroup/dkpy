@@ -10,6 +10,67 @@ library written in Python, aiming to build upon
 The package is currently a work-in-progress, and no API stability guarantees
 will be made until version 1.0.0.
 
+D-K iteration
+=============
+
+The standard robust control problem has the form::
+
+              ┌─────────┐          
+              │         │          
+      w2 ┌────┤    Δ    │◄───┐ z2  
+         │    │         │    │     
+         │    └─────────┘    │     
+         │    ┌─────────┐    │     
+         └───►│         ├────┘     
+    w1 ──────►│    P    ├──────► z1
+         ┌───►│         ├────┐     
+         │    └─────────┘    │     
+         │    ┌─────────┐    │     
+         │    │         │    │     
+       u └────┤    K    │◄───┘ y   
+              │         │          
+              └─────────┘          
+
+where ``P`` is the generalized plant, ``K`` is the controller, and ``Δ`` is an
+uncertain LTI system whose H-infinity norm is less than or equal to 1.
+
+Synthesizing a controller that makes the transfer matrix from ``w1`` to ``z1``
+have an H-infinity norm less than 1 guarantees robust stability by the small
+gain theorem.
+
+When ``Δ`` has structure (*e.g.*, ``Δ = diag(Δ1, Δ2)``), this approach is too
+conservative. Robust stability can instead be achieved by synthesizing a
+controller whose **structured singular value**, ``µ``, is less than 1. Robust
+performance problems can also be viewed as robust stability problems with
+structured uncertainty.
+
+Minimizing ``µ`` is much more challenging than minimizing the H-infinity norm.
+D-K iteration is one method to do so. It relies on the fact that an upper bound
+for ``µ`` is::
+
+    µ(M) ≤ min σ̅(DMD⁻¹)
+            D
+
+where ``D`` is a complex matrix whose structure commutes with ``Δ``. More
+specifically, for each full block in ``Δ``, the corresponding entry of ``D`` is
+``d I``, where ``d`` is a scalar and ``I`` is the identity matrix. If ``Δ`` has
+any entries of the form ``δ I``, then ``D`` has a full block in the
+corresponding entry.
+
+D-K iteration has the following steps, where ``D`` is initially identity.
+
+#. Augment ``P`` with ``D`` and ``D⁻¹``, then synthesize an H-infinity controller.
+#. Compute ``µ`` and ``D`` for the closed-loop system without the D-scalings
+   over a range of discrete frequencies.
+#. Fit a transfer matrix to ``D`` and repeat. Stop when ``µ < 1``.
+
+The D-K iteration process is represented by :class:`dkpy.DkIteration`. The
+steps of the process are represented by
+
+#. :class:`dkpy.ControllerSynthesis`,
+#. :class:`dkpy.StructuredSingularValue`, and
+#. :class:`dkpy.DScaleFit`.
+
 Example
 =======
 
@@ -18,32 +79,27 @@ Example
     import dkpy
     import numpy as np
 
-    dk_iter = dkpy.DkIterFixedOrder(
-        controller_synthesis=dkpy.HinfSynLmi(
-            lmi_strictness=1e-7,
-            solver_params=dict(
-                solver="MOSEK",
-                eps=1e-9,
-            ),
-        ),
-        structured_singular_value=dkpy.SsvLmiBisection(
-            bisection_atol=1e-5,
-            bisection_rtol=1e-5,
-            max_iterations=1000,
-            lmi_strictness=1e-7,
-            solver_params=dict(
-                solver="MOSEK",
-                eps=1e-9,
-            ),
-        ),
-        transfer_function_fit=dkpy.TfFitSlicot(),
-        n_iterations=3,
-        fit_order=4,
+    # Load an example
+    eg = dkpy.example_skogestad2006_p325()
+
+    # Set up the D-K iteration method
+    dk_iter = dkpy.DkIterListOrder(
+        controller_synthesis=dkpy.HinfSynLmi(),
+        structured_singular_value=dkpy.SsvLmiBisection(),
+        d_scale_fit=dkpy.DScaleFitSlicot(),
+        fit_orders=[4, 4, 4],
     )
 
+    # Synthesize a controller
     omega = np.logspace(-3, 3, 61)
     block_structure = np.array([[1, 1], [1, 1], [2, 2]])
-    K, N, mu, info = dk_iter.synthesize(P, n_y, n_u, omega, block_structure)
+    K, N, mu, d_scale_fit_info, info = dk_iter.synthesize(
+        eg["P"],
+        eg["n_y"],
+        eg["n_u"],
+        omega,
+        block_structure,
+    )
 
 Contributing
 ============

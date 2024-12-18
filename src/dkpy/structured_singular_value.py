@@ -58,16 +58,16 @@ class SsvLmiBisection(StructuredSingularValue):
 
     Structured singular value computation from [SP06]_
 
-    >>> P, n_y, n_u, K = example_skogestad2006
+    >>> P, n_y, n_u, K = example_skogestad2006_p325
     >>> block_structure = np.array([[1, 1], [1, 1], [2, 2]])
     >>> omega = np.logspace(-3, 3, 61)
     >>> N = P.lft(K)
     >>> N_omega = N(1j * omega)
-    >>> mus, Ds, info = dkpy.SsvLmiBisection(n_jobs=None).compute_ssv(
+    >>> mu_omega, D_omega, info = dkpy.SsvLmiBisection(n_jobs=None).compute_ssv(
     ...     N_omega,
     ...     block_structure,
     ... )
-    >>> float(np.max(mus))
+    >>> float(np.max(mu_omega))
     5.7726
     """
 
@@ -237,7 +237,8 @@ class SsvLmiBisection(StructuredSingularValue):
             else:
                 info["status"] = "Could not find feasible initial `gamma`."
                 info["gammas"] = gammas
-                info["problems"] = problems
+                info["solver_stats"] = [p.solver_stats for p in problems]
+                info["size_metrics"] = [p.size_metrics for p in problems]
                 info["results"] = results
                 info["iterations"] = n_iterations
                 return None, None, info
@@ -281,14 +282,16 @@ class SsvLmiBisection(StructuredSingularValue):
                 # Terminated due to max iterations
                 info["status"] = "Reached maximum number of iterations."
                 info["gammas"] = gammas
-                info["problems"] = problems
+                info["solver_stats"] = [p.solver_stats for p in problems]
+                info["size_metrics"] = [p.size_metrics for p in problems]
                 info["results"] = results
                 info["iterations"] = n_iterations
                 return None, None, info
             # Save info
             info["status"] = "Bisection succeeded."
             info["gammas"] = gammas
-            info["problems"] = problems
+            info["solver_stats"] = [p.solver_stats for p in problems]
+            info["size_metrics"] = [p.size_metrics for p in problems]
             info["results"] = results
             info["iterations"] = n_iterations
             D_omega = scipy.linalg.cholesky(X.value)
