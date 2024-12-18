@@ -191,6 +191,7 @@ def _identify_uncertainty_upper_bound(
         # options={'maxiter': 1000},
     )
     x_opt = result.x
+    print(x_opt)
 
     # Enforce NMP property (This only works for the CT case)
     num_coeff_opt = x_opt[: order + 1]
