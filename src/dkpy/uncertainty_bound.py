@@ -30,7 +30,7 @@ def _identify_uncertainty_upper_bound(
         nom_model.
     unc_str : {'a', 'im', 'om', 'ia', 'iim', 'iom'}
         The uncertainty structure with respect to which to identify an
-        uncertainty bound. One of the following options.
+        uncertainty bound. One of the following options [SGC97]_.
         'a' : Additive uncertainty
         'mi' : Multiplicative input uncertainty
         'mo' : Multiplicative output uncertainty
