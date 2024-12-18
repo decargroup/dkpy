@@ -2,6 +2,7 @@
 
 import numpy as np
 import scipy.linalg
+import scipy.optimize
 import control
 
 from typing import List
@@ -42,9 +43,17 @@ def _identify_uncertainty_upper_bound(
     Returns
     -------
     w_E : control.TransferFunction
-        The uncertainty bound, a nonminimum-phase, asymptotically stable,
-        bibroper, transfer function.
+        The uncertainty bound: a nonminimum-phase, asymptotically stable,
+        bibroper transfer function of given order.
     """
+    # Form frequency response argument
+    freq_arg: np.ndarray = None
+    if nom_model.dt == 0:
+        freq_arg = 1e0j * freq_rng
+    else:
+        raise NotImplementedError("Discrete time models are not yet handled.")
+        freq_arg = np.exp(1e0j * freq_rng)
+
     # TODO Add checks to confirm that all user-input parameters are ok
     if unc_str not in {"a", "mi", "mo", "ia", "imi", "imo"}:
         raise ValueError("Invalid `unc_str` argument.")
@@ -76,18 +85,11 @@ def _identify_uncertainty_upper_bound(
             res = scipy.linalg.solve(off.H, (off - nom).H).H
         return res
 
-    nom_resp: np.ndarray = None
-    if nom_model.dt == 0:
-        nom_resp = nom_model(1e0j * freq_rng)
-    else:
-        nom_resp = nom_model(np.exp(1e0j * freq_rng))
+    nom_resp: np.ndarray = nom_model(freq_arg)
 
     off_nom_resp: np.ndarray = np.zeros(ny, nu, nw, nk)
     for k in range(nk):
-        if nom_model.dt == 0:
-            off_nom_resp[:, :, :, k] = off_nom_models[k](1e0j * freq_rng)
-        else:
-            off_nom_resp[:, :, :, k] = off_nom_models[k](np.exp(1e0j * freq_rng))
+        off_nom_resp[:, :, :, k] = off_nom_models[k](freq_arg)
 
     # TODO Improve the block below with numpy.vectorize
     res_resp: np.ndarray = np.zeros(ny, nu, nw, nk)
@@ -108,15 +110,103 @@ def _identify_uncertainty_upper_bound(
 
     res_msv_resp_ub: np.ndarray = np.max(a=res_msv_resp, axis=1)
 
-    # TODO Define the optimization variable
+    # Pose the problem objective
+    def _pre_J(x: np.ndarray) -> np.ndarray:
+        """Compute the array of gain errors over freq_rng.
 
-    # TODO Pose the problem objective
+        The gain errors are the differences between the gain of w_E at guess x
+        and the residual maximum singular value response upper bound.
 
-    # TODO Pose the problem constraints
+        Parameters
+        ----------
+        x : np.ndarray
+            Coefficients of the biproper rational function of given order that
+            is the uncertainty weight. If order is equal to n and
+                x = [a_n, ..., a_0, b_n, ..., b_0],
+            then
+                w_E(x) = a(s) / b(s),
+            where
+                a(s) = a_n s^n + ... + a_1 s + a_0
+            and b(s) is similarly defined. Must be of size 2 * (order + 1).
 
-    # TODO Form an initial guess
+        Returns
+        -------
+        err : np.ndarray
+            The array of gain errors.
+        """
+        num_coeff: np.ndarray = x[: order + 1]
+        num_eval = np.polyval(num_coeff, freq_arg)
 
-    # TODO Solve the optimization
+        den_coeff: np.ndarray = x[-(order + 1) :]
+        den_eval = np.polyval(den_coeff, freq_arg)
 
-    # TODO Extract the optimizer and form the upper bound filter
-    raise NotImplementedError()
+        w_E_gain = np.abs(num_eval / den_eval)
+
+        err = w_E_gain - res_msv_resp_ub
+        return err
+
+    def _J(x: np.ndarray) -> float:
+        """Compute the objective at guess x.
+
+        Parameters
+        ----------
+        x : np.ndarray
+            Coefficients of the biproper rational function of given order that
+            is the uncertainty weight. If order is equal to n and
+                x = [a_n, ..., a_0, b_n, ..., b_0],
+            then
+                w_E(x) = a(s) / b(s),
+            where
+                a(s) = a_n s^n + ... + a_1 s + a_0
+            and b(s) is similarly defined. Must be of size 2 * (order + 1).
+
+        Returns
+        -------
+        J : float
+            The optimization objective, defined as the sum over all points in
+            freq_rng of the square of the difference in gain between w_E and the
+            m.s.v. of the residuals.
+        """
+        err = _pre_J(x)
+        J = np.sum(err**2)
+        return J
+
+    # Pose the problem constraints
+    constraint = {"type": "ineq", "fun": _pre_J}
+
+    # Form an initial guess (constant gain at the peak of res_msv_resp_ub)
+    x0 = np.zeros(2 * (order + 1))
+    x0[order] = np.max(res_msv_resp_ub) + 1e-6
+    x0[-1] = 1e0
+
+    # Solve the optimization problem
+    result = scipy.optimize.minimize(
+        fun=_J,
+        x0=list(x0),
+        constraints=constraint,
+        # options={'maxiter': 1000},
+    )
+    x_opt = result.x
+
+    # Enforce NMP property (This only works for the CT case)
+    num_coeff_opt = x_opt[: order + 1]
+    num_roots = np.roots(num_coeff_opt)
+    new_num_roots = -np.abs(np.real(num_roots)) + 1e0j * np.imag(num_roots)
+
+    # Enforce the AS property (this only works for the CT case)
+    den_coeff_opt = x_opt[-(order + 1) :]
+    den_roots = np.roots(den_coeff_opt)
+    new_den_roots = -np.abs(np.real(den_roots)) + 1e0j * np.imag(den_roots)
+
+    # Extract the gain of the optimal filter
+    gain = num_coeff_opt[0] / den_coeff_opt[0]
+
+    # Form the filter
+    w_E_opt = control.zpk(
+        zeros=new_num_roots,
+        poles=new_den_roots,
+        gain=gain,
+    )
+
+    w_E_opt_minreal = control.minreal(w_E_opt, verbose=False)
+    return w_E_opt_minreal
