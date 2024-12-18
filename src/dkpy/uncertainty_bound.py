@@ -135,7 +135,6 @@ def _identify_uncertainty_upper_bound(
                 a(s) = a_n s^n + ... + a_1 s + a_0
             and
                 b(s) = 1e0 s^n + ... + b_1 s + b_0.
-            # Must be of size 2 * (order + 1).
             Must be of size 2 * (order + 1) - 1.
 
         Returns
@@ -170,7 +169,6 @@ def _identify_uncertainty_upper_bound(
                 a(s) = a_n s^n + ... + a_1 s + a_0
             and
                 b(s) = 1e0 s^n + ... + b_1 s + b_0.
-            # Must be of size 2 * (order + 1).
             Must be of size 2 * (order + 1) - 1.
 
         Returns
@@ -188,7 +186,6 @@ def _identify_uncertainty_upper_bound(
     constraint = {"type": "ineq", "fun": _pre_J}
 
     # Form an initial guess (constant gain at the peak of res_msv_resp_ub)
-    # x0 = np.zeros(2 * (order + 1))
     x0 = np.zeros(2 * (order + 1) - 1)
     x0[order] = np.max(res_msv_resp_ub) + 1e-6
     x0[-1] = 1e0
@@ -209,13 +206,11 @@ def _identify_uncertainty_upper_bound(
     new_num_roots = -np.abs(np.real(num_roots)) + 1e0j * np.imag(num_roots)
 
     # Enforce the AS property (this only works for the CT case)
-    # den_coeff_opt = x_opt[-(order + 1) :]
     den_coeff_opt = np.insert(x_opt[-order:], 0, 1e0)
     den_roots = np.roots(den_coeff_opt)
     new_den_roots = -np.abs(np.real(den_roots)) + 1e0j * np.imag(den_roots)
 
     # Extract the gain of the optimal filter
-    # gain = num_coeff_opt[0] / den_coeff_opt[0]
     gain = num_coeff_opt[0]
 
     # Form the filter
