@@ -89,14 +89,14 @@ def _identify_uncertainty_upper_bound(
             res = scipy.linalg.solve(off.H, (off - nom).H).H
         return res
 
-    nom_resp: np.ndarray = nom_model(freq_arg)
+    nom_resp: np.ndarray = nom_model(freq_arg).reshape((ny, nu, nw))
 
-    off_nom_resp: np.ndarray = np.zeros(ny, nu, nw, nk)
+    off_nom_resp: np.ndarray = np.zeros((ny, nu, nw, nk), dtype=complex)
     for k in range(nk):
-        off_nom_resp[:, :, :, k] = off_nom_models[k](freq_arg)
+        off_nom_resp[:, :, :, k] = off_nom_models[k](freq_arg).reshape((ny, nu, nw))
 
     # TODO Improve the block below with numpy.vectorize
-    res_resp: np.ndarray = np.zeros(ny, nu, nw, nk)
+    res_resp: np.ndarray = np.zeros((ny, nu, nw, nk), dtype=complex)
     for k in range(nk):
         for w in range(nw):
             res_resp[:, :, w, k] = _form_residual_response(
@@ -106,7 +106,7 @@ def _identify_uncertainty_upper_bound(
             )
 
     # TODO Improve the below block with numpy.vectorize
-    res_msv_resp: np.ndarray = np.zeros(nw, nk)
+    res_msv_resp: np.ndarray = np.zeros((nw, nk))
     for k in range(nk):
         for w in range(nw):
             s = scipy.linalg.svd(a=res_resp[:, :, w, k], compute_uv=False)
