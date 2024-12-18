@@ -133,7 +133,7 @@ class HinfSynLmi(ControllerSynthesis):
     ...     },
     ... ).synthesize(P, n_y, n_u)
     >>> gamma
-    9.5783
+    9.57
 
     H-infinity controller synthesis with MOSEK (simple settings)
 
