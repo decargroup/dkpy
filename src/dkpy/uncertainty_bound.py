@@ -48,10 +48,7 @@ def _identify_uncertainty_upper_bound(
     # TODO Add checks to confirm that all user-input parameters are ok
     if unc_str not in {"a", "mi", "mo", "ia", "imi", "imo"}:
         raise ValueError("Invalid `unc_str` argument.")
-    # Form the gain upper bound array
-    # TODO Form the residuals depending on the chosen uncertainty structure
 
-    # Dimensions of the problem
     ny: int = nom_model.noutputs
     nu: int = nom_model.ninputs
     nk: int = len(off_nom_models)
