@@ -128,13 +128,13 @@ def _identify_uncertainty_upper_bound(
         x : np.ndarray
             Coefficients of the biproper rational function of given order that
             is the uncertainty weight. If order is equal to n and
-                x = [a_n, ..., a_0, b_n, ..., b_0],
+                x = [a_n, ..., a_0, b_n-1, ..., b_0],
             then
                 w_E(x) = a(s) / b(s),
             where
                 a(s) = a_n s^n + ... + a_1 s + a_0
             and
-                b(s) = 1e0 s^n + ... + b_1 s + b_0.
+                b(s) = 1e0 s^n + b_n-1 s^n-1 + ... + b_1 s + b_0.
             Must be of size 2 * (order + 1) - 1.
 
         Returns
@@ -162,13 +162,13 @@ def _identify_uncertainty_upper_bound(
         x : np.ndarray
             Coefficients of the biproper rational function of given order that
             is the uncertainty weight. If order is equal to n and
-                x = [a_n, ..., a_0, b_n, ..., b_0],
+                x = [a_n, ..., a_0, b_n-1, ..., b_0],
             then
                 w_E(x) = a(s) / b(s),
             where
                 a(s) = a_n s^n + ... + a_1 s + a_0
             and
-                b(s) = 1e0 s^n + ... + b_1 s + b_0.
+                b(s) = 1e0 s^n + b_n-1 s^n-1 + ... + b_1 s + b_0.
             Must be of size 2 * (order + 1) - 1.
 
         Returns
