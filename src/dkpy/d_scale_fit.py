@@ -76,7 +76,7 @@ class DScaleFitSlicot(DScaleFit):
     ... )
     >>> D, D_inv = dkpy.DScaleFitSlicot().fit(omega, D_omega, 2, block_structure)
     >>> print(control.ss2tf(D[0, 0]))
-    <TransferFunction>
+    <TransferFunction>...
     Inputs (1): ['u[0]']
     Outputs (1): ['y[0]']
     <BLANKLINE>
@@ -86,7 +86,7 @@ class DScaleFitSlicot(DScaleFit):
       s^2 + 0.9658 s + 0.01424
     <BLANKLINE>
     >>> print(control.ss2tf(D[1, 1]))
-    <TransferFunction>
+    <TransferFunction>...
     Inputs (1): ['u[1]']
     Outputs (1): ['y[1]']
     <BLANKLINE>
