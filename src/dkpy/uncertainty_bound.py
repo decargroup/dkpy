@@ -46,6 +46,8 @@ def _identify_uncertainty_upper_bound(
 
     Returns
     -------
+    res_msv_resp_ub : np.ndarray
+        The upper bound array of the residual maximum singular value response.
     w_E : control.TransferFunction
         The uncertainty bound: a nonminimum-phase, asymptotically stable,
         bibroper transfer function of given order.
@@ -131,17 +133,21 @@ def _identify_uncertainty_upper_bound(
                 w_E(x) = a(s) / b(s),
             where
                 a(s) = a_n s^n + ... + a_1 s + a_0
-            and b(s) is similarly defined. Must be of size 2 * (order + 1).
+            and
+                b(s) = 1e0 s^n + ... + b_1 s + b_0.
+            # Must be of size 2 * (order + 1).
+            Must be of size 2 * (order + 1) - 1.
 
         Returns
         -------
         err : np.ndarray
             The array of gain errors.
         """
-        num_coeff: np.ndarray = x[: order + 1]
+        num_coeff = x[: order + 1]
         num_eval = np.polyval(num_coeff, freq_arg)
 
-        den_coeff: np.ndarray = x[-(order + 1) :]
+        # den_coeff: np.ndarray = x[-(order + 1) :]
+        den_coeff = np.insert(x[-order:], 0, 1e0)
         den_eval = np.polyval(den_coeff, freq_arg)
 
         w_E_gain = np.abs(num_eval / den_eval)
@@ -162,7 +168,10 @@ def _identify_uncertainty_upper_bound(
                 w_E(x) = a(s) / b(s),
             where
                 a(s) = a_n s^n + ... + a_1 s + a_0
-            and b(s) is similarly defined. Must be of size 2 * (order + 1).
+            and
+                b(s) = 1e0 s^n + ... + b_1 s + b_0.
+            # Must be of size 2 * (order + 1).
+            Must be of size 2 * (order + 1) - 1.
 
         Returns
         -------
@@ -179,7 +188,8 @@ def _identify_uncertainty_upper_bound(
     constraint = {"type": "ineq", "fun": _pre_J}
 
     # Form an initial guess (constant gain at the peak of res_msv_resp_ub)
-    x0 = np.zeros(2 * (order + 1))
+    # x0 = np.zeros(2 * (order + 1))
+    x0 = np.zeros(2 * (order + 1) - 1)
     x0[order] = np.max(res_msv_resp_ub) + 1e-6
     x0[-1] = 1e0
 
@@ -191,7 +201,7 @@ def _identify_uncertainty_upper_bound(
         # options={'maxiter': 1000},
     )
     x_opt = result.x
-    print(x_opt)
+    # print(x_opt)
 
     # Enforce NMP property (This only works for the CT case)
     num_coeff_opt = x_opt[: order + 1]
@@ -199,12 +209,14 @@ def _identify_uncertainty_upper_bound(
     new_num_roots = -np.abs(np.real(num_roots)) + 1e0j * np.imag(num_roots)
 
     # Enforce the AS property (this only works for the CT case)
-    den_coeff_opt = x_opt[-(order + 1) :]
+    # den_coeff_opt = x_opt[-(order + 1) :]
+    den_coeff_opt = np.insert(x_opt[-order:], 0, 1e0)
     den_roots = np.roots(den_coeff_opt)
     new_den_roots = -np.abs(np.real(den_roots)) + 1e0j * np.imag(den_roots)
 
     # Extract the gain of the optimal filter
-    gain = num_coeff_opt[0] / den_coeff_opt[0]
+    # gain = num_coeff_opt[0] / den_coeff_opt[0]
+    gain = num_coeff_opt[0]
 
     # Form the filter
     w_E_opt = control.zpk(
@@ -212,6 +224,6 @@ def _identify_uncertainty_upper_bound(
         poles=new_den_roots,
         gain=gain,
     )
-
     w_E_opt_minreal = control.minreal(w_E_opt, verbose=False)
-    return w_E_opt_minreal
+
+    return (res_msv_resp_ub, w_E_opt_minreal)
