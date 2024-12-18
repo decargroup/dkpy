@@ -295,7 +295,7 @@ class DkIteration(metaclass=abc.ABCMeta):
             )
             # Increment iteration
             iteration += 1
-        return (K, N, np.max(mu_omega), d_scale_fit_info, info)
+        return (K, N, float(np.max(mu_omega)), d_scale_fit_info, info)
 
     def _get_fit_order(
         self,
@@ -361,6 +361,28 @@ class DkIterFixedOrder(DkIteration):
             Number of iterations.
         fit_order : Union[int, np.ndarray]
             D-scale fit order.
+
+        Examples
+        --------
+        >>> eg = dkpy.example_skogestad2006_p325()
+        >>> dk_iter = dkpy.DkIterFixedOrder(
+        ...     controller_synthesis=dkpy.HinfSynSlicot(),
+        ...     structured_singular_value=dkpy.SsvLmiBisection(),
+        ...     d_scale_fit=dkpy.DScaleFitSlicot(),
+        ...     n_iterations=3,
+        ...     fit_order=4,
+        ... )
+        >>> omega = np.logspace(-3, 3, 61)
+        >>> block_structure = np.array([[1, 1], [1, 1], [2, 2]])
+        >>> K, N, mu, d_scale_fit_info, info = dk_iter.synthesize(
+        ...     eg["P"],
+        ...     eg["n_y"],
+        ...     eg["n_u"],
+        ...     omega,
+        ...     block_structure,
+        ... )
+        >>> mu
+        1.0360
         """
         self.controller_synthesis = controller_synthesis
         self.structured_singular_value = structured_singular_value
@@ -406,6 +428,27 @@ class DkIterListOrder(DkIteration):
             A D-scale fit object.
         fit_order : List[Union[int, np.ndarray]]
             D-scale fit orders.
+
+        Examples
+        --------
+        >>> eg = dkpy.example_skogestad2006_p325()
+        >>> dk_iter = dkpy.DkIterListOrder(
+        ...     controller_synthesis=dkpy.HinfSynSlicot(),
+        ...     structured_singular_value=dkpy.SsvLmiBisection(),
+        ...     d_scale_fit=dkpy.DScaleFitSlicot(),
+        ...     fit_orders=[4, 4, 4],
+        ... )
+        >>> omega = np.logspace(-3, 3, 61)
+        >>> block_structure = np.array([[1, 1], [1, 1], [2, 2]])
+        >>> K, N, mu, d_scale_fit_info, info = dk_iter.synthesize(
+        ...     eg["P"],
+        ...     eg["n_y"],
+        ...     eg["n_u"],
+        ...     omega,
+        ...     block_structure,
+        ... )
+        >>> mu
+        1.0360
         """
         self.controller_synthesis = controller_synthesis
         self.structured_singular_value = structured_singular_value
@@ -459,6 +502,30 @@ class DkIterAutoOrder(DkIteration):
             Maximum number of iterations. If ``None``, there is no upper limit.
         max_fit_order : Optional[int]
             Maximum fit order. If ``None``, there is no upper limit.
+
+        Examples
+        --------
+        >>> eg = dkpy.example_skogestad2006_p325()
+        >>> dk_iter = dkpy.DkIterAutoOrder(
+        ...     controller_synthesis=dkpy.HinfSynSlicot(),
+        ...     structured_singular_value=dkpy.SsvLmiBisection(),
+        ...     d_scale_fit=dkpy.DScaleFitSlicot(),
+        ...     max_mu=1,
+        ...     max_mu_fit_error=1e-2,
+        ...     max_iterations=3,
+        ...     max_fit_order=4,
+        ... )
+        >>> omega = np.logspace(-3, 3, 61)
+        >>> block_structure = np.array([[1, 1], [1, 1], [2, 2]])
+        >>> K, N, mu, d_scale_fit_info, info = dk_iter.synthesize(
+        ...     eg["P"],
+        ...     eg["n_y"],
+        ...     eg["n_u"],
+        ...     omega,
+        ...     block_structure,
+        ... )
+        >>> mu
+        1.0360
         """
         self.controller_synthesis = controller_synthesis
         self.structured_singular_value = structured_singular_value
@@ -549,6 +616,25 @@ class DkIterInteractiveOrder(DkIteration):
             A D-scale fit object.
         max_fit_order : int
             Maximum fit order.
+
+        Examples
+        --------
+        >>> eg = dkpy.example_skogestad2006_p325()
+        >>> dk_iter = dkpy.DkIterInteractiveOrder(
+        ...     controller_synthesis=dkpy.HinfSynSlicot(),
+        ...     structured_singular_value=dkpy.SsvLmiBisection(),
+        ...     d_scale_fit=dkpy.DScaleFitSlicot(),
+        ...     max_fit_order=4,
+        ... )
+        >>> omega = np.logspace(-3, 3, 61)
+        >>> block_structure = np.array([[1, 1], [1, 1], [2, 2]])
+        >>> K, N, mu, d_scale_fit_info, info = dk_iter.synthesize(
+        ...     eg["P"],
+        ...     eg["n_y"],
+        ...     eg["n_u"],
+        ...     omega,
+        ...     block_structure,
+        ... )  # doctest: +SKIP
         """
         self.controller_synthesis = controller_synthesis
         self.structured_singular_value = structured_singular_value

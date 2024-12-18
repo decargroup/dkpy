@@ -130,5 +130,13 @@ after 3 iterations of 4th order fits.
 .. literalinclude:: ../examples/5_example_dk_iteration_custom.py
   :language: python
 
+Output::
+
+    Iteration 0 with mu of 1.1792325973510742
+    Iteration 1 with mu of 1.0256481170654297
+    Iteration 2 with mu of 1.0201168060302734
+    Iteration 3 with mu of 1.0132789611816406
+    mu=1.0132789611816406
+
 .. image:: _static/plot_mu.png
 .. image:: _static/plot_D.png
