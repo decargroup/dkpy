@@ -60,7 +60,11 @@ class DScaleFitInfo:
         block_structure : np.ndarray
             2D array with 2 columns and as many rows as uncertainty blocks
             in Delta. The columns represent the number of rows and columns in
-            each uncertainty block.
+            each uncertainty block. See [#mussv]_.
+
+        References
+        ----------
+        .. [#mussv] https://www.mathworks.com/help/robust/ref/mussv.html
         """
         self.omega = omega
         self.mu_omega = mu_omega
@@ -103,7 +107,7 @@ class DScaleFitInfo:
         block_structure : np.ndarray
             2D array with 2 columns and as many rows as uncertainty blocks
             in Delta. The columns represent the number of rows and columns in
-            each uncertainty block.
+            each uncertainty block. See [#mussv]_.
 
         Returns
         -------
@@ -134,6 +138,10 @@ class DScaleFitInfo:
         ...     D_inv,
         ...     block_structure,
         ... )
+
+        References
+        ----------
+        .. [#mussv] https://www.mathworks.com/help/robust/ref/mussv.html
         """
         # Compute ``mu(omega)`` based on fit D-scales
         N = P.lft(K)
@@ -213,7 +221,7 @@ class DkIteration(metaclass=abc.ABCMeta):
         block_structure : np.ndarray
             2D array with 2 columns and as many rows as uncertainty blocks
             in Delta. The columns represent the number of rows and columns in
-            each uncertainty block.
+            each uncertainty block. See [#mussv]_.
 
         Returns
         -------
@@ -223,6 +231,10 @@ class DkIteration(metaclass=abc.ABCMeta):
             controller cannot by synthesized, the first three elements of the
             tuple are ``None``, but fit and solution information are still
             returned.
+
+        References
+        ----------
+        .. [#mussv] https://www.mathworks.com/help/robust/ref/mussv.html
         """
         # Solution information
         info = {}
@@ -330,12 +342,16 @@ class DkIteration(metaclass=abc.ABCMeta):
         block_structure : np.ndarray
             2D array with 2 columns and as many rows as uncertainty blocks
             in Delta. The columns represent the number of rows and columns in
-            each uncertainty block.
+            each uncertainty block. See [#mussv]_.
 
         Returns
         -------
         Optional[Union[int, np.ndarray]]
             D-scale fit order. If ``None``, iteration ends.
+
+        References
+        ----------
+        .. [#mussv] https://www.mathworks.com/help/robust/ref/mussv.html
         """
         raise NotImplementedError()
 

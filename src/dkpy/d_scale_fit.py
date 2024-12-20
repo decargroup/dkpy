@@ -42,7 +42,7 @@ class DScaleFit(metaclass=abc.ABCMeta):
         block_structure : np.ndarray
             2D array with 2 columns and as many rows as uncertainty blocks
             in Delta. The columns represent the number of rows and columns in
-            each uncertainty block.
+            each uncertainty block. See [#mussv]_.
 
         Returns
         -------
@@ -54,6 +54,10 @@ class DScaleFit(metaclass=abc.ABCMeta):
         ValueError
             If ``order`` is an array but its dimensions are inconsistent with
             ``block_structure``.
+
+        References
+        ----------
+        .. [#mussv] https://www.mathworks.com/help/robust/ref/mussv.html
         """
         raise NotImplementedError()
 
@@ -162,13 +166,17 @@ def _mask_from_block_structure(block_structure: np.ndarray) -> np.ndarray:
     block_structure : np.ndarray
         2D array with 2 columns and as many rows as uncertainty blocks
         in Delta. The columns represent the number of rows and columns in
-        each uncertainty block.
+        each uncertainty block. See [#mussv]_.
 
     Returns
     -------
     np.ndarray
         Array of integers indicating zero, one, and unknown elements in the
         block structure.
+
+    References
+    ----------
+    .. [#mussv] https://www.mathworks.com/help/robust/ref/mussv.html
     """
     X_lst = []
     for i in range(block_structure.shape[0]):
