@@ -35,7 +35,7 @@ class StructuredSingularValue(metaclass=abc.ABCMeta):
         block_structure : np.ndarray
             2D array with 2 columns and as many rows as uncertainty blocks
             in Delta. The columns represent the number of rows and columns in
-            each uncertainty block.
+            each uncertainty block. See [#mussv]_.
 
         Returns
         -------
@@ -44,6 +44,10 @@ class StructuredSingularValue(metaclass=abc.ABCMeta):
             frequency, and solution information. If the structured singular
             value cannot be computed, the first two elements of the tuple are
             ``None``, but solution information is still returned.
+
+        References
+        ----------
+        .. [#mussv] https://www.mathworks.com/help/robust/ref/mussv.html
         """
         raise NotImplementedError()
 
@@ -323,12 +327,16 @@ def _variable_from_block_structure(block_structure: np.ndarray) -> cvxpy.Variabl
     block_structure : np.ndarray
         2D array with 2 columns and as many rows as uncertainty blocks
         in Delta. The columns represent the number of rows and columns in
-        each uncertainty block.
+        each uncertainty block. See [#mussv]_.
 
     Returns
     -------
     cvxpy.Variable
         CVXPY variable with specified block structure.
+
+    References
+    ----------
+    .. [#mussv] https://www.mathworks.com/help/robust/ref/mussv.html
     """
     X_lst = []
     for i in range(block_structure.shape[0]):

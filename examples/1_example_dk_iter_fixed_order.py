@@ -20,7 +20,7 @@ def example_dk_iter_fixed_order():
 
     omega = np.logspace(-3, 3, 61)
     block_structure = np.array([[1, 1], [1, 1], [2, 2]])
-    K, N, mu, d_scale_fit_info, info = dk_iter.synthesize(
+    K, N, mu, iter_results, info = dk_iter.synthesize(
         eg["P"],
         eg["n_y"],
         eg["n_u"],
@@ -31,11 +31,11 @@ def example_dk_iter_fixed_order():
     print(f"mu={mu}")
 
     fig, ax = plt.subplots()
-    for i, ds in enumerate(d_scale_fit_info):
+    for i, ds in enumerate(iter_results):
         dkpy.plot_mu(ds, ax=ax, plot_kw=dict(label=f"iter{i}"))
 
     ax = None
-    for i, ds in enumerate(d_scale_fit_info):
+    for i, ds in enumerate(iter_results):
         _, ax = dkpy.plot_D(ds, ax=ax, plot_kw=dict(label=f"iter{i}"))
 
     plt.show()
