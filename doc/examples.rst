@@ -2,9 +2,12 @@ Examples
 ========
 
 In all the examples on this page, three iterations with 4th order D-scale fits
-are used to reprouce the example from [SP06]_, Table 8.2 (p. 325). Each example
+are used to reproduce the example from [SP06]_, Table 8.2 (p. 325). Each example
 recovers the same result, but with a different way to specify the D-scale fit
 orders.
+
+This example is quite numerically challenging, so if you encounter a solver
+error, you may need to experiment with solver tolerances.
 
 D-K iteration with fixed fit order
 ----------------------------------
@@ -42,7 +45,7 @@ Output::
 D-K iteration with automatically selected fit orders
 ----------------------------------------------------
 
-In this example, multiple fit orders are atempted up to a maximum, and the one
+In this example, multiple fit orders are attempted up to a maximum, and the one
 with the lowest relative error is selected.
 
 .. literalinclude:: ../examples/3_example_dk_iter_auto_order.py

@@ -1,7 +1,7 @@
 """D-K iteration classes."""
 
 __all__ = [
-    "DScaleFitInfo",
+    "IterResult",
     "DkIteration",
     "DkIterFixedOrder",
     "DkIterListOrder",
@@ -28,8 +28,15 @@ from . import (
 )
 
 
-class DScaleFitInfo:
-    """Information about the D-scale fit accuracy."""
+class IterResult:
+    """Information about the current iteration of the D-K iteration process.
+
+    All :class:`DkIteration` objects return a list of :class:`IterResult`
+    objects (one for each iteration).
+
+    This class is used mainly to assess the accuracy of the D-scale fit. Can be
+    plotted using :func:`plot_mu` and :func:`plot_D`.
+    """
 
     def __init__(
         self,
@@ -41,7 +48,7 @@ class DScaleFitInfo:
         D_fit: control.StateSpace,
         block_structure: np.ndarray,
     ):
-        """Instantiate :class:`DScaleFitInfo`.
+        """Instantiate :class:`IterResult`.
 
         Parameters
         ----------
@@ -85,8 +92,8 @@ class DScaleFitInfo:
         D_fit: control.StateSpace,
         D_fit_inv: control.StateSpace,
         block_structure: np.ndarray,
-    ) -> "DScaleFitInfo":
-        """Instantiate :class:`DScaleFitInfo` from fit D-scales.
+    ) -> "IterResult":
+        """Instantiate :class:`IterResult` from fit D-scales.
 
         Parameters
         ----------
@@ -111,12 +118,12 @@ class DScaleFitInfo:
 
         Returns
         -------
-        DScaleFitInfo
-            Instance of :class:`DScaleFitInfo`
+        IterResult
+            Instance of :class:`IterResult`
 
         Examples
         --------
-        Create a ``DScaleFitInfo`` object from fit data
+        Create a ``IterResult`` object from fit data
 
         >>> P, n_y, n_u, K = example_skogestad2006_p325
         >>> block_structure = np.array([[1, 1], [1, 1], [2, 2]])
@@ -128,7 +135,7 @@ class DScaleFitInfo:
         ...     block_structure,
         ... )
         >>> D, D_inv = dkpy.DScaleFitSlicot().fit(omega, D_omega, 2, block_structure)
-        >>> d_scale_fit_info = DScaleFitInfo.create_from_fit(
+        >>> d_scale_fit_info = IterResult.create_from_fit(
         ...     omega,
         ...     mu_omega,
         ...     D_omega,
@@ -202,10 +209,13 @@ class DkIteration(metaclass=abc.ABCMeta):
         control.StateSpace,
         control.StateSpace,
         float,
-        List[DScaleFitInfo],
+        List[IterResult],
         Dict[str, Any],
     ]:
-        """Synthesize controller.
+        """Synthesize controller using D-K iteration.
+
+        The :class:`IterResult` objects returned by this function can be
+        plotted using :func:`plot_mu` and :func:`plot_D`.
 
         Parameters
         ----------
@@ -225,12 +235,22 @@ class DkIteration(metaclass=abc.ABCMeta):
 
         Returns
         -------
-        Tuple[control.StateSpace, control.StateSpace, float, List[DScaleFitInfo], Dict[str, Any]]
-            Controller, closed-loop system, structured singular value, D-scale
-            fit info for each iteration, and solution information. If a
-            controller cannot by synthesized, the first three elements of the
-            tuple are ``None``, but fit and solution information are still
+        Tuple[control.StateSpace, control.StateSpace, float, List[IterResult], Dict[str, Any]]
+            Controller, closed-loop system, structured singular value,
+            intermediate results for each iteration, and solution information.
+            If a controller cannot by synthesized, the first three elements of
+            the tuple are ``None``, but fit and solution information are still
             returned.
+
+        See Also
+        --------
+        :class:`IterResult`
+            Intermediate results for each iteration.
+        :func:`plot_mu`
+            Plot structured singular value fit from an :class:`IterResult`
+            object.
+        :func:`plot_D`
+            Plot D-scale fit from an :class:`IterResult` object.
 
         References
         ----------
@@ -278,7 +298,7 @@ class DkIteration(metaclass=abc.ABCMeta):
             )
             # Add D-scale fit info
             d_scale_fit_info.append(
-                DScaleFitInfo.create_from_fit(
+                IterResult.create_from_fit(
                     omega,
                     mu_omega,
                     D_omega,
@@ -588,7 +608,7 @@ class DkIterAutoOrder(DkIteration):
                 order=fit_order,
                 block_structure=block_structure,
             )
-            d_scale_fit_info = DScaleFitInfo.create_from_fit(
+            d_scale_fit_info = IterResult.create_from_fit(
                 omega,
                 mu_omega,
                 D_omega,
@@ -683,7 +703,7 @@ class DkIterInteractiveOrder(DkIteration):
                 block_structure=block_structure,
             )
             d_info.append(
-                DScaleFitInfo.create_from_fit(
+                IterResult.create_from_fit(
                     omega,
                     mu_omega,
                     D_omega,
@@ -724,7 +744,7 @@ class DkIterInteractiveOrder(DkIteration):
 
 
 def plot_mu(
-    d_scale_info: DScaleFitInfo,
+    d_scale_info: IterResult,
     ax: Optional[plt.Axes] = None,
     plot_kw: Optional[Dict[str, Any]] = None,
     hide: Optional[str] = None,
@@ -733,7 +753,7 @@ def plot_mu(
 
     Parameters
     ----------
-    d_scale_fit_info : dkpy.DScaleFitInfo
+    d_scale_fit_info : dkpy.IterResult
         Object containing information about the D-scale fit.
     ax : Optional[plt.Axes]
         Matplotlib axes to use.
@@ -750,7 +770,7 @@ def plot_mu(
 
     Examples
     --------
-    Create a ``DScaleFitInfo`` object from fit data and plot ``mu``
+    Create a ``IterResult`` object from fit data and plot ``mu``
 
     >>> P, n_y, n_u, K = example_skogestad2006_p325
     >>> block_structure = np.array([[1, 1], [1, 1], [2, 2]])
@@ -762,7 +782,7 @@ def plot_mu(
     ...     block_structure,
     ... )
     >>> D, D_inv = dkpy.DScaleFitSlicot().fit(omega, D_omega, 2, block_structure)
-    >>> d_scale_fit_info = DScaleFitInfo.create_from_fit(
+    >>> d_scale_fit_info = IterResult.create_from_fit(
     ...     omega,
     ...     mu_omega,
     ...     D_omega,
@@ -814,7 +834,7 @@ def plot_mu(
 
 
 def plot_D(
-    d_scale_info: DScaleFitInfo,
+    d_scale_info: IterResult,
     ax: Optional[np.ndarray] = None,
     plot_kw: Optional[Dict[str, Any]] = None,
     hide: Optional[str] = None,
@@ -823,7 +843,7 @@ def plot_D(
 
     Parameters
     ----------
-    d_scale_fit_info : dkpy.DScaleFitInfo
+    d_scale_fit_info : dkpy.IterResult
         Object containing information about the D-scale fit.
     ax : Optional[np.ndarray]
         Array of Matplotlib axes to use.
@@ -841,7 +861,7 @@ def plot_D(
 
     Examples
     --------
-    Create a ``DScaleFitInfo`` object from fit data and plot ``D``
+    Create a ``IterResult`` object from fit data and plot ``D``
 
     >>> P, n_y, n_u, K = example_skogestad2006_p325
     >>> block_structure = np.array([[1, 1], [1, 1], [2, 2]])
@@ -853,7 +873,7 @@ def plot_D(
     ...     block_structure,
     ... )
     >>> D, D_inv = dkpy.DScaleFitSlicot().fit(omega, D_omega, 2, block_structure)
-    >>> d_scale_fit_info = DScaleFitInfo.create_from_fit(
+    >>> d_scale_fit_info = IterResult.create_from_fit(
     ...     omega,
     ...     mu_omega,
     ...     D_omega,
