@@ -6,7 +6,7 @@ __all__ = [
 ]
 
 import abc
-from typing import Optional, Tuple, Union
+from typing import Optional, Tuple, Union, List
 import warnings
 
 import control
@@ -15,6 +15,11 @@ import scipy.linalg
 import slycot
 
 from . import utilities
+from .uncertainty_structure import (
+    RealDiagonalBlock,
+    ComplexDiagonalBlock,
+    ComplexFullBlock,
+)
 
 
 class DScaleFit(metaclass=abc.ABCMeta):
@@ -106,7 +111,9 @@ class DScaleFitSlicot(DScaleFit):
         omega: np.ndarray,
         D_omega: np.ndarray,
         order: Union[int, np.ndarray] = 0,
-        block_structure: Optional[np.ndarray] = None,
+        block_structure: Optional[
+            Union[RealDiagonalBlock, ComplexDiagonalBlock, ComplexFullBlock]
+        ] = None,
     ) -> Tuple[control.StateSpace, control.StateSpace]:
         # Get mask
         if block_structure is None:
@@ -155,7 +162,11 @@ class DScaleFitSlicot(DScaleFit):
         return ss, ss_inv
 
 
-def _mask_from_block_structure(block_structure: np.ndarray) -> np.ndarray:
+def _mask_from_block_structure(
+    block_structure: List[
+        Union[RealDiagonalBlock, ComplexDiagonalBlock, ComplexFullBlock]
+    ],
+) -> np.ndarray:
     """Create a mask from a specified block structure.
 
     Entries known to be zero are set to 0. Entries known to be one are set to
@@ -178,19 +189,21 @@ def _mask_from_block_structure(block_structure: np.ndarray) -> np.ndarray:
     ----------
     .. [#mussv] https://www.mathworks.com/help/robust/ref/mussv.html
     """
+    num_blocks = len(block_structure)
     X_lst = []
-    for i in range(block_structure.shape[0]):
-        if block_structure[i, 0] <= 0:
+    for i in range(num_blocks):
+        block = block_structure[i]
+        if isinstance(block, RealDiagonalBlock):
             raise NotImplementedError("Real perturbations are not yet supported.")
-        if block_structure[i, 1] <= 0:
+        if isinstance(block, ComplexDiagonalBlock):
             raise NotImplementedError("Diagonal perturbations are not yet supported.")
-        if block_structure[i, 0] != block_structure[i, 1]:
+        if isinstance(block, ComplexFullBlock) and (not block.is_square):
             raise NotImplementedError("Nonsquare perturbations are not yet supported.")
         # Set last scaling to identity
-        if i == block_structure.shape[0] - 1:
-            X_lst.append(np.eye(block_structure[i, 0], dtype=int))
+        if i == num_blocks - 1:
+            X_lst.append(np.eye(block.num_inputs, dtype=int))
         else:
-            X_lst.append(-1 * np.eye(block_structure[i, 0], dtype=int))
+            X_lst.append(-1 * np.eye(block.num_inputs, dtype=int))
     X = scipy.linalg.block_diag(*X_lst)
     return X
 

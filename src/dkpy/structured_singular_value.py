@@ -7,7 +7,7 @@ __all__ = [
 
 import abc
 import warnings
-from typing import Any, Dict, Optional, Tuple
+from typing import Any, Dict, Optional, Tuple, Union, List
 
 import cvxpy
 import joblib
@@ -15,6 +15,11 @@ import numpy as np
 import scipy.linalg
 
 from . import utilities
+from .uncertainty_structure import (
+    RealDiagonalBlock,
+    ComplexDiagonalBlock,
+    ComplexFullBlock,
+)
 
 
 class StructuredSingularValue(metaclass=abc.ABCMeta):
@@ -24,7 +29,9 @@ class StructuredSingularValue(metaclass=abc.ABCMeta):
     def compute_ssv(
         self,
         N_omega: np.ndarray,
-        block_structure: np.ndarray,
+        block_structure: List[
+            Union[RealDiagonalBlock, ComplexDiagonalBlock, ComplexFullBlock]
+        ],
     ) -> Tuple[np.ndarray, np.ndarray, Dict[str, Any]]:
         """Compute structured singular value.
 
@@ -139,7 +146,9 @@ class SsvLmiBisection(StructuredSingularValue):
     def compute_ssv(
         self,
         N_omega: np.ndarray,
-        block_structure: np.ndarray,
+        block_structure: List[
+            Union[RealDiagonalBlock, ComplexDiagonalBlock, ComplexFullBlock]
+        ],
     ) -> Tuple[np.ndarray, np.ndarray, Dict[str, Any]]:
         # Solver settings
         solver_params = (
@@ -168,7 +177,7 @@ class SsvLmiBisection(StructuredSingularValue):
 
         def _ssv_at_omega(
             N_omega: np.ndarray,
-        ) -> Tuple[float, np.ndarray, Dict[str, Any]]:
+        ) -> Tuple[Union[float, None], Union[np.ndarray, None], Dict[str, Any]]:
             """Compute the structured singular value at a given frequency.
 
             Split into its own function to allow parallelization over
@@ -319,7 +328,11 @@ class SsvLmiBisection(StructuredSingularValue):
         return mu, D_scales, info
 
 
-def _variable_from_block_structure(block_structure: np.ndarray) -> cvxpy.Variable:
+def _variable_from_block_structure(
+    block_structure: List[
+        Union[RealDiagonalBlock, ComplexDiagonalBlock, ComplexFullBlock]
+    ],
+) -> cvxpy.Variable:
     """Get optimization variable with specified block structure.
 
     Parameters
@@ -338,39 +351,42 @@ def _variable_from_block_structure(block_structure: np.ndarray) -> cvxpy.Variabl
     ----------
     .. [#mussv] https://www.mathworks.com/help/robust/ref/mussv.html
     """
+    num_blocks = len(block_structure)
     X_lst = []
-    for i in range(block_structure.shape[0]):
+    for i in range(num_blocks):
         row = []
-        for j in range(block_structure.shape[0]):
+        for j in range(num_blocks):
+            block_i = block_structure[i]
+            block_j = block_structure[j]
             if i == j:
                 # If on the block diagonal, insert variable
-                if block_structure[i, 0] <= 0:
+                if isinstance(block_i, RealDiagonalBlock):
                     raise NotImplementedError(
-                        "Real perturbations are not yet supported."
+                        "Real diagonal perturbations are not yet supported."
                     )
-                if block_structure[i, 1] <= 0:
+                if isinstance(block_i, ComplexDiagonalBlock):
                     raise NotImplementedError(
-                        "Diagonal perturbations are not yet supported."
+                        "Complex diagonal perturbations are not yet supported."
                     )
-                if block_structure[i, 0] != block_structure[i, 1]:
+                if isinstance(block_i, ComplexFullBlock) and (not block_i.is_square):
                     raise NotImplementedError(
                         "Nonsquare perturbations are not yet supported."
                     )
-                if i == block_structure.shape[0] - 1:
+                if i == num_blocks - 1:
                     # Last scaling is always identity
-                    row.append(np.eye(block_structure[i, 0]))
+                    row.append(np.eye(block_i.num_inputs))
                 else:
                     # Every other scaling is either a scalar or a scalar
                     # multiplied by identity
-                    if block_structure[i, 0] == 1:
+                    if block_i.num_inputs == 1:
                         xi = cvxpy.Variable((1, 1), complex=True, name=f"x{i}")
                         row.append(xi)
                     else:
                         xi = cvxpy.Variable(1, complex=True, name=f"x{i}")
-                        row.append(xi * np.eye(block_structure[i, 0]))
+                        row.append(xi * np.eye(block_i.num_inputs))
             else:
                 # If off the block diagonal, insert zeros
-                row.append(np.zeros((block_structure[i, 0], block_structure[j, 1])))
+                row.append(np.zeros((block_i.num_inputs, block_j.num_inputs)))
         X_lst.append(row)
     X = cvxpy.bmat(X_lst)
     return X

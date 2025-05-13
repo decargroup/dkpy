@@ -136,7 +136,8 @@ class TestTfFitSlicot:
                     ],
                 ),
                 1,
-                np.array([[1, 1], [1, 1]]),
+                # np.array([[1, 1], [1, 1]]),
+                [dkpy.ComplexFullBlock(1, 1), dkpy.ComplexFullBlock(1, 1)],
                 1e-2,
             ),
             (
@@ -164,7 +165,8 @@ class TestTfFitSlicot:
                     ],
                 ),
                 np.diag([1, 0]),
-                np.array([[1, 1], [1, 1]]),
+                # np.array([[1, 1], [1, 1]]),
+                [dkpy.ComplexFullBlock(1, 1), dkpy.ComplexFullBlock(1, 1)],
                 1e-2,
             ),
             (
@@ -192,7 +194,8 @@ class TestTfFitSlicot:
                     ],
                 ),
                 1,
-                np.array([[2, 2]]),
+                # np.array([[2, 2]]),
+                [dkpy.ComplexFullBlock(2, 2)],
                 1e-2,
             ),
         ],
@@ -288,7 +291,8 @@ class TestMaskFromBlockStructure:
         "block_structure, mask_exp",
         [
             (
-                np.array([[1, 1], [1, 1]]),
+                # np.array([[1, 1], [1, 1]]),
+                [dkpy.ComplexFullBlock(1, 1), dkpy.ComplexFullBlock(1, 1)],
                 np.array(
                     [
                         [-1, 0],
@@ -298,7 +302,8 @@ class TestMaskFromBlockStructure:
                 ),
             ),
             (
-                np.array([[2, 2], [1, 1]]),
+                # np.array([[2, 2], [1, 1]]),
+                [dkpy.ComplexFullBlock(2, 2), dkpy.ComplexFullBlock(1, 1)],
                 np.array(
                     [
                         [-1, 0, 0],
@@ -309,7 +314,8 @@ class TestMaskFromBlockStructure:
                 ),
             ),
             (
-                np.array([[1, 1], [2, 2]]),
+                # np.array([[1, 1], [2, 2]]),
+                [dkpy.ComplexFullBlock(1, 1), dkpy.ComplexFullBlock(2, 2)],
                 np.array(
                     [
                         [-1, 0, 0],

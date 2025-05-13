@@ -14,7 +14,7 @@ class TestVariableFromBlockStructure:
         "block_structure, variable_exp",
         [
             (
-                np.array([[1, 1], [2, 2]]),
+                [dkpy.ComplexFullBlock(1, 1), dkpy.ComplexFullBlock(2, 2)],
                 cvxpy.bmat(
                     [
                         [
@@ -29,7 +29,11 @@ class TestVariableFromBlockStructure:
                 ),
             ),
             (
-                np.array([[1, 1], [2, 2], [1, 1]]),
+                [
+                    dkpy.ComplexFullBlock(1, 1),
+                    dkpy.ComplexFullBlock(2, 2),
+                    dkpy.ComplexFullBlock(1, 1),
+                ],
                 cvxpy.bmat(
                     [
                         [
