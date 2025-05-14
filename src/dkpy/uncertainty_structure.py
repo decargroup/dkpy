@@ -1,7 +1,48 @@
 """Uncertainty block."""
 
 
-class RealDiagonalBlock:
+class UncertaintyBlock:
+    """Generic uncertainty block."""
+
+    def __init__(
+        self, num_inputs: int, num_outputs: int, is_diagonal: bool, is_complex: bool
+    ):
+        """Instantiate :class:`UncertaintyBlock`.
+
+        Parameters
+        ----------
+        num_inputs : int
+            Number of inputs of the uncertainty block.
+        num_outputs : int
+            Number of outputs of the uncertainty block.
+        """
+        self._num_inputs = num_inputs
+        self._num_outputs = num_outputs
+        self._is_diagonal = is_diagonal
+        self._is_complex = is_complex
+
+    @property
+    def num_inputs(self):
+        """Get number of inputs of the uncertainty block."""
+        return self._num_inputs
+
+    @property
+    def num_outputs(self):
+        """Get number of output of the uncertainty block."""
+        return self._num_outputs
+
+    @property
+    def is_diagonal(self):
+        """Get boolean for diagonal uncertainty."""
+        return self._is_diagonal
+
+    @property
+    def is_complex(self):
+        """Get boolean for complex uncertainty."""
+        return self._is_complex
+
+
+class RealDiagonalBlock(UncertaintyBlock):
     """Real-valued diagonal uncertainty block."""
 
     def __init__(self, num_channels: int):
@@ -17,15 +58,17 @@ class RealDiagonalBlock:
             raise ValueError("num_channels must be greater than 0.")
 
         # Uncertainty block parameters
-        self.num_inputs = num_channels
-        self.num_outputs = num_channels
+        self._num_inputs = num_channels
+        self._num_outputs = num_channels
+        self._is_diagonal = True
+        self._is_complex = False
 
 
-class ComplexDiagonalBlock:
+class ComplexDiagonalBlock(UncertaintyBlock):
     """Complex-valued diagonal uncertainty block."""
 
     def __init__(self, num_channels: int):
-        """Instantiate :class:`RealDiagonalBlock`.
+        """Instantiate :class:`ComplexDiagonalBlock`.
 
         Parameters
         ----------
@@ -37,11 +80,13 @@ class ComplexDiagonalBlock:
             raise ValueError("num_channels must be greater than 0.")
 
         # Uncertainty block parameters
-        self.num_inputs = num_channels
-        self.num_outputs = num_channels
+        self._num_inputs = num_channels
+        self._num_outputs = num_channels
+        self._is_diagonal = True
+        self._is_complex = True
 
 
-class ComplexFullBlock:
+class ComplexFullBlock(UncertaintyBlock):
     """Complex-valued full uncertainty block."""
 
     def __init__(self, num_inputs: int, num_outputs: int):
@@ -49,8 +94,10 @@ class ComplexFullBlock:
 
         Parameters
         ----------
-        num_channels : int
-            Number of inputs/outputs to the uncertainty block.
+        num_inputs : int
+            Number of inputs to the uncertainty block.
+        num_outputs : int
+            Number of inputs to the uncertainty block.
         """
         # Error handling
         if num_inputs <= 0:
@@ -59,5 +106,7 @@ class ComplexFullBlock:
             raise ValueError("num_outputs must be greater than 0.")
 
         # Uncertainty block parameters
-        self.num_inputs = num_inputs
-        self.num_outputs = num_outputs
+        self._num_inputs = num_inputs
+        self._num_outputs = num_outputs
+        self._is_diagonal = False
+        self._is_complex = True

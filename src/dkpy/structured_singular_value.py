@@ -16,6 +16,7 @@ import scipy.linalg
 
 from . import utilities
 from .uncertainty_structure import (
+    UncertaintyBlock,
     RealDiagonalBlock,
     ComplexDiagonalBlock,
     ComplexFullBlock,
@@ -29,9 +30,7 @@ class StructuredSingularValue(metaclass=abc.ABCMeta):
     def compute_ssv(
         self,
         N_omega: np.ndarray,
-        block_structure: Sequence[
-            Union[RealDiagonalBlock, ComplexDiagonalBlock, ComplexFullBlock]
-        ],
+        block_structure: Sequence[UncertaintyBlock],
     ) -> Tuple[np.ndarray, np.ndarray, Dict[str, Any]]:
         """Compute structured singular value.
 
@@ -39,7 +38,7 @@ class StructuredSingularValue(metaclass=abc.ABCMeta):
         ----------
         N_omega : np.ndarray
             Closed-loop transfer function evaluated at each frequency.
-        block_structure : Sequence[RealDiagonalBlock | ComplexDiagonalBlock | ComplexFullBlock]
+        block_structure : Sequence[UncertaintyBlock]
             Sequence of uncertainty block objects.
         Returns
         -------
@@ -139,9 +138,7 @@ class SsvLmiBisection(StructuredSingularValue):
     def compute_ssv(
         self,
         N_omega: np.ndarray,
-        block_structure: Sequence[
-            Union[RealDiagonalBlock, ComplexDiagonalBlock, ComplexFullBlock]
-        ],
+        block_structure: Sequence[UncertaintyBlock],
     ) -> Tuple[np.ndarray, np.ndarray, Dict[str, Any]]:
         # Solver settings
         solver_params = (
@@ -322,15 +319,13 @@ class SsvLmiBisection(StructuredSingularValue):
 
 
 def _variable_from_block_structure(
-    block_structure: Sequence[
-        Union[RealDiagonalBlock, ComplexDiagonalBlock, ComplexFullBlock]
-    ],
+    block_structure: Sequence[UncertaintyBlock],
 ) -> cvxpy.Variable:
     """Get optimization variable with specified block structure.
 
     Parameters
     ----------
-    block_structure : Sequence[RealDiagonalBlock | ComplexDiagonalBlock | ComplexFullBlock]
+    block_structure : Sequence[UncertaintyBlock]
         Sequence of uncertainty block objects.
 
     Returns

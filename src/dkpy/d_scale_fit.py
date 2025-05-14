@@ -6,7 +6,7 @@ __all__ = [
 ]
 
 import abc
-from typing import Optional, Tuple, Union, List, Sequence
+from typing import Optional, Tuple, Union, Sequence
 import warnings
 
 import control
@@ -16,6 +16,7 @@ import slycot
 
 from . import utilities
 from .uncertainty_structure import (
+    UncertaintyBlock,
     RealDiagonalBlock,
     ComplexDiagonalBlock,
     ComplexFullBlock,
@@ -31,9 +32,7 @@ class DScaleFit(metaclass=abc.ABCMeta):
         omega: np.ndarray,
         D_omega: np.ndarray,
         order: Union[int, np.ndarray] = 0,
-        block_structure: Optional[
-            Sequence[Union[RealDiagonalBlock, ComplexDiagonalBlock, ComplexFullBlock]]
-        ] = None,
+        block_structure: Optional[Sequence[UncertaintyBlock]] = None,
     ) -> Tuple[control.StateSpace, control.StateSpace]:
         """Fit D-scale magnitudes.
 
@@ -46,10 +45,8 @@ class DScaleFit(metaclass=abc.ABCMeta):
             dimension.
         order : Union[int, np.ndarray]
             Transfer function order to fit. Can be specified per-entry.
-        block_structure : Sequence[RealDiagonalBlock | ComplexDiagonalBlock | ComplexFullBlock]
-            2D array with 2 columns and as many rows as uncertainty blocks
-            in Delta. The columns represent the number of rows and columns in
-            each uncertainty block. See [#mussv]_.
+        block_structure : Sequence[UncertaintyBlock]
+            Sequence of uncertainty block objects.
 
         Returns
         -------
@@ -113,9 +110,7 @@ class DScaleFitSlicot(DScaleFit):
         omega: np.ndarray,
         D_omega: np.ndarray,
         order: Union[int, np.ndarray] = 0,
-        block_structure: Optional[
-            List[Union[RealDiagonalBlock, ComplexDiagonalBlock, ComplexFullBlock]]
-        ] = None,
+        block_structure: Optional[Sequence[UncertaintyBlock]] = None,
     ) -> Tuple[control.StateSpace, control.StateSpace]:
         # Get mask
         if block_structure is None:
@@ -165,9 +160,7 @@ class DScaleFitSlicot(DScaleFit):
 
 
 def _mask_from_block_structure(
-    block_structure: List[
-        Union[RealDiagonalBlock, ComplexDiagonalBlock, ComplexFullBlock]
-    ],
+    block_structure: Sequence[UncertaintyBlock],
 ) -> np.ndarray:
     """Create a mask from a specified block structure.
 
@@ -176,10 +169,8 @@ def _mask_from_block_structure(
 
     Parameters
     ----------
-    block_structure : np.ndarray
-        2D array with 2 columns and as many rows as uncertainty blocks
-        in Delta. The columns represent the number of rows and columns in
-        each uncertainty block. See [#mussv]_.
+    block_structure : Sequence[UncertaintyBlock]
+        Sequence of uncertainty block objects.
 
     Returns
     -------

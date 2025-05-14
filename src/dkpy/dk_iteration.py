@@ -27,6 +27,7 @@ from . import (
     utilities,
 )
 from .uncertainty_structure import (
+    UncertaintyBlock,
     RealDiagonalBlock,
     ComplexDiagonalBlock,
     ComplexFullBlock,
@@ -51,9 +52,7 @@ class IterResult:
         mu_fit_omega: np.ndarray,
         D_fit_omega: np.ndarray,
         D_fit: control.StateSpace,
-        block_structure: List[
-            Union[RealDiagonalBlock, ComplexDiagonalBlock, ComplexFullBlock]
-        ],
+        block_structure: Sequence[UncertaintyBlock],
     ):
         """Instantiate :class:`IterResult`.
 
@@ -71,14 +70,8 @@ class IterResult:
             Fit D-scale magnitude at each frequency.
         D_fit : control.StateSpace
             Fit D-scale state-space representation.
-        block_structure : np.ndarray
-            2D array with 2 columns and as many rows as uncertainty blocks
-            in Delta. The columns represent the number of rows and columns in
-            each uncertainty block. See [#mussv]_.
-
-        References
-        ----------
-        .. [#mussv] https://www.mathworks.com/help/robust/ref/mussv.html
+        block_structure : Sequence[UncertaintyBlock]
+            Sequence of uncertainty block objects.
         """
         self.omega = omega
         self.mu_omega = mu_omega
@@ -98,9 +91,7 @@ class IterResult:
         K: control.StateSpace,
         D_fit: control.StateSpace,
         D_fit_inv: control.StateSpace,
-        block_structure: List[
-            Union[RealDiagonalBlock, ComplexDiagonalBlock, ComplexFullBlock]
-        ],
+        block_structure: Sequence[UncertaintyBlock],
     ) -> "IterResult":
         """Instantiate :class:`IterResult` from fit D-scales.
 
@@ -120,10 +111,8 @@ class IterResult:
             Fit D-scale magnitude at each frequency.
         D_fit_inv : control.StateSpace
             Fit inverse D-scale magnitude at each frequency.
-        block_structure : np.ndarray
-            2D array with 2 columns and as many rows as uncertainty blocks
-            in Delta. The columns represent the number of rows and columns in
-            each uncertainty block. See [#mussv]_.
+        block_structure : Sequence[UncertaintyBlock]
+            Sequence of uncertainty block objects.
 
         Returns
         -------
@@ -154,10 +143,6 @@ class IterResult:
         ...     D_inv,
         ...     block_structure,
         ... )
-
-        References
-        ----------
-        .. [#mussv] https://www.mathworks.com/help/robust/ref/mussv.html
         """
         # Compute ``mu(omega)`` based on fit D-scales
         N = P.lft(K)
@@ -213,9 +198,7 @@ class DkIteration(metaclass=abc.ABCMeta):
         n_y: int,
         n_u: int,
         omega: np.ndarray,
-        block_structure: Sequence[
-            Union[RealDiagonalBlock, ComplexDiagonalBlock, ComplexFullBlock]
-        ],
+        block_structure: Sequence[UncertaintyBlock],
     ) -> Tuple[
         control.StateSpace,
         control.StateSpace,
@@ -239,10 +222,8 @@ class DkIteration(metaclass=abc.ABCMeta):
             Number of controller outputs.
         omega : np.ndarray
             Angular frequencies to evaluate D-scales (rad/s).
-        block_structure : np.ndarray
-            2D array with 2 columns and as many rows as uncertainty blocks
-            in Delta. The columns represent the number of rows and columns in
-            each uncertainty block. See [#mussv]_.
+        block_structure : Sequence[UncertaintyBlock]
+            Sequence of uncertainty block objects.
 
         Returns
         -------
@@ -262,10 +243,6 @@ class DkIteration(metaclass=abc.ABCMeta):
             object.
         :func:`plot_D`
             Plot D-scale fit from an :class:`IterResult` object.
-
-        References
-        ----------
-        .. [#mussv] https://www.mathworks.com/help/robust/ref/mussv.html
         """
         # Solution information
         info = {}
@@ -352,9 +329,7 @@ class DkIteration(metaclass=abc.ABCMeta):
         D_omega: np.ndarray,
         P: control.StateSpace,
         K: control.StateSpace,
-        block_structure: List[
-            Union[RealDiagonalBlock, ComplexDiagonalBlock, ComplexFullBlock]
-        ],
+        block_structure: Sequence[UncertaintyBlock],
     ) -> Optional[Union[int, np.ndarray]]:
         """Get D-scale fit order.
 
@@ -372,19 +347,13 @@ class DkIteration(metaclass=abc.ABCMeta):
             Generalized plant.
         K : control.StateSpace
             Controller.
-        block_structure : np.ndarray
-            2D array with 2 columns and as many rows as uncertainty blocks
-            in Delta. The columns represent the number of rows and columns in
-            each uncertainty block. See [#mussv]_.
+        block_structure : Sequence[UncertaintyBlock]
+            Sequence of uncertainty block objects.
 
         Returns
         -------
         Optional[Union[int, np.ndarray]]
             D-scale fit order. If ``None``, iteration ends.
-
-        References
-        ----------
-        .. [#mussv] https://www.mathworks.com/help/robust/ref/mussv.html
         """
         raise NotImplementedError()
 
@@ -453,9 +422,7 @@ class DkIterFixedOrder(DkIteration):
         D_omega: np.ndarray,
         P: control.StateSpace,
         K: control.StateSpace,
-        block_structure: List[
-            Union[RealDiagonalBlock, ComplexDiagonalBlock, ComplexFullBlock]
-        ],
+        block_structure: Sequence[UncertaintyBlock],
     ) -> Optional[Union[int, np.ndarray]]:
         if iteration < self.n_iterations:
             return self.fit_order
@@ -522,9 +489,7 @@ class DkIterListOrder(DkIteration):
         D_omega: np.ndarray,
         P: control.StateSpace,
         K: control.StateSpace,
-        block_structure: List[
-            Union[RealDiagonalBlock, ComplexDiagonalBlock, ComplexFullBlock]
-        ],
+        block_structure: Sequence[UncertaintyBlock],
     ) -> Optional[Union[int, np.ndarray]]:
         if iteration < len(self.fit_orders):
             return self.fit_orders[iteration]
@@ -606,9 +571,7 @@ class DkIterAutoOrder(DkIteration):
         D_omega: np.ndarray,
         P: control.StateSpace,
         K: control.StateSpace,
-        block_structure: List[
-            Union[RealDiagonalBlock, ComplexDiagonalBlock, ComplexFullBlock]
-        ],
+        block_structure: Sequence[UncertaintyBlock],
     ) -> Optional[Union[int, np.ndarray]]:
         # Check termination conditions
         if (self.max_iterations is not None) and (iteration >= self.max_iterations):
@@ -711,9 +674,7 @@ class DkIterInteractiveOrder(DkIteration):
         D_omega: np.ndarray,
         P: control.StateSpace,
         K: control.StateSpace,
-        block_structure: List[
-            Union[RealDiagonalBlock, ComplexDiagonalBlock, ComplexFullBlock]
-        ],
+        block_structure: Sequence[UncertaintyBlock],
     ) -> Optional[Union[int, np.ndarray]]:
         d_info = []
         for fit_order in range(self.max_fit_order + 1):
