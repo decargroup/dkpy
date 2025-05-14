@@ -19,7 +19,6 @@ class RealDiagonalBlock:
         # Uncertainty block parameters
         self.num_inputs = num_channels
         self.num_outputs = num_channels
-        self.is_square = True
 
 
 class ComplexDiagonalBlock:
@@ -40,7 +39,6 @@ class ComplexDiagonalBlock:
         # Uncertainty block parameters
         self.num_inputs = num_channels
         self.num_outputs = num_channels
-        self.is_square = True
 
 
 class ComplexFullBlock:
@@ -63,4 +61,3 @@ class ComplexFullBlock:
         # Uncertainty block parameters
         self.num_inputs = num_inputs
         self.num_outputs = num_outputs
-        self.is_square = self.num_inputs == self.num_outputs

@@ -7,7 +7,7 @@ __all__ = [
 
 import abc
 import warnings
-from typing import Any, Dict, Optional, Tuple, Union, List
+from typing import Any, Dict, Optional, Tuple, Union, List, Sequence
 
 import cvxpy
 import joblib
@@ -29,7 +29,7 @@ class StructuredSingularValue(metaclass=abc.ABCMeta):
     def compute_ssv(
         self,
         N_omega: np.ndarray,
-        block_structure: List[
+        block_structure: Sequence[
             Union[RealDiagonalBlock, ComplexDiagonalBlock, ComplexFullBlock]
         ],
     ) -> Tuple[np.ndarray, np.ndarray, Dict[str, Any]]:
@@ -39,11 +39,8 @@ class StructuredSingularValue(metaclass=abc.ABCMeta):
         ----------
         N_omega : np.ndarray
             Closed-loop transfer function evaluated at each frequency.
-        block_structure : np.ndarray
-            2D array with 2 columns and as many rows as uncertainty blocks
-            in Delta. The columns represent the number of rows and columns in
-            each uncertainty block. See [#mussv]_.
-
+        block_structure : Sequence[RealDiagonalBlock | ComplexDiagonalBlock | ComplexFullBlock]
+            Sequence of uncertainty block objects.
         Returns
         -------
         Tuple[np.ndarray, np.ndarray, Dict[str, Any]]
@@ -51,10 +48,6 @@ class StructuredSingularValue(metaclass=abc.ABCMeta):
             frequency, and solution information. If the structured singular
             value cannot be computed, the first two elements of the tuple are
             ``None``, but solution information is still returned.
-
-        References
-        ----------
-        .. [#mussv] https://www.mathworks.com/help/robust/ref/mussv.html
         """
         raise NotImplementedError()
 
@@ -146,7 +139,7 @@ class SsvLmiBisection(StructuredSingularValue):
     def compute_ssv(
         self,
         N_omega: np.ndarray,
-        block_structure: List[
+        block_structure: Sequence[
             Union[RealDiagonalBlock, ComplexDiagonalBlock, ComplexFullBlock]
         ],
     ) -> Tuple[np.ndarray, np.ndarray, Dict[str, Any]]:
@@ -329,7 +322,7 @@ class SsvLmiBisection(StructuredSingularValue):
 
 
 def _variable_from_block_structure(
-    block_structure: List[
+    block_structure: Sequence[
         Union[RealDiagonalBlock, ComplexDiagonalBlock, ComplexFullBlock]
     ],
 ) -> cvxpy.Variable:
@@ -337,27 +330,24 @@ def _variable_from_block_structure(
 
     Parameters
     ----------
-    block_structure : np.ndarray
-        2D array with 2 columns and as many rows as uncertainty blocks
-        in Delta. The columns represent the number of rows and columns in
-        each uncertainty block. See [#mussv]_.
+    block_structure : Sequence[RealDiagonalBlock | ComplexDiagonalBlock | ComplexFullBlock]
+        Sequence of uncertainty block objects.
 
     Returns
     -------
     cvxpy.Variable
         CVXPY variable with specified block structure.
-
-    References
-    ----------
-    .. [#mussv] https://www.mathworks.com/help/robust/ref/mussv.html
     """
     num_blocks = len(block_structure)
     X_lst = []
     for i in range(num_blocks):
         row = []
         for j in range(num_blocks):
+            # Uncertainty blocks
             block_i = block_structure[i]
             block_j = block_structure[j]
+            # Square uncertainty block condition
+            is_block_square = block_i.num_inputs == block_i.num_outputs
             if i == j:
                 # If on the block diagonal, insert variable
                 if isinstance(block_i, RealDiagonalBlock):
@@ -368,7 +358,7 @@ def _variable_from_block_structure(
                     raise NotImplementedError(
                         "Complex diagonal perturbations are not yet supported."
                     )
-                if isinstance(block_i, ComplexFullBlock) and (not block_i.is_square):
+                if isinstance(block_i, ComplexFullBlock) and (not is_block_square):
                     raise NotImplementedError(
                         "Nonsquare perturbations are not yet supported."
                     )

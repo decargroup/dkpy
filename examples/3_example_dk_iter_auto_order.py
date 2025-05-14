@@ -45,6 +45,11 @@ def example_dk_iter_auto_order():
 
     omega = np.logspace(-3, 3, 61)
     block_structure = np.array([[1, 1], [1, 1], [2, 2]])
+    block_structure = [
+        dkpy.ComplexFullBlock(1, 1),
+        dkpy.ComplexFullBlock(1, 1),
+        dkpy.ComplexFullBlock(2, 2),
+    ]
     K, N, mu, iter_results, info = dk_iter.synthesize(
         eg["P"],
         eg["n_y"],

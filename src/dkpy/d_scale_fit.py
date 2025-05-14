@@ -6,7 +6,7 @@ __all__ = [
 ]
 
 import abc
-from typing import Optional, Tuple, Union, List
+from typing import Optional, Tuple, Union, List, Sequence
 import warnings
 
 import control
@@ -31,7 +31,9 @@ class DScaleFit(metaclass=abc.ABCMeta):
         omega: np.ndarray,
         D_omega: np.ndarray,
         order: Union[int, np.ndarray] = 0,
-        block_structure: Optional[np.ndarray] = None,
+        block_structure: Optional[
+            Sequence[Union[RealDiagonalBlock, ComplexDiagonalBlock, ComplexFullBlock]]
+        ] = None,
     ) -> Tuple[control.StateSpace, control.StateSpace]:
         """Fit D-scale magnitudes.
 
@@ -44,7 +46,7 @@ class DScaleFit(metaclass=abc.ABCMeta):
             dimension.
         order : Union[int, np.ndarray]
             Transfer function order to fit. Can be specified per-entry.
-        block_structure : np.ndarray
+        block_structure : Sequence[RealDiagonalBlock | ComplexDiagonalBlock | ComplexFullBlock]
             2D array with 2 columns and as many rows as uncertainty blocks
             in Delta. The columns represent the number of rows and columns in
             each uncertainty block. See [#mussv]_.
@@ -112,7 +114,7 @@ class DScaleFitSlicot(DScaleFit):
         D_omega: np.ndarray,
         order: Union[int, np.ndarray] = 0,
         block_structure: Optional[
-            Union[RealDiagonalBlock, ComplexDiagonalBlock, ComplexFullBlock]
+            List[Union[RealDiagonalBlock, ComplexDiagonalBlock, ComplexFullBlock]]
         ] = None,
     ) -> Tuple[control.StateSpace, control.StateSpace]:
         # Get mask
@@ -192,12 +194,15 @@ def _mask_from_block_structure(
     num_blocks = len(block_structure)
     X_lst = []
     for i in range(num_blocks):
+        # Uncertainty block
         block = block_structure[i]
+        # Square uncertainty block condition
+        is_block_square = block.num_inputs == block.num_outputs
         if isinstance(block, RealDiagonalBlock):
             raise NotImplementedError("Real perturbations are not yet supported.")
         if isinstance(block, ComplexDiagonalBlock):
             raise NotImplementedError("Diagonal perturbations are not yet supported.")
-        if isinstance(block, ComplexFullBlock) and (not block.is_square):
+        if isinstance(block, ComplexFullBlock) and (not is_block_square):
             raise NotImplementedError("Nonsquare perturbations are not yet supported.")
         # Set last scaling to identity
         if i == num_blocks - 1:

@@ -13,7 +13,7 @@ __all__ = [
 
 import abc
 import logging
-from typing import Any, Dict, List, Optional, Tuple, Union
+from typing import Any, Dict, List, Optional, Tuple, Union, Sequence
 
 import control
 import numpy as np
@@ -25,6 +25,11 @@ from . import (
     d_scale_fit,
     structured_singular_value,
     utilities,
+)
+from .uncertainty_structure import (
+    RealDiagonalBlock,
+    ComplexDiagonalBlock,
+    ComplexFullBlock,
 )
 
 
@@ -46,7 +51,9 @@ class IterResult:
         mu_fit_omega: np.ndarray,
         D_fit_omega: np.ndarray,
         D_fit: control.StateSpace,
-        block_structure: np.ndarray,
+        block_structure: List[
+            Union[RealDiagonalBlock, ComplexDiagonalBlock, ComplexFullBlock]
+        ],
     ):
         """Instantiate :class:`IterResult`.
 
@@ -91,7 +98,9 @@ class IterResult:
         K: control.StateSpace,
         D_fit: control.StateSpace,
         D_fit_inv: control.StateSpace,
-        block_structure: np.ndarray,
+        block_structure: List[
+            Union[RealDiagonalBlock, ComplexDiagonalBlock, ComplexFullBlock]
+        ],
     ) -> "IterResult":
         """Instantiate :class:`IterResult` from fit D-scales.
 
@@ -204,7 +213,9 @@ class DkIteration(metaclass=abc.ABCMeta):
         n_y: int,
         n_u: int,
         omega: np.ndarray,
-        block_structure: np.ndarray,
+        block_structure: Sequence[
+            Union[RealDiagonalBlock, ComplexDiagonalBlock, ComplexFullBlock]
+        ],
     ) -> Tuple[
         control.StateSpace,
         control.StateSpace,
@@ -341,7 +352,9 @@ class DkIteration(metaclass=abc.ABCMeta):
         D_omega: np.ndarray,
         P: control.StateSpace,
         K: control.StateSpace,
-        block_structure: np.ndarray,
+        block_structure: List[
+            Union[RealDiagonalBlock, ComplexDiagonalBlock, ComplexFullBlock]
+        ],
     ) -> Optional[Union[int, np.ndarray]]:
         """Get D-scale fit order.
 
@@ -440,7 +453,9 @@ class DkIterFixedOrder(DkIteration):
         D_omega: np.ndarray,
         P: control.StateSpace,
         K: control.StateSpace,
-        block_structure: np.ndarray,
+        block_structure: List[
+            Union[RealDiagonalBlock, ComplexDiagonalBlock, ComplexFullBlock]
+        ],
     ) -> Optional[Union[int, np.ndarray]]:
         if iteration < self.n_iterations:
             return self.fit_order
@@ -507,7 +522,9 @@ class DkIterListOrder(DkIteration):
         D_omega: np.ndarray,
         P: control.StateSpace,
         K: control.StateSpace,
-        block_structure: np.ndarray,
+        block_structure: List[
+            Union[RealDiagonalBlock, ComplexDiagonalBlock, ComplexFullBlock]
+        ],
     ) -> Optional[Union[int, np.ndarray]]:
         if iteration < len(self.fit_orders):
             return self.fit_orders[iteration]
@@ -589,7 +606,9 @@ class DkIterAutoOrder(DkIteration):
         D_omega: np.ndarray,
         P: control.StateSpace,
         K: control.StateSpace,
-        block_structure: np.ndarray,
+        block_structure: List[
+            Union[RealDiagonalBlock, ComplexDiagonalBlock, ComplexFullBlock]
+        ],
     ) -> Optional[Union[int, np.ndarray]]:
         # Check termination conditions
         if (self.max_iterations is not None) and (iteration >= self.max_iterations):
@@ -686,14 +705,16 @@ class DkIterInteractiveOrder(DkIteration):
 
     def _get_fit_order(
         self,
-        iteration,
-        omega,
-        mu_omega,
-        D_omega,
-        P,
-        K,
-        block_structure,
-    ):
+        iteration: int,
+        omega: np.ndarray,
+        mu_omega: np.ndarray,
+        D_omega: np.ndarray,
+        P: control.StateSpace,
+        K: control.StateSpace,
+        block_structure: List[
+            Union[RealDiagonalBlock, ComplexDiagonalBlock, ComplexFullBlock]
+        ],
+    ) -> Optional[Union[int, np.ndarray]]:
         d_info = []
         for fit_order in range(self.max_fit_order + 1):
             D_fit, D_fit_inv = self.d_scale_fit.fit(
