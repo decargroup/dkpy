@@ -26,12 +26,7 @@ from . import (
     structured_singular_value,
     utilities,
 )
-from .uncertainty_structure import (
-    UncertaintyBlock,
-    RealDiagonalBlock,
-    ComplexDiagonalBlock,
-    ComplexFullBlock,
-)
+from .uncertainty_structure import UncertaintyBlock, _convert_matlab_block_structure
 
 
 class IterResult:
@@ -91,7 +86,7 @@ class IterResult:
         K: control.StateSpace,
         D_fit: control.StateSpace,
         D_fit_inv: control.StateSpace,
-        block_structure: Sequence[UncertaintyBlock],
+        block_structure: Union[Sequence[UncertaintyBlock], np.ndarray],
     ) -> "IterResult":
         """Instantiate :class:`IterResult` from fit D-scales.
 
@@ -111,7 +106,7 @@ class IterResult:
             Fit D-scale magnitude at each frequency.
         D_fit_inv : control.StateSpace
             Fit inverse D-scale magnitude at each frequency.
-        block_structure : Sequence[UncertaintyBlock]
+        block_structure : Union[Sequence[UncertaintyBlock], np.ndarray]
             Sequence of uncertainty block objects.
 
         Returns
@@ -124,7 +119,11 @@ class IterResult:
         Create a ``IterResult`` object from fit data
 
         >>> P, n_y, n_u, K = example_skogestad2006_p325
-        >>> block_structure = np.array([[1, 1], [1, 1], [2, 2]])
+        >>> block_structure = [
+        ...     dkpy.ComplexFullBlock(1, 1),
+        ...     dkpy.ComplexFullBlock(1, 1),
+        ...     dkpy.ComplexFullBlock(2, 2),
+        ... ]
         >>> omega = np.logspace(-3, 3, 61)
         >>> N = P.lft(K)
         >>> N_omega = N(1j * omega)
@@ -144,6 +143,9 @@ class IterResult:
         ...     block_structure,
         ... )
         """
+        # Convert MATLAB block structure description to OOP description
+        if isinstance(block_structure, np.ndarray):
+            block_structure = _convert_matlab_block_structure(block_structure)
         # Compute ``mu(omega)`` based on fit D-scales
         N = P.lft(K)
         scaled_cl = (D_fit * N * D_fit_inv)(1j * omega)
@@ -198,7 +200,7 @@ class DkIteration(metaclass=abc.ABCMeta):
         n_y: int,
         n_u: int,
         omega: np.ndarray,
-        block_structure: Sequence[UncertaintyBlock],
+        block_structure: Union[Sequence[UncertaintyBlock], np.ndarray],
     ) -> Tuple[
         control.StateSpace,
         control.StateSpace,
@@ -222,7 +224,7 @@ class DkIteration(metaclass=abc.ABCMeta):
             Number of controller outputs.
         omega : np.ndarray
             Angular frequencies to evaluate D-scales (rad/s).
-        block_structure : Sequence[UncertaintyBlock]
+        block_structure : Union[Sequence[UncertaintyBlock], np.ndarray]
             Sequence of uncertainty block objects.
 
         Returns
@@ -244,6 +246,9 @@ class DkIteration(metaclass=abc.ABCMeta):
         :func:`plot_D`
             Plot D-scale fit from an :class:`IterResult` object.
         """
+        # Convert MATLAB block structure representation to OOP representation
+        if isinstance(block_structure, np.ndarray):
+            block_structure = _convert_matlab_block_structure(block_structure)
         # Solution information
         info = {}
         d_scale_fit_info = []
@@ -395,7 +400,11 @@ class DkIterFixedOrder(DkIteration):
         ...     fit_order=4,
         ... )
         >>> omega = np.logspace(-3, 3, 61)
-        >>> block_structure = np.array([[1, 1], [1, 1], [2, 2]])
+        >>> block_structure = [
+        ...     dkpy.ComplexFullBlock(1, 1),
+        ...     dkpy.ComplexFullBlock(1, 1),
+        ...     dkpy.ComplexFullBlock(2, 2),
+        ... ]
         >>> K, N, mu, d_scale_fit_info, info = dk_iter.synthesize(
         ...     eg["P"],
         ...     eg["n_y"],
@@ -463,7 +472,11 @@ class DkIterListOrder(DkIteration):
         ...     fit_orders=[4, 4, 4],
         ... )
         >>> omega = np.logspace(-3, 3, 61)
-        >>> block_structure = np.array([[1, 1], [1, 1], [2, 2]])
+        >>> block_structure = [
+        ...     dkpy.ComplexFullBlock(1, 1),
+        ...     dkpy.ComplexFullBlock(1, 1),
+        ...     dkpy.ComplexFullBlock(2, 2),
+        ... ]
         >>> K, N, mu, d_scale_fit_info, info = dk_iter.synthesize(
         ...     eg["P"],
         ...     eg["n_y"],
@@ -542,7 +555,11 @@ class DkIterAutoOrder(DkIteration):
         ...     max_fit_order=4,
         ... )
         >>> omega = np.logspace(-3, 3, 61)
-        >>> block_structure = np.array([[1, 1], [1, 1], [2, 2]])
+        >>> block_structure = [
+        ...     dkpy.ComplexFullBlock(1, 1),
+        ...     dkpy.ComplexFullBlock(1, 1),
+        ...     dkpy.ComplexFullBlock(2, 2),
+        ... ]
         >>> K, N, mu, d_scale_fit_info, info = dk_iter.synthesize(
         ...     eg["P"],
         ...     eg["n_y"],
@@ -650,7 +667,11 @@ class DkIterInteractiveOrder(DkIteration):
         ...     max_fit_order=4,
         ... )
         >>> omega = np.logspace(-3, 3, 61)
-        >>> block_structure = np.array([[1, 1], [1, 1], [2, 2]])
+        >>> block_structure = [
+        ...     dkpy.ComplexFullBlock(1, 1),
+        ...     dkpy.ComplexFullBlock(1, 1),
+        ...     dkpy.ComplexFullBlock(2, 2),
+        ... ]
         >>> K, N, mu, d_scale_fit_info, info = dk_iter.synthesize(
         ...     eg["P"],
         ...     eg["n_y"],
@@ -846,7 +867,11 @@ def plot_D(
     Create a ``IterResult`` object from fit data and plot ``D``
 
     >>> P, n_y, n_u, K = example_skogestad2006_p325
-    >>> block_structure = np.array([[1, 1], [1, 1], [2, 2]])
+    >>> block_structure = [
+    ...     dkpy.ComplexFullBlock(1, 1),
+    ...     dkpy.ComplexFullBlock(1, 1),
+    ...     dkpy.ComplexFullBlock(2, 2),
+    ... ]
     >>> omega = np.logspace(-3, 3, 61)
     >>> N = P.lft(K)
     >>> N_omega = N(1j * omega)
