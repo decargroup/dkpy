@@ -44,7 +44,7 @@ def example_dk_iter_auto_order():
     )
 
     omega = np.logspace(-3, 3, 61)
-    block_structure = np.array([[1, 1], [1, 1], [2, 2]])
+    # block_structure = np.array([[1, 1], [1, 1], [2, 2]])  # Alternative MATLAB descr.
     block_structure = [
         dkpy.ComplexFullBlock(1, 1),
         dkpy.ComplexFullBlock(1, 1),
