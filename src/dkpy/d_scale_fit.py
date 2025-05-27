@@ -20,6 +20,7 @@ from .uncertainty_structure import (
     RealDiagonalBlock,
     ComplexDiagonalBlock,
     ComplexFullBlock,
+    _convert_matlab_block_structure,
 )
 
 
@@ -32,7 +33,7 @@ class DScaleFit(metaclass=abc.ABCMeta):
         omega: np.ndarray,
         D_omega: np.ndarray,
         order: Union[int, np.ndarray] = 0,
-        block_structure: Optional[Sequence[UncertaintyBlock]] = None,
+        block_structure: Optional[Union[Sequence[UncertaintyBlock], np.ndarray]] = None,
     ) -> Tuple[control.StateSpace, control.StateSpace]:
         """Fit D-scale magnitudes.
 
@@ -45,8 +46,8 @@ class DScaleFit(metaclass=abc.ABCMeta):
             dimension.
         order : Union[int, np.ndarray]
             Transfer function order to fit. Can be specified per-entry.
-        block_structure : Sequence[UncertaintyBlock]
-            Sequence of uncertainty block objects.
+        block_structure : Union[Sequence[UncertaintyBlock], np.ndarray]
+            Uncertainty block structure description.
 
         Returns
         -------
@@ -110,8 +111,10 @@ class DScaleFitSlicot(DScaleFit):
         omega: np.ndarray,
         D_omega: np.ndarray,
         order: Union[int, np.ndarray] = 0,
-        block_structure: Optional[Sequence[UncertaintyBlock]] = None,
+        block_structure: Optional[Union[Sequence[UncertaintyBlock], np.ndarray]] = None,
     ) -> Tuple[control.StateSpace, control.StateSpace]:
+        if isinstance(block_structure, np.ndarray):
+            block_structure = _convert_matlab_block_structure(block_structure)
         # Get mask
         if block_structure is None:
             mask = -1 * np.ones((D_omega.shape[0], D_omega.shape[1]), dtype=int)

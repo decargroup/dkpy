@@ -7,7 +7,7 @@ __all__ = [
 
 import abc
 import warnings
-from typing import Any, Dict, Optional, Tuple, Union, List, Sequence
+from typing import Any, Dict, Optional, Tuple, Union, Sequence
 
 import cvxpy
 import joblib
@@ -20,6 +20,7 @@ from .uncertainty_structure import (
     RealDiagonalBlock,
     ComplexDiagonalBlock,
     ComplexFullBlock,
+    _convert_matlab_block_structure,
 )
 
 
@@ -30,7 +31,7 @@ class StructuredSingularValue(metaclass=abc.ABCMeta):
     def compute_ssv(
         self,
         N_omega: np.ndarray,
-        block_structure: Sequence[UncertaintyBlock],
+        block_structure: Union[Sequence[UncertaintyBlock], np.ndarray],
     ) -> Tuple[np.ndarray, np.ndarray, Dict[str, Any]]:
         """Compute structured singular value.
 
@@ -38,7 +39,7 @@ class StructuredSingularValue(metaclass=abc.ABCMeta):
         ----------
         N_omega : np.ndarray
             Closed-loop transfer function evaluated at each frequency.
-        block_structure : Sequence[UncertaintyBlock]
+        block_structure : Union[Sequence[UncertaintyBlock], np.ndarray]
             Sequence of uncertainty block objects.
         Returns
         -------
@@ -138,7 +139,7 @@ class SsvLmiBisection(StructuredSingularValue):
     def compute_ssv(
         self,
         N_omega: np.ndarray,
-        block_structure: Sequence[UncertaintyBlock],
+        block_structure: Union[Sequence[UncertaintyBlock], np.ndarray],
     ) -> Tuple[np.ndarray, np.ndarray, Dict[str, Any]]:
         # Solver settings
         solver_params = (
@@ -164,6 +165,9 @@ class SsvLmiBisection(StructuredSingularValue):
             constant_objective = True
         else:
             raise ValueError("`objective` must be `'minimize'` or `'constant'`.")
+
+        if isinstance(block_structure, np.ndarray):
+            block_structure = _convert_matlab_block_structure(block_structure)
 
         def _ssv_at_omega(
             N_omega: np.ndarray,
@@ -289,8 +293,7 @@ class SsvLmiBisection(StructuredSingularValue):
                 info["size_metrics"] = [p.size_metrics for p in problems]
                 info["results"] = results
                 info["iterations"] = n_iterations
-                return None, None, info
-            # Save info
+                return None, None, info  # Save info
             info["status"] = "Bisection succeeded."
             info["gammas"] = gammas
             info["solver_stats"] = [p.solver_stats for p in problems]
