@@ -131,12 +131,12 @@ If you use this software in your research, please cite it as below or see
 
 .. code-block:: bibtex
 
-    @software{dahdah_dkpy_2024,
+    @software{dahdah_dkpy_2025,
         title={{decargroup/dkpy}},
         doi={10.5281/zenodo.14511244},
         url={https://github.com/decargroup/dkpy},
         publisher={Zenodo},
         author={Steven Dahdah and James Richard Forbes},
-        version = {{v0.1.8}},
-        year={2024},
+        version = {{v0.1.9}},
+        year={2025},
     }

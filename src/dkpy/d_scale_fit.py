@@ -6,7 +6,7 @@ __all__ = [
 ]
 
 import abc
-from typing import Optional, Tuple, Union
+from typing import Optional, Tuple, Union, Sequence
 import warnings
 
 import control
@@ -15,6 +15,13 @@ import scipy.linalg
 import slycot
 
 from . import utilities
+from .uncertainty_structure import (
+    UncertaintyBlock,
+    RealDiagonalBlock,
+    ComplexDiagonalBlock,
+    ComplexFullBlock,
+    _convert_matlab_block_structure,
+)
 
 
 class DScaleFit(metaclass=abc.ABCMeta):
@@ -26,7 +33,7 @@ class DScaleFit(metaclass=abc.ABCMeta):
         omega: np.ndarray,
         D_omega: np.ndarray,
         order: Union[int, np.ndarray] = 0,
-        block_structure: Optional[np.ndarray] = None,
+        block_structure: Optional[Union[Sequence[UncertaintyBlock], np.ndarray]] = None,
     ) -> Tuple[control.StateSpace, control.StateSpace]:
         """Fit D-scale magnitudes.
 
@@ -39,10 +46,8 @@ class DScaleFit(metaclass=abc.ABCMeta):
             dimension.
         order : Union[int, np.ndarray]
             Transfer function order to fit. Can be specified per-entry.
-        block_structure : np.ndarray
-            2D array with 2 columns and as many rows as uncertainty blocks
-            in Delta. The columns represent the number of rows and columns in
-            each uncertainty block. See [#mussv]_.
+        block_structure : Union[Sequence[UncertaintyBlock], np.ndarray]
+            Uncertainty block structure description.
 
         Returns
         -------
@@ -80,24 +85,24 @@ class DScaleFitSlicot(DScaleFit):
     ... )
     >>> D, D_inv = dkpy.DScaleFitSlicot().fit(omega, D_omega, 2, block_structure)
     >>> print(control.ss2tf(D[0, 0]))
-    <TransferFunction>: sys[3641]$indexed$converted
+    <TransferFunction>: sys[4066]$indexed$converted
     Inputs (1): ['u[0]']
     Outputs (1): ['y[0]']
     <BLANKLINE>
     <BLANKLINE>
-    0.0157 s^2 + 0.257 s + 0.1391
-    -----------------------------
-      s^2 + 0.9658 s + 0.01424
+    0.01571 s^2 + 0.257 s + 0.1391
+    ------------------------------
+       s^2 + 0.9657 s + 0.01424
     <BLANKLINE>
     >>> print(control.ss2tf(D[1, 1]))
-    <TransferFunction>: sys[3641]$indexed$converted
+    <TransferFunction>: sys[4066]$indexed$converted
     Inputs (1): ['u[1]']
     Outputs (1): ['y[1]']
     <BLANKLINE>
     <BLANKLINE>
     0.01573 s^2 + 0.2574 s + 0.1394
     -------------------------------
-       s^2 + 0.9663 s + 0.01425
+      s^2 + 0.9663 s + 0.01425
     <BLANKLINE>
     """
 
@@ -106,8 +111,10 @@ class DScaleFitSlicot(DScaleFit):
         omega: np.ndarray,
         D_omega: np.ndarray,
         order: Union[int, np.ndarray] = 0,
-        block_structure: Optional[np.ndarray] = None,
+        block_structure: Optional[Union[Sequence[UncertaintyBlock], np.ndarray]] = None,
     ) -> Tuple[control.StateSpace, control.StateSpace]:
+        if isinstance(block_structure, np.ndarray):
+            block_structure = _convert_matlab_block_structure(block_structure)
         # Get mask
         if block_structure is None:
             mask = -1 * np.ones((D_omega.shape[0], D_omega.shape[1]), dtype=int)
@@ -155,7 +162,9 @@ class DScaleFitSlicot(DScaleFit):
         return ss, ss_inv
 
 
-def _mask_from_block_structure(block_structure: np.ndarray) -> np.ndarray:
+def _mask_from_block_structure(
+    block_structure: Sequence[UncertaintyBlock],
+) -> np.ndarray:
     """Create a mask from a specified block structure.
 
     Entries known to be zero are set to 0. Entries known to be one are set to
@@ -163,10 +172,8 @@ def _mask_from_block_structure(block_structure: np.ndarray) -> np.ndarray:
 
     Parameters
     ----------
-    block_structure : np.ndarray
-        2D array with 2 columns and as many rows as uncertainty blocks
-        in Delta. The columns represent the number of rows and columns in
-        each uncertainty block. See [#mussv]_.
+    block_structure : Sequence[UncertaintyBlock]
+        Sequence of uncertainty block objects.
 
     Returns
     -------
@@ -178,19 +185,24 @@ def _mask_from_block_structure(block_structure: np.ndarray) -> np.ndarray:
     ----------
     .. [#mussv] https://www.mathworks.com/help/robust/ref/mussv.html
     """
+    num_blocks = len(block_structure)
     X_lst = []
-    for i in range(block_structure.shape[0]):
-        if block_structure[i, 0] <= 0:
+    for i in range(num_blocks):
+        # Uncertainty block
+        block = block_structure[i]
+        # Square uncertainty block condition
+        is_block_square = block.num_inputs == block.num_outputs
+        if isinstance(block, RealDiagonalBlock):
             raise NotImplementedError("Real perturbations are not yet supported.")
-        if block_structure[i, 1] <= 0:
+        if isinstance(block, ComplexDiagonalBlock):
             raise NotImplementedError("Diagonal perturbations are not yet supported.")
-        if block_structure[i, 0] != block_structure[i, 1]:
+        if isinstance(block, ComplexFullBlock) and (not is_block_square):
             raise NotImplementedError("Nonsquare perturbations are not yet supported.")
         # Set last scaling to identity
-        if i == block_structure.shape[0] - 1:
-            X_lst.append(np.eye(block_structure[i, 0], dtype=int))
+        if i == num_blocks - 1:
+            X_lst.append(np.eye(block.num_inputs, dtype=int))
         else:
-            X_lst.append(-1 * np.eye(block_structure[i, 0], dtype=int))
+            X_lst.append(-1 * np.eye(block.num_inputs, dtype=int))
     X = scipy.linalg.block_diag(*X_lst)
     return X
 

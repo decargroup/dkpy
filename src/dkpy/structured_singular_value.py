@@ -7,7 +7,7 @@ __all__ = [
 
 import abc
 import warnings
-from typing import Any, Dict, Optional, Tuple
+from typing import Any, Dict, Optional, Tuple, Union, Sequence
 
 import cvxpy
 import joblib
@@ -15,6 +15,13 @@ import numpy as np
 import scipy.linalg
 
 from . import utilities
+from .uncertainty_structure import (
+    UncertaintyBlock,
+    RealDiagonalBlock,
+    ComplexDiagonalBlock,
+    ComplexFullBlock,
+    _convert_matlab_block_structure,
+)
 
 
 class StructuredSingularValue(metaclass=abc.ABCMeta):
@@ -24,7 +31,7 @@ class StructuredSingularValue(metaclass=abc.ABCMeta):
     def compute_ssv(
         self,
         N_omega: np.ndarray,
-        block_structure: np.ndarray,
+        block_structure: Union[Sequence[UncertaintyBlock], np.ndarray],
     ) -> Tuple[np.ndarray, np.ndarray, Dict[str, Any]]:
         """Compute structured singular value.
 
@@ -32,11 +39,8 @@ class StructuredSingularValue(metaclass=abc.ABCMeta):
         ----------
         N_omega : np.ndarray
             Closed-loop transfer function evaluated at each frequency.
-        block_structure : np.ndarray
-            2D array with 2 columns and as many rows as uncertainty blocks
-            in Delta. The columns represent the number of rows and columns in
-            each uncertainty block. See [#mussv]_.
-
+        block_structure : Union[Sequence[UncertaintyBlock], np.ndarray]
+            Sequence of uncertainty block objects.
         Returns
         -------
         Tuple[np.ndarray, np.ndarray, Dict[str, Any]]
@@ -44,10 +48,6 @@ class StructuredSingularValue(metaclass=abc.ABCMeta):
             frequency, and solution information. If the structured singular
             value cannot be computed, the first two elements of the tuple are
             ``None``, but solution information is still returned.
-
-        References
-        ----------
-        .. [#mussv] https://www.mathworks.com/help/robust/ref/mussv.html
         """
         raise NotImplementedError()
 
@@ -139,7 +139,7 @@ class SsvLmiBisection(StructuredSingularValue):
     def compute_ssv(
         self,
         N_omega: np.ndarray,
-        block_structure: np.ndarray,
+        block_structure: Union[Sequence[UncertaintyBlock], np.ndarray],
     ) -> Tuple[np.ndarray, np.ndarray, Dict[str, Any]]:
         # Solver settings
         solver_params = (
@@ -166,9 +166,12 @@ class SsvLmiBisection(StructuredSingularValue):
         else:
             raise ValueError("`objective` must be `'minimize'` or `'constant'`.")
 
+        if isinstance(block_structure, np.ndarray):
+            block_structure = _convert_matlab_block_structure(block_structure)
+
         def _ssv_at_omega(
             N_omega: np.ndarray,
-        ) -> Tuple[float, np.ndarray, Dict[str, Any]]:
+        ) -> Tuple[Union[float, None], Union[np.ndarray, None], Dict[str, Any]]:
             """Compute the structured singular value at a given frequency.
 
             Split into its own function to allow parallelization over
@@ -290,8 +293,7 @@ class SsvLmiBisection(StructuredSingularValue):
                 info["size_metrics"] = [p.size_metrics for p in problems]
                 info["results"] = results
                 info["iterations"] = n_iterations
-                return None, None, info
-            # Save info
+                return None, None, info  # Save info
             info["status"] = "Bisection succeeded."
             info["gammas"] = gammas
             info["solver_stats"] = [p.solver_stats for p in problems]
@@ -319,58 +321,60 @@ class SsvLmiBisection(StructuredSingularValue):
         return mu, D_scales, info
 
 
-def _variable_from_block_structure(block_structure: np.ndarray) -> cvxpy.Variable:
+def _variable_from_block_structure(
+    block_structure: Sequence[UncertaintyBlock],
+) -> cvxpy.Variable:
     """Get optimization variable with specified block structure.
 
     Parameters
     ----------
-    block_structure : np.ndarray
-        2D array with 2 columns and as many rows as uncertainty blocks
-        in Delta. The columns represent the number of rows and columns in
-        each uncertainty block. See [#mussv]_.
+    block_structure : Sequence[UncertaintyBlock]
+        Sequence of uncertainty block objects.
 
     Returns
     -------
     cvxpy.Variable
         CVXPY variable with specified block structure.
-
-    References
-    ----------
-    .. [#mussv] https://www.mathworks.com/help/robust/ref/mussv.html
     """
+    num_blocks = len(block_structure)
     X_lst = []
-    for i in range(block_structure.shape[0]):
+    for i in range(num_blocks):
         row = []
-        for j in range(block_structure.shape[0]):
+        for j in range(num_blocks):
+            # Uncertainty blocks
+            block_i = block_structure[i]
+            block_j = block_structure[j]
+            # Square uncertainty block condition
+            is_block_square = block_i.num_inputs == block_i.num_outputs
             if i == j:
                 # If on the block diagonal, insert variable
-                if block_structure[i, 0] <= 0:
+                if isinstance(block_i, RealDiagonalBlock):
                     raise NotImplementedError(
-                        "Real perturbations are not yet supported."
+                        "Real diagonal perturbations are not yet supported."
                     )
-                if block_structure[i, 1] <= 0:
+                if isinstance(block_i, ComplexDiagonalBlock):
                     raise NotImplementedError(
-                        "Diagonal perturbations are not yet supported."
+                        "Complex diagonal perturbations are not yet supported."
                     )
-                if block_structure[i, 0] != block_structure[i, 1]:
+                if isinstance(block_i, ComplexFullBlock) and (not is_block_square):
                     raise NotImplementedError(
                         "Nonsquare perturbations are not yet supported."
                     )
-                if i == block_structure.shape[0] - 1:
+                if i == num_blocks - 1:
                     # Last scaling is always identity
-                    row.append(np.eye(block_structure[i, 0]))
+                    row.append(np.eye(block_i.num_inputs))
                 else:
                     # Every other scaling is either a scalar or a scalar
                     # multiplied by identity
-                    if block_structure[i, 0] == 1:
+                    if block_i.num_inputs == 1:
                         xi = cvxpy.Variable((1, 1), complex=True, name=f"x{i}")
                         row.append(xi)
                     else:
                         xi = cvxpy.Variable(1, complex=True, name=f"x{i}")
-                        row.append(xi * np.eye(block_structure[i, 0]))
+                        row.append(xi * np.eye(block_i.num_inputs))
             else:
                 # If off the block diagonal, insert zeros
-                row.append(np.zeros((block_structure[i, 0], block_structure[j, 1])))
+                row.append(np.zeros((block_i.num_inputs, block_j.num_inputs)))
         X_lst.append(row)
     X = cvxpy.bmat(X_lst)
     return X
