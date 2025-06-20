@@ -94,7 +94,7 @@ Example
 
     # Set up the D-K iteration method
     dk_iter = dkpy.DkIterListOrder(
-        controller_synthesis=dkpy.HinfSynLmi(),
+        controller_synthesis=dkpy.HinfSynSlicot(),
         structured_singular_value=dkpy.SsvLmiBisection(),
         d_scale_fit=dkpy.DScaleFitSlicot(),
         fit_orders=[4, 4, 4],
