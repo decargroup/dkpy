@@ -94,7 +94,7 @@ Example
 
     # Set up the D-K iteration method
     dk_iter = dkpy.DkIterListOrder(
-        controller_synthesis=dkpy.HinfSynLmi(),
+        controller_synthesis=dkpy.HinfSynSlicot(),
         structured_singular_value=dkpy.SsvLmiBisection(),
         d_scale_fit=dkpy.DScaleFitSlicot(),
         fit_orders=[4, 4, 4],
@@ -137,6 +137,6 @@ If you use this software in your research, please cite it as below or see
         url={https://github.com/decargroup/dkpy},
         publisher={Zenodo},
         author={Steven Dahdah and James Richard Forbes},
-        version = {{v0.1.8}},
+        version = {{v0.1.9}},
         year={2024},
     }
