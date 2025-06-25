@@ -6,7 +6,7 @@ __all__ = [
 ]
 
 import abc
-from typing import Optional, Tuple, Union, Sequence
+from typing import Optional, Tuple, Union, List
 import warnings
 
 import control
@@ -15,13 +15,7 @@ import scipy.linalg
 import slycot
 
 from . import utilities
-from .uncertainty_structure import (
-    UncertaintyBlock,
-    RealDiagonalBlock,
-    ComplexDiagonalBlock,
-    ComplexFullBlock,
-    _convert_matlab_block_structure,
-)
+from . import uncertainty_structure
 
 
 class DScaleFit(metaclass=abc.ABCMeta):
@@ -33,7 +27,9 @@ class DScaleFit(metaclass=abc.ABCMeta):
         omega: np.ndarray,
         D_omega: np.ndarray,
         order: Union[int, np.ndarray] = 0,
-        block_structure: Optional[Union[Sequence[UncertaintyBlock], np.ndarray]] = None,
+        block_structure: Optional[
+            Union[List[uncertainty_structure.UncertaintyBlock], np.ndarray]
+        ] = None,
     ) -> Tuple[control.StateSpace, control.StateSpace]:
         """Fit D-scale magnitudes.
 
@@ -46,7 +42,7 @@ class DScaleFit(metaclass=abc.ABCMeta):
             dimension.
         order : Union[int, np.ndarray]
             Transfer function order to fit. Can be specified per-entry.
-        block_structure : Union[Sequence[UncertaintyBlock], np.ndarray]
+        block_structure : Union[List[uncertainty_structure.UncertaintyBlock], np.ndarray]
             Uncertainty block structure description.
 
         Returns
@@ -111,14 +107,19 @@ class DScaleFitSlicot(DScaleFit):
         omega: np.ndarray,
         D_omega: np.ndarray,
         order: Union[int, np.ndarray] = 0,
-        block_structure: Optional[Union[Sequence[UncertaintyBlock], np.ndarray]] = None,
+        block_structure: Optional[
+            Union[List[uncertainty_structure.UncertaintyBlock], np.typing.ArrayLike]
+        ] = None,
     ) -> Tuple[control.StateSpace, control.StateSpace]:
-        if isinstance(block_structure, np.ndarray):
-            block_structure = _convert_matlab_block_structure(block_structure)
         # Get mask
         if block_structure is None:
             mask = -1 * np.ones((D_omega.shape[0], D_omega.shape[1]), dtype=int)
         else:
+            block_structure = (
+                uncertainty_structure.convert_block_structure_representation(
+                    block_structure
+                )
+            )
             mask = _mask_from_block_structure(block_structure)
         # Check order dimensions
         orders = order if isinstance(order, np.ndarray) else order * np.ones_like(mask)
@@ -163,7 +164,7 @@ class DScaleFitSlicot(DScaleFit):
 
 
 def _mask_from_block_structure(
-    block_structure: Sequence[UncertaintyBlock],
+    block_structure: List[uncertainty_structure.UncertaintyBlock],
 ) -> np.ndarray:
     """Create a mask from a specified block structure.
 
@@ -190,13 +191,11 @@ def _mask_from_block_structure(
     for i in range(num_blocks):
         # Uncertainty block
         block = block_structure[i]
-        # Square uncertainty block condition
-        is_block_square = block.num_inputs == block.num_outputs
-        if isinstance(block, RealDiagonalBlock):
+        if not block.is_complex:
             raise NotImplementedError("Real perturbations are not yet supported.")
-        if isinstance(block, ComplexDiagonalBlock):
+        if block.is_diagonal:
             raise NotImplementedError("Diagonal perturbations are not yet supported.")
-        if isinstance(block, ComplexFullBlock) and (not is_block_square):
+        if not block.is_square:
             raise NotImplementedError("Nonsquare perturbations are not yet supported.")
         # Set last scaling to identity
         if i == num_blocks - 1:

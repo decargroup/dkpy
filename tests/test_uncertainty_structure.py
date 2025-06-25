@@ -22,7 +22,7 @@ class TestRealDiagonalBlock:
 class TestComplexDiagonalBlock:
     """Test :func:`ComplexDiagonalBlock`."""
 
-    def test_real_diagonal_block(self):
+    def test_complex_diagonal_block(self):
         """Test :func:`ComplexDiagonalBlock`."""
         block = dkpy.ComplexDiagonalBlock(5)
 
@@ -35,7 +35,7 @@ class TestComplexDiagonalBlock:
 class TestComplexFullBlock:
     """Test :func:`ComplexFullBlock`."""
 
-    def test_real_diagonal_block(self):
+    def test_complex_full_block(self):
         """Test :func:`ComplexFullBlock`."""
         block = dkpy.ComplexFullBlock(5, 10)
 
@@ -73,9 +73,30 @@ class TestConvertMatlabBlockStructure:
                 [False, True, False, True],
                 [True, False, True, True],
             ),
+            (
+                [[2, 2], [4, 4], [-3, 0]],
+                [2, 4, 3],
+                [2, 4, 3],
+                [False, False, True],
+                [True, True, False],
+            ),
+            (
+                [[-3, 0], [6, 0], [1, 2]],
+                [3, 6, 2],
+                [3, 6, 1],
+                [True, True, False],
+                [False, True, True],
+            ),
+            (
+                [[3, 6], [-1, 0], [5, 1], [10, 0]],
+                [6, 1, 1, 10],
+                [3, 1, 5, 10],
+                [False, True, False, True],
+                [True, False, True, True],
+            ),
         ],
     )
-    def test_convert_matlab_block_structure(
+    def test_convert_block_structure_representation(
         self,
         block_structure_matlab,
         num_inputs_list,
@@ -84,8 +105,10 @@ class TestConvertMatlabBlockStructure:
         is_complex_list,
     ):
         """Test :func:`_convert_matlab_block_structure`."""
-        block_structure = dkpy.uncertainty_structure._convert_matlab_block_structure(
-            block_structure_matlab
+        block_structure = (
+            dkpy.uncertainty_structure.convert_block_structure_representation(
+                block_structure_matlab
+            )
         )
 
         for idx_block in range(len(block_structure)):

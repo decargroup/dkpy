@@ -7,7 +7,7 @@ __all__ = [
 
 import abc
 import warnings
-from typing import Any, Dict, Optional, Tuple, Union, Sequence
+from typing import Any, Dict, Optional, Tuple, Union, List
 
 import cvxpy
 import joblib
@@ -15,13 +15,7 @@ import numpy as np
 import scipy.linalg
 
 from . import utilities
-from .uncertainty_structure import (
-    UncertaintyBlock,
-    RealDiagonalBlock,
-    ComplexDiagonalBlock,
-    ComplexFullBlock,
-    _convert_matlab_block_structure,
-)
+from . import uncertainty_structure
 
 
 class StructuredSingularValue(metaclass=abc.ABCMeta):
@@ -31,7 +25,9 @@ class StructuredSingularValue(metaclass=abc.ABCMeta):
     def compute_ssv(
         self,
         N_omega: np.ndarray,
-        block_structure: Union[Sequence[UncertaintyBlock], np.ndarray],
+        block_structure: Union[
+            List[uncertainty_structure.UncertaintyBlock], np.ndarray
+        ],
     ) -> Tuple[np.ndarray, np.ndarray, Dict[str, Any]]:
         """Compute structured singular value.
 
@@ -39,8 +35,8 @@ class StructuredSingularValue(metaclass=abc.ABCMeta):
         ----------
         N_omega : np.ndarray
             Closed-loop transfer function evaluated at each frequency.
-        block_structure : Union[Sequence[UncertaintyBlock], np.ndarray]
-            Sequence of uncertainty block objects.
+        block_structure : Union[List[uncertainty_structure.UncertaintyBlock], np.ndarray]
+            Uncertainty block structure representation.
         Returns
         -------
         Tuple[np.ndarray, np.ndarray, Dict[str, Any]]
@@ -139,7 +135,9 @@ class SsvLmiBisection(StructuredSingularValue):
     def compute_ssv(
         self,
         N_omega: np.ndarray,
-        block_structure: Union[Sequence[UncertaintyBlock], np.ndarray],
+        block_structure: Union[
+            List[uncertainty_structure.UncertaintyBlock], np.ndarray
+        ],
     ) -> Tuple[np.ndarray, np.ndarray, Dict[str, Any]]:
         # Solver settings
         solver_params = (
@@ -166,8 +164,9 @@ class SsvLmiBisection(StructuredSingularValue):
         else:
             raise ValueError("`objective` must be `'minimize'` or `'constant'`.")
 
-        if isinstance(block_structure, np.ndarray):
-            block_structure = _convert_matlab_block_structure(block_structure)
+        block_structure = uncertainty_structure.convert_block_structure_representation(
+            block_structure
+        )
 
         def _ssv_at_omega(
             N_omega: np.ndarray,
@@ -322,14 +321,14 @@ class SsvLmiBisection(StructuredSingularValue):
 
 
 def _variable_from_block_structure(
-    block_structure: Sequence[UncertaintyBlock],
+    block_structure: List[uncertainty_structure.UncertaintyBlock],
 ) -> cvxpy.Variable:
     """Get optimization variable with specified block structure.
 
     Parameters
     ----------
-    block_structure : Sequence[UncertaintyBlock]
-        Sequence of uncertainty block objects.
+    block_structure : List[uncertainty_structure.UncertaintyBlock]
+        Uncertainty block structure representation.
 
     Returns
     -------
@@ -344,19 +343,21 @@ def _variable_from_block_structure(
             # Uncertainty blocks
             block_i = block_structure[i]
             block_j = block_structure[j]
-            # Square uncertainty block condition
-            is_block_square = block_i.num_inputs == block_i.num_outputs
             if i == j:
                 # If on the block diagonal, insert variable
-                if isinstance(block_i, RealDiagonalBlock):
+                if (not block_i.is_complex) and (not block_i.is_diagonal):
+                    raise NotImplementedError(
+                        "Real full perturbations are not supported."
+                    )
+                if (not block_i.is_complex) and (block_i.is_diagonal):
                     raise NotImplementedError(
                         "Real diagonal perturbations are not yet supported."
                     )
-                if isinstance(block_i, ComplexDiagonalBlock):
+                if (block_i.is_complex) and (block_i.is_diagonal):
                     raise NotImplementedError(
                         "Complex diagonal perturbations are not yet supported."
                     )
-                if isinstance(block_i, ComplexFullBlock) and (not is_block_square):
+                if (block_i.is_complex) and (not block_i.is_square):
                     raise NotImplementedError(
                         "Nonsquare perturbations are not yet supported."
                     )

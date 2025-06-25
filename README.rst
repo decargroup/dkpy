@@ -136,7 +136,7 @@ If you use this software in your research, please cite it as below or see
         doi={10.5281/zenodo.14511244},
         url={https://github.com/decargroup/dkpy},
         publisher={Zenodo},
-        author={Steven Dahdah and James Richard Forbes},
+        author={Steven Dahdah and Timothy Everett Adams and James Richard Forbes},
         version = {{v0.1.9}},
         year={2025},
     }

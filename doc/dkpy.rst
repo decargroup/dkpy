@@ -69,10 +69,10 @@ selecting the order in :func:`DScaleFit.fit`.
 
    dkpy.DScaleFitSlicot
 
-Uncertainty Block Structure
+Uncertainty block structure
 ===========================
 
-Supported uncertainty block elements are provided below. The prefered method for 
+Supported uncertainty block elements are provided below. The preferred method for 
 specifying the uncertainty block description is via :class:`UncertaintyBlock` objects.
 An additional method for specifying the uncertainty block description is the MATLAB 
 two column array format (see `MATLAB documentation <https://www.mathworks.com/help/robust/ref/mussv.html>`)
@@ -81,7 +81,6 @@ for users that are more comfortable with this format.
 .. autosummary::
    :toctree: _autosummary/
 
-   dkpy.UncertaintyBlock
    dkpy.RealDiagonalBlock
    dkpy.ComplexDiagonalBlock
    dkpy.ComplexFullBlock
@@ -100,3 +99,4 @@ with them.
    dkpy.ControllerSynthesis
    dkpy.StructuredSingularValue
    dkpy.DScaleFit
+   dkpy.UncertaintyBlock
