@@ -27,8 +27,8 @@ class DScaleFit(metaclass=abc.ABCMeta):
         omega: np.ndarray,
         D_omega: np.ndarray,
         order: Union[int, np.ndarray] = 0,
-        block_structure: Optional[
-            Union[List[uncertainty_structure.UncertaintyBlock], np.ndarray]
+        uncertainty_structure: Optional[
+            uncertainty_structure.UncertaintyBlockStructure
         ] = None,
     ) -> Tuple[control.StateSpace, control.StateSpace]:
         """Fit D-scale magnitudes.
@@ -42,7 +42,7 @@ class DScaleFit(metaclass=abc.ABCMeta):
             dimension.
         order : Union[int, np.ndarray]
             Transfer function order to fit. Can be specified per-entry.
-        block_structure : Union[List[uncertainty_structure.UncertaintyBlock], np.ndarray]
+        uncertainty_structure : uncertainty_structure.UncertaintyBlockStructure
             Uncertainty block structure description.
 
         Returns
@@ -54,7 +54,7 @@ class DScaleFit(metaclass=abc.ABCMeta):
         ------
         ValueError
             If ``order`` is an array but its dimensions are inconsistent with
-            ``block_structure``.
+            ``uncertainty_structure``.
 
         References
         ----------
@@ -71,15 +71,20 @@ class DScaleFitSlicot(DScaleFit):
     Compute ``mu`` and ``D`` at each frequency and fit a transfer matrix to ``D``
 
     >>> P, n_y, n_u, K = example_skogestad2006_p325
-    >>> block_structure = np.array([[1, 1], [1, 1], [2, 2]])
+    >>> block_list = [
+    ...     dkpy.ComplexFullBlock(1, 1),
+    ...     dkpy.ComplexFullBlock(1, 1),
+    ...     dkpy.ComplexFullBlock(2, 2),
+    ... ]
+    >>> uncertainty_structure = dkpy.UncertaintyBlockStructure(block_list)
     >>> omega = np.logspace(-3, 3, 61)
     >>> N = P.lft(K)
     >>> N_omega = N(1j * omega)
     >>> mu_omega, D_omega, info = dkpy.SsvLmiBisection().compute_ssv(
     ...     N_omega,
-    ...     block_structure,
+    ...     uncertainty_structure,
     ... )
-    >>> D, D_inv = dkpy.DScaleFitSlicot().fit(omega, D_omega, 2, block_structure)
+    >>> D, D_inv = dkpy.DScaleFitSlicot().fit(omega, D_omega, 2, uncertainty_structure)
     >>> print(control.ss2tf(D[0, 0]))
     <TransferFunction>: sys[4066]$indexed$converted
     Inputs (1): ['u[0]']
@@ -107,26 +112,21 @@ class DScaleFitSlicot(DScaleFit):
         omega: np.ndarray,
         D_omega: np.ndarray,
         order: Union[int, np.ndarray] = 0,
-        block_structure: Optional[
-            Union[List[uncertainty_structure.UncertaintyBlock], np.typing.ArrayLike]
+        uncertainty_structure: Optional[
+            uncertainty_structure.UncertaintyBlockStructure
         ] = None,
     ) -> Tuple[control.StateSpace, control.StateSpace]:
         # Get mask
-        if block_structure is None:
+        if uncertainty_structure is None:
             mask = -1 * np.ones((D_omega.shape[0], D_omega.shape[1]), dtype=int)
         else:
-            block_structure = (
-                uncertainty_structure.convert_block_structure_representation(
-                    block_structure
-                )
-            )
-            mask = _mask_from_block_structure(block_structure)
+            mask = uncertainty_structure.generate_d_scale_mask()
         # Check order dimensions
         orders = order if isinstance(order, np.ndarray) else order * np.ones_like(mask)
         if orders.shape != mask.shape:
             raise ValueError(
                 "`order` must be an integer or an array whose dimensions are "
-                "consistent with `block_structure`."
+                "consistent with `uncertainty_structure`."
             )
         # Transfer matrix
         tf_array = np.zeros((D_omega.shape[0], D_omega.shape[1]), dtype=object)
@@ -161,49 +161,6 @@ class DScaleFitSlicot(DScaleFit):
         ss = control.tf2ss(tf)
         ss_inv = _invert_biproper_ss(ss)
         return ss, ss_inv
-
-
-def _mask_from_block_structure(
-    block_structure: List[uncertainty_structure.UncertaintyBlock],
-) -> np.ndarray:
-    """Create a mask from a specified block structure.
-
-    Entries known to be zero are set to 0. Entries known to be one are set to
-    1. Entries to be fit numerically are set to -1.
-
-    Parameters
-    ----------
-    block_structure : Sequence[UncertaintyBlock]
-        Sequence of uncertainty block objects.
-
-    Returns
-    -------
-    np.ndarray
-        Array of integers indicating zero, one, and unknown elements in the
-        block structure.
-
-    References
-    ----------
-    .. [#mussv] https://www.mathworks.com/help/robust/ref/mussv.html
-    """
-    num_blocks = len(block_structure)
-    X_lst = []
-    for i in range(num_blocks):
-        # Uncertainty block
-        block = block_structure[i]
-        if not block.is_complex:
-            raise NotImplementedError("Real perturbations are not yet supported.")
-        if block.is_diagonal:
-            raise NotImplementedError("Diagonal perturbations are not yet supported.")
-        if not block.is_square:
-            raise NotImplementedError("Nonsquare perturbations are not yet supported.")
-        # Set last scaling to identity
-        if i == num_blocks - 1:
-            X_lst.append(np.eye(block.num_inputs, dtype=int))
-        else:
-            X_lst.append(-1 * np.eye(block.num_inputs, dtype=int))
-    X = scipy.linalg.block_diag(*X_lst)
-    return X
 
 
 def _invert_biproper_ss(ss: control.StateSpace) -> control.StateSpace:
