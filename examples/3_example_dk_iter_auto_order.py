@@ -44,18 +44,23 @@ def example_dk_iter_auto_order():
     )
 
     omega = np.logspace(-3, 3, 61)
-    # block_structure = np.array([[1, 1], [1, 1], [2, 2]])  # Alternative MATLAB descr.
-    block_structure = [
-        dkpy.ComplexFullBlock(1, 1),
-        dkpy.ComplexFullBlock(1, 1),
-        dkpy.ComplexFullBlock(2, 2),
-    ]
+    # Alternative MATLAB descr.
+    # uncertainty_structure = dkpy.UncertaintyBlockStructure(
+    #     [[1, 1], [1, 1], [2, 2]]
+    # )
+    uncertainty_structure = dkpy.UncertaintyBlockStructure(
+        [
+            dkpy.ComplexFullBlock(1, 1),
+            dkpy.ComplexFullBlock(1, 1),
+            dkpy.ComplexFullBlock(2, 2),
+        ]
+    )
     K, N, mu, iter_results, info = dk_iter.synthesize(
         eg["P"],
         eg["n_y"],
         eg["n_u"],
         omega,
-        block_structure,
+        uncertainty_structure,
     )
 
     print(f"mu={mu}")

@@ -279,10 +279,6 @@ class UncertaintyBlockStructure:
         np.ndarray
             Array of integers indicating zero, one, and unknown elements in the
             block structure.
-
-        References
-        ----------
-        .. [#mussv] https://www.mathworks.com/help/robust/ref/mussv.html
         """
         num_blocks = len(self.block_list)
         X_lst = []
