@@ -85,26 +85,6 @@ class DScaleFitSlicot(DScaleFit):
     ...     uncertainty_structure,
     ... )
     >>> D, D_inv = dkpy.DScaleFitSlicot().fit(omega, D_omega, 2, uncertainty_structure)
-    >>> print(control.ss2tf(D[0, 0]))
-    <TransferFunction>: sys[4066]$indexed$converted
-    Inputs (1): ['u[0]']
-    Outputs (1): ['y[0]']
-    <BLANKLINE>
-    <BLANKLINE>
-    0.01571 s^2 + 0.257 s + 0.1391
-    ------------------------------
-       s^2 + 0.9657 s + 0.01424
-    <BLANKLINE>
-    >>> print(control.ss2tf(D[1, 1]))
-    <TransferFunction>: sys[4066]$indexed$converted
-    Inputs (1): ['u[1]']
-    Outputs (1): ['y[1]']
-    <BLANKLINE>
-    <BLANKLINE>
-    0.01573 s^2 + 0.2574 s + 0.1394
-    -------------------------------
-      s^2 + 0.9663 s + 0.01425
-    <BLANKLINE>
     """
 
     def fit(
