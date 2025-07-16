@@ -141,7 +141,7 @@ class DScaleFitSlicot(DScaleFit):
                     )
                     sys = control.StateSpace(A, B, C, D, dt=0)
                     tf_array[row, col] = control.ss2tf(sys)
-        tf = utilities._tf_combine(tf_array)
+        tf = control.combine_tf(tf_array)
         ss = control.tf2ss(tf)
         ss_inv = _invert_biproper_ss(ss)
         return ss, ss_inv

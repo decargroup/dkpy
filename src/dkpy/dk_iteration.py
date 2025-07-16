@@ -983,6 +983,6 @@ def _augment_d_scales(
     Tuple[control.StateSpace, control.StateSpace]
         Augmented D-scales and inverse D-scales.
     """
-    D_aug = control.append(D, utilities._tf_eye(n_y))
-    D_aug_inv = control.append(D_inv, utilities._tf_eye(n_u))
+    D_aug = control.ss(control.append(D, utilities._tf_eye(n_y)))
+    D_aug_inv = control.ss(control.append(D_inv, utilities._tf_eye(n_u)))
     return (D_aug, D_aug_inv)

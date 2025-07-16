@@ -36,8 +36,7 @@ class StructuredSingularValue(metaclass=abc.ABCMeta):
         N_omega : np.ndarray
             Closed-loop transfer function evaluated at each frequency.
         block_structure : Union[List[uncertainty_structure.UncertaintyBlock], List[List[int]]]
-            Uncertainty block structure representation.
-        Returns
+            Uncertainty block structure representation. Returns
         -------
         Tuple[np.ndarray, np.ndarray, Dict[str, Any]]
             Structured singular value at each frequency, D-scales at each
@@ -59,18 +58,17 @@ class SsvLmiBisection(StructuredSingularValue):
     Structured singular value computation from [SP06]_
 
     >>> P, n_y, n_u, K = example_skogestad2006_p325
-    >>> block_list = [
+    >>> block_structure = [
     ...     dkpy.ComplexFullBlock(1, 1),
     ...     dkpy.ComplexFullBlock(1, 1),
     ...     dkpy.ComplexFullBlock(2, 2),
     ... ]
-    >>> uncertainty_structure = dkpy.UncertaintyBlockStructure(block_list)
     >>> omega = np.logspace(-3, 3, 61)
     >>> N = P.lft(K)
     >>> N_omega = N(1j * omega)
     >>> mu_omega, D_omega, info = dkpy.SsvLmiBisection(n_jobs=None).compute_ssv(
     ...     N_omega,
-    ...     uncertainty_structure,
+    ...     block_structure,
     ... )
     >>> float(np.max(mu_omega))
     5.7726
