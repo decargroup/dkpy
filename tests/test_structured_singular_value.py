@@ -7,14 +7,12 @@ import pytest
 import dkpy
 
 
-class TestVariableFromBlockStructure:
-    """Test :func:`_variable_from_block_structure`."""
-
+class TestGenerateSsvVariable:
     @pytest.mark.parametrize(
         "block_structure, variable_exp",
         [
             (
-                np.array([[1, 1], [2, 2]]),
+                [dkpy.ComplexFullBlock(1, 1), dkpy.ComplexFullBlock(2, 2)],
                 cvxpy.bmat(
                     [
                         [
@@ -29,7 +27,11 @@ class TestVariableFromBlockStructure:
                 ),
             ),
             (
-                np.array([[1, 1], [2, 2], [1, 1]]),
+                [
+                    dkpy.ComplexFullBlock(1, 1),
+                    dkpy.ComplexFullBlock(2, 2),
+                    dkpy.ComplexFullBlock(1, 1),
+                ],
                 cvxpy.bmat(
                     [
                         [
@@ -52,10 +54,10 @@ class TestVariableFromBlockStructure:
             ),
         ],
     )
-    def test_variable_from_block_structure(self, block_structure, variable_exp):
+    def test_generate_ssv_variable(self, block_structure, variable_exp):
         """Test :func:`_variable_from_block_structure`."""
-        variable = dkpy.structured_singular_value._variable_from_block_structure(
-            block_structure,
+        variable = dkpy.structured_singular_value._generate_ssv_variable(
+            block_structure
         )
         assert variable.ndim == variable_exp.ndim
         assert variable.shape == variable_exp.shape
