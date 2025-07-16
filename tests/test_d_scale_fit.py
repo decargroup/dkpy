@@ -136,9 +136,7 @@ class TestTfFitSlicot:
                     ],
                 ),
                 1,
-                dkpy.UncertaintyBlockStructure(
-                    [dkpy.ComplexFullBlock(1, 1), dkpy.ComplexFullBlock(1, 1)]
-                ),
+                [dkpy.ComplexFullBlock(1, 1), dkpy.ComplexFullBlock(1, 1)],
                 1e-2,
             ),
             (
@@ -166,9 +164,7 @@ class TestTfFitSlicot:
                     ],
                 ),
                 np.diag([1, 0]),
-                dkpy.UncertaintyBlockStructure(
-                    [dkpy.ComplexFullBlock(1, 1), dkpy.ComplexFullBlock(1, 1)]
-                ),
+                [dkpy.ComplexFullBlock(1, 1), dkpy.ComplexFullBlock(1, 1)],
                 1e-2,
             ),
             (
@@ -196,7 +192,7 @@ class TestTfFitSlicot:
                     ],
                 ),
                 1,
-                dkpy.UncertaintyBlockStructure([dkpy.ComplexFullBlock(2, 2)]),
+                [dkpy.ComplexFullBlock(2, 2)],
                 1e-2,
             ),
             (
@@ -224,7 +220,7 @@ class TestTfFitSlicot:
                     ],
                 ),
                 1,
-                dkpy.UncertaintyBlockStructure(np.array([[1, 1], [1, 1]])),
+                np.array([[1, 1], [1, 1]]),
                 1e-2,
             ),
             (
@@ -252,7 +248,7 @@ class TestTfFitSlicot:
                     ],
                 ),
                 np.diag([1, 0]),
-                dkpy.UncertaintyBlockStructure(np.array([[1, 1], [1, 1]])),
+                np.array([[1, 1], [1, 1]]),
                 1e-2,
             ),
             (
@@ -280,7 +276,7 @@ class TestTfFitSlicot:
                     ],
                 ),
                 1,
-                dkpy.UncertaintyBlockStructure(np.array([[2, 2]])),
+                np.array([[2, 2]]),
                 1e-2,
             ),
         ],
@@ -367,6 +363,50 @@ class TestTfFitSlicot:
             tf_fit, _ = dkpy.DScaleFitSlicot().fit(
                 omega, D_omega, order, block_structure
             )
+
+
+class TestGenerateDScaleMask:
+    @pytest.mark.parametrize(
+        "block_structure, mask_exp",
+        [
+            (
+                [dkpy.ComplexFullBlock(1, 1), dkpy.ComplexFullBlock(1, 1)],
+                np.array(
+                    [
+                        [-1, 0],
+                        [0, 1],
+                    ],
+                    dtype=int,
+                ),
+            ),
+            (
+                [dkpy.ComplexFullBlock(2, 2), dkpy.ComplexFullBlock(1, 1)],
+                np.array(
+                    [
+                        [-1, 0, 0],
+                        [0, -1, 0],
+                        [0, 0, 1],
+                    ],
+                    dtype=int,
+                ),
+            ),
+            (
+                [dkpy.ComplexFullBlock(1, 1), dkpy.ComplexFullBlock(2, 2)],
+                np.array(
+                    [
+                        [-1, 0, 0],
+                        [0, 1, 0],
+                        [0, 0, 1],
+                    ],
+                    dtype=int,
+                ),
+            ),
+        ],
+    )
+    def test_generate_d_scale_mask(self, block_structure, mask_exp):
+        """Test :func:`_mask_from_block_strucure`."""
+        mask = dkpy.d_scale_fit._generate_d_scale_mask(block_structure)
+        np.testing.assert_allclose(mask_exp, mask)
 
 
 class TestInvertBiproperSs:

@@ -25,7 +25,9 @@ class StructuredSingularValue(metaclass=abc.ABCMeta):
     def compute_ssv(
         self,
         N_omega: np.ndarray,
-        uncertainty_structure: uncertainty_structure.UncertaintyBlockStructure,
+        block_structure: Union[
+            List[uncertainty_structure.UncertaintyBlock], List[List[int]]
+        ],
     ) -> Tuple[np.ndarray, np.ndarray, Dict[str, Any]]:
         """Compute structured singular value.
 
@@ -33,7 +35,7 @@ class StructuredSingularValue(metaclass=abc.ABCMeta):
         ----------
         N_omega : np.ndarray
             Closed-loop transfer function evaluated at each frequency.
-        uncertainty_structure : uncertainty_structure.UncertaintyBlockStructure
+        block_structure : Union[List[uncertainty_structure.UncertaintyBlock], List[List[int]]]
             Uncertainty block structure representation.
         Returns
         -------
@@ -138,7 +140,9 @@ class SsvLmiBisection(StructuredSingularValue):
     def compute_ssv(
         self,
         N_omega: np.ndarray,
-        uncertainty_structure: uncertainty_structure.UncertaintyBlockStructure,
+        block_structure: Union[
+            List[uncertainty_structure.UncertaintyBlock], List[List[int]]
+        ],
     ) -> Tuple[np.ndarray, np.ndarray, Dict[str, Any]]:
         # Solver settings
         solver_params = (
@@ -164,6 +168,10 @@ class SsvLmiBisection(StructuredSingularValue):
             constant_objective = True
         else:
             raise ValueError("`objective` must be `'minimize'` or `'constant'`.")
+        # Convert uncertainty block structure representation
+        block_structure = uncertainty_structure._convert_block_structure_representation(
+            block_structure
+        )
 
         def _ssv_at_omega(
             N_omega: np.ndarray,
@@ -194,7 +202,7 @@ class SsvLmiBisection(StructuredSingularValue):
             info = {}
             # Get an optimization variable that shares its block structure with
             # the D-scalings
-            X = uncertainty_structure.generate_ssv_variable()
+            X = _generate_ssv_variable(block_structure)
             # Set objective function
             if constant_objective:
                 objective = cvxpy.Minimize(1)
@@ -315,3 +323,64 @@ class SsvLmiBisection(StructuredSingularValue):
         info["lmi_strictness"] = lmi_strictness
         info["constant_objective"] = constant_objective
         return mu, D_scales, info
+
+
+def _generate_ssv_variable(
+    block_structure: List[uncertainty_structure.UncertaintyBlock],
+) -> cvxpy.Variable:
+    """Get structured singular value optimization variable for the block structure.
+
+    Parameters
+    ----------
+    block_structure : List[uncertainty_structure.UncertaintyBlock]
+        Uncertainty block structure representation.
+
+    Returns
+    -------
+    cvxpy.Variable
+        CVXPY variable with specified block structure.
+    """
+    num_blocks = len(block_structure)
+    X_lst = []
+    for i in range(num_blocks):
+        row = []
+        for j in range(num_blocks):
+            # Uncertainty blocks
+            block_i = block_structure[i]
+            block_j = block_structure[j]
+            if i == j:
+                # If on the block diagonal, insert variable
+                if (not block_i.is_complex) and (not block_i.is_diagonal):
+                    raise NotImplementedError(
+                        "Real full perturbations are not supported."
+                    )
+                if (not block_i.is_complex) and (block_i.is_diagonal):
+                    raise NotImplementedError(
+                        "Real diagonal perturbations are not yet supported."
+                    )
+                if (block_i.is_complex) and (block_i.is_diagonal):
+                    raise NotImplementedError(
+                        "Complex diagonal perturbations are not yet supported."
+                    )
+                if (block_i.is_complex) and (not block_i.is_square):
+                    raise NotImplementedError(
+                        "Nonsquare perturbations are not yet supported."
+                    )
+                if i == num_blocks - 1:
+                    # Last scaling is always identity
+                    row.append(np.eye(block_i.num_inputs))
+                else:
+                    # Every other scaling is either a scalar or a scalar
+                    # multiplied by identity
+                    if block_i.num_inputs == 1:
+                        xi = cvxpy.Variable((1, 1), complex=True, name=f"x{i}")
+                        row.append(xi)
+                    else:
+                        xi = cvxpy.Variable(1, complex=True, name=f"x{i}")
+                        row.append(xi * np.eye(block_i.num_inputs))
+            else:
+                # If off the block diagonal, insert zeros
+                row.append(np.zeros((block_i.num_inputs, block_j.num_inputs)))
+        X_lst.append(row)
+    X = cvxpy.bmat(X_lst)
+    return X
