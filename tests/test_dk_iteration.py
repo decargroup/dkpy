@@ -26,17 +26,13 @@ class TestAugmentDScales:
                 0.8 * dkpy.utilities._tf_eye(2),
                 2,
                 1,
-                control.ss2tf(
-                    control.append(
-                        0.5 * dkpy.utilities._tf_eye(2),
-                        dkpy.utilities._tf_eye(2),
-                    )
+                control.append(
+                    0.5 * dkpy.utilities._tf_eye(2),
+                    dkpy.utilities._tf_eye(2),
                 ),
-                control.ss2tf(
-                    control.append(
-                        0.8 * dkpy.utilities._tf_eye(2),
-                        dkpy.utilities._tf_eye(1),
-                    )
+                control.append(
+                    0.8 * dkpy.utilities._tf_eye(2),
+                    dkpy.utilities._tf_eye(1),
                 ),
             ),
         ],
