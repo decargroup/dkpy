@@ -564,7 +564,7 @@ class DkIterAutoOrder(DkIteration):
         ...     max_fit_order=4,
         ... )
         >>> omega = np.logspace(-3, 3, 61)
-        >>> block_list = [
+        >>> block_structure = [
         ...     dkpy.ComplexFullBlock(1, 1),
         ...     dkpy.ComplexFullBlock(1, 1),
         ...     dkpy.ComplexFullBlock(2, 2),
@@ -676,7 +676,7 @@ class DkIterInteractiveOrder(DkIteration):
         ...     max_fit_order=4,
         ... )
         >>> omega = np.logspace(-3, 3, 61)
-        >>> block_list = [
+        >>> block_structure = [
         ...     dkpy.ComplexFullBlock(1, 1),
         ...     dkpy.ComplexFullBlock(1, 1),
         ...     dkpy.ComplexFullBlock(2, 2),
