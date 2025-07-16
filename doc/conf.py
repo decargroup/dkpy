@@ -7,8 +7,8 @@
 # https://www.sphinx-doc.org/en/master/usage/configuration.html#project-information
 
 project = "dkpy"
-copyright = "2024, Steven Dahdah and James Richard Forbes"
-author = "Steven Dahdah and James Richard Forbes"
+copyright = "2024, Steven Dahdah, Timothy Everett Adams and James Richard Forbes"
+author = "Steven Dahdah, Timothy Everett Adams and James Richard Forbes"
 version = "0.1.9"
 release = "0.1.9"
 
