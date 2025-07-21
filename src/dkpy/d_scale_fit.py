@@ -6,7 +6,7 @@ __all__ = [
 ]
 
 import abc
-from typing import Optional, Tuple, Union, List
+from typing import Tuple, Union, List
 import warnings
 
 import control
@@ -14,7 +14,6 @@ import numpy as np
 import scipy.linalg
 import slycot
 
-from . import utilities
 from . import uncertainty_structure
 
 

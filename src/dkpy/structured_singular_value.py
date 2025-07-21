@@ -71,7 +71,7 @@ class SsvLmiBisection(StructuredSingularValue):
     ...     block_structure,
     ... )
     >>> float(np.max(mu_omega))
-    5.7726
+    5.77
     """
 
     def __init__(

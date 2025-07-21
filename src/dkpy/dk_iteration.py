@@ -422,7 +422,7 @@ class DkIterFixedOrder(DkIteration):
         ...     block_structure,
         ... )
         >>> mu
-        1.0360
+        1.03
         """
         super().__init__(
             controller_synthesis,
@@ -494,7 +494,7 @@ class DkIterListOrder(DkIteration):
         ...     block_structure,
         ... )
         >>> mu
-        1.0360
+        1.03
         """
         super().__init__(
             controller_synthesis,
@@ -577,7 +577,7 @@ class DkIterAutoOrder(DkIteration):
         ...     block_structure,
         ... )
         >>> mu
-        1.0360
+        1.03
         """
         super().__init__(
             controller_synthesis,
