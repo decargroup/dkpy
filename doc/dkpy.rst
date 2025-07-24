@@ -1,3 +1,38 @@
+``dkpy`` architecture overview
+==============================
+
+``dkpy`` implements each step in the D-K iteration algorithm as an abstract
+class. This ensures that each step satisfies the interface required by the
+algorithm while leaving the numerical implementation up to the user. Sensible
+implementations of each of these steps are provided in ``dkpy``. However, the
+user can create custom implementations via the abstract classes. Therefore,
+anyone aiming to extend or customize ``dkpy`` should familiarize themselves
+with them. The abstract classes are provided below.
+
+.. autosummary::
+   :toctree: _autosummary/
+
+   dkpy.ControllerSynthesis
+   dkpy.StructuredSingularValue
+   dkpy.DScaleFit
+   dkpy.DkIteration
+
+The steps of the D-K iteration algorithm are as follows [SP06]_. 
+1. Controller synthesis (:class:`ControllerSynthesis`): Synthesize an
+   H-infinity controller for the scaled problem with fixed fitted D-scales.
+2. Structured singular value and D-scale computation
+   (:class:`StructuredSingularValue`): Compute the structured singular value
+   and the D-scales over a discrete grid of frequencies with a fixed
+   controller.
+3. D-scale fit (:class:`DScaleFit`): Fit the magnitude of each D-scale to a
+   stable minimum-phase LTI system.
+
+The D-K iteration algorithm, specified by a :class:`DkIteration` object, loops
+through these three steps until the robustness criteria are satisfied.
+Therefore, the algorithm is specified using implementations of each of the
+abstract classes :class:`ControllerSynthesis`,
+:class:`StructuredSingularValue`, and :class:`DScaleFit`.
+
 D-K iteration methods
 =====================
 
@@ -69,17 +104,23 @@ selecting the order in :func:`DScaleFit.fit`.
 
    dkpy.DScaleFitSlicot
 
-Extending ``dkpy``
-==================
+Uncertainty block structure
+===========================
 
-The abstract classes defining the structure of ``dkpy`` are presented below.
-Anyone aiming to extend or customize ``dkpy`` should familiarize themselves
-with them.
+The uncertainty block structure is specified via an
+:class:`UncertaintyBlockStructure` object, which encodes the block diagonal
+uncertainty structure. The :class:`UncertaintyBlockStructure` object is
+composed of individual uncertainty blocks that satisfy the interface in
+:class:`UncertaintyBlock`, which are provided below.
 
 .. autosummary::
    :toctree: _autosummary/
 
-   dkpy.DkIteration
-   dkpy.ControllerSynthesis
-   dkpy.StructuredSingularValue
-   dkpy.DScaleFit
+   dkpy.RealDiagonalBlock
+   dkpy.ComplexDiagonalBlock
+   dkpy.ComplexFullBlock
+
+The :class:`UncertaintyBlockStructure` object can also be specified using the
+MATLAB two-column array format (see `MATLAB documentation
+<https://www.mathworks.com/help/robust/ref/mussv.html>`) for users that are
+more comfortable with this notation.

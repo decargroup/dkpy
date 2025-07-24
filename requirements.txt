@@ -1,7 +1,7 @@
 # Dependencies
 numpy
 scipy
-control
+control>=0.10.2
 slycot
 cvxpy
 joblib

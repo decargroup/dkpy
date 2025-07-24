@@ -13,7 +13,7 @@ __all__ = [
 
 import abc
 import logging
-from typing import Any, Dict, List, Optional, Tuple, Union
+from typing import Any, Dict, List, Optional, Tuple, Union, List
 
 import control
 import numpy as np
@@ -24,6 +24,7 @@ from . import (
     controller_synthesis,
     d_scale_fit,
     structured_singular_value,
+    uncertainty_structure,
     utilities,
 )
 
@@ -46,7 +47,9 @@ class IterResult:
         mu_fit_omega: np.ndarray,
         D_fit_omega: np.ndarray,
         D_fit: control.StateSpace,
-        block_structure: np.ndarray,
+        block_structure: Union[
+            List[uncertainty_structure.UncertaintyBlock], List[List[int]], np.ndarray
+        ],
     ):
         """Instantiate :class:`IterResult`.
 
@@ -64,14 +67,8 @@ class IterResult:
             Fit D-scale magnitude at each frequency.
         D_fit : control.StateSpace
             Fit D-scale state-space representation.
-        block_structure : np.ndarray
-            2D array with 2 columns and as many rows as uncertainty blocks
-            in Delta. The columns represent the number of rows and columns in
-            each uncertainty block. See [#mussv]_.
-
-        References
-        ----------
-        .. [#mussv] https://www.mathworks.com/help/robust/ref/mussv.html
+        uncertainty_structure : Union[List[uncertainty_structure.UncertaintyBlock], List[List[int]], np.ndarray]
+            Uncertainty block structure representation.
         """
         self.omega = omega
         self.mu_omega = mu_omega
@@ -79,7 +76,11 @@ class IterResult:
         self.mu_fit_omega = mu_fit_omega
         self.D_fit_omega = D_fit_omega
         self.D_fit = D_fit
-        self.block_structure = block_structure
+        self.block_structure = (
+            uncertainty_structure._convert_block_structure_representation(
+                block_structure
+            )
+        )
 
     @classmethod
     def create_from_fit(
@@ -91,7 +92,9 @@ class IterResult:
         K: control.StateSpace,
         D_fit: control.StateSpace,
         D_fit_inv: control.StateSpace,
-        block_structure: np.ndarray,
+        block_structure: Union[
+            List[uncertainty_structure.UncertaintyBlock], List[List[int]], np.ndarray
+        ],
     ) -> "IterResult":
         """Instantiate :class:`IterResult` from fit D-scales.
 
@@ -111,10 +114,8 @@ class IterResult:
             Fit D-scale magnitude at each frequency.
         D_fit_inv : control.StateSpace
             Fit inverse D-scale magnitude at each frequency.
-        block_structure : np.ndarray
-            2D array with 2 columns and as many rows as uncertainty blocks
-            in Delta. The columns represent the number of rows and columns in
-            each uncertainty block. See [#mussv]_.
+        block_structure : Union[List[uncertainty_structure.UncertaintyBlock], List[List[int]], np.ndarray]
+            Uncertainty block structure representation.
 
         Returns
         -------
@@ -126,7 +127,11 @@ class IterResult:
         Create a ``IterResult`` object from fit data
 
         >>> P, n_y, n_u, K = example_skogestad2006_p325
-        >>> block_structure = np.array([[1, 1], [1, 1], [2, 2]])
+        >>> block_structure = [
+        ...     dkpy.ComplexFullBlock(1, 1),
+        ...     dkpy.ComplexFullBlock(1, 1),
+        ...     dkpy.ComplexFullBlock(2, 2),
+        ... ]
         >>> omega = np.logspace(-3, 3, 61)
         >>> N = P.lft(K)
         >>> N_omega = N(1j * omega)
@@ -145,11 +150,8 @@ class IterResult:
         ...     D_inv,
         ...     block_structure,
         ... )
-
-        References
-        ----------
-        .. [#mussv] https://www.mathworks.com/help/robust/ref/mussv.html
         """
+
         # Compute ``mu(omega)`` based on fit D-scales
         N = P.lft(K)
         scaled_cl = (D_fit * N * D_fit_inv)(1j * omega)
@@ -204,7 +206,9 @@ class DkIteration(metaclass=abc.ABCMeta):
         n_y: int,
         n_u: int,
         omega: np.ndarray,
-        block_structure: np.ndarray,
+        block_structure: Union[
+            List[uncertainty_structure.UncertaintyBlock], List[List[int]], np.ndarray
+        ],
     ) -> Tuple[
         control.StateSpace,
         control.StateSpace,
@@ -228,10 +232,8 @@ class DkIteration(metaclass=abc.ABCMeta):
             Number of controller outputs.
         omega : np.ndarray
             Angular frequencies to evaluate D-scales (rad/s).
-        block_structure : np.ndarray
-            2D array with 2 columns and as many rows as uncertainty blocks
-            in Delta. The columns represent the number of rows and columns in
-            each uncertainty block. See [#mussv]_.
+        block_structure : Optional[List[uncertainty_structure.UncertaintyBlock], List[List[int]], np.ndarray]
+            Uncertainty block structure representation.
 
         Returns
         -------
@@ -251,11 +253,11 @@ class DkIteration(metaclass=abc.ABCMeta):
             object.
         :func:`plot_D`
             Plot D-scale fit from an :class:`IterResult` object.
-
-        References
-        ----------
-        .. [#mussv] https://www.mathworks.com/help/robust/ref/mussv.html
         """
+        # Convert uncertainty block structure representation
+        block_structure = uncertainty_structure._convert_block_structure_representation(
+            block_structure
+        )
         # Solution information
         info = {}
         d_scale_fit_info = []
@@ -341,7 +343,7 @@ class DkIteration(metaclass=abc.ABCMeta):
         D_omega: np.ndarray,
         P: control.StateSpace,
         K: control.StateSpace,
-        block_structure: np.ndarray,
+        block_structure: List[uncertainty_structure.UncertaintyBlock],
     ) -> Optional[Union[int, np.ndarray]]:
         """Get D-scale fit order.
 
@@ -359,19 +361,13 @@ class DkIteration(metaclass=abc.ABCMeta):
             Generalized plant.
         K : control.StateSpace
             Controller.
-        block_structure : np.ndarray
-            2D array with 2 columns and as many rows as uncertainty blocks
-            in Delta. The columns represent the number of rows and columns in
-            each uncertainty block. See [#mussv]_.
+        block_structure : List[uncertainty_structure.UncertaintyBlock]
+            Uncertainty block structure representation.
 
         Returns
         -------
         Optional[Union[int, np.ndarray]]
             D-scale fit order. If ``None``, iteration ends.
-
-        References
-        ----------
-        .. [#mussv] https://www.mathworks.com/help/robust/ref/mussv.html
         """
         raise NotImplementedError()
 
@@ -413,7 +409,11 @@ class DkIterFixedOrder(DkIteration):
         ...     fit_order=4,
         ... )
         >>> omega = np.logspace(-3, 3, 61)
-        >>> block_structure = np.array([[1, 1], [1, 1], [2, 2]])
+        >>> block_structure = [
+        ...     dkpy.ComplexFullBlock(1, 1),
+        ...     dkpy.ComplexFullBlock(1, 1),
+        ...     dkpy.ComplexFullBlock(2, 2),
+        ... ]
         >>> K, N, mu, d_scale_fit_info, info = dk_iter.synthesize(
         ...     eg["P"],
         ...     eg["n_y"],
@@ -422,7 +422,7 @@ class DkIterFixedOrder(DkIteration):
         ...     block_structure,
         ... )
         >>> mu
-        1.0360
+        1.03
         """
         super().__init__(
             controller_synthesis,
@@ -440,7 +440,7 @@ class DkIterFixedOrder(DkIteration):
         D_omega: np.ndarray,
         P: control.StateSpace,
         K: control.StateSpace,
-        block_structure: np.ndarray,
+        block_structure: List[uncertainty_structure.UncertaintyBlock],
     ) -> Optional[Union[int, np.ndarray]]:
         if iteration < self.n_iterations:
             return self.fit_order
@@ -481,7 +481,11 @@ class DkIterListOrder(DkIteration):
         ...     fit_orders=[4, 4, 4],
         ... )
         >>> omega = np.logspace(-3, 3, 61)
-        >>> block_structure = np.array([[1, 1], [1, 1], [2, 2]])
+        >>> block_structure = [
+        ...     dkpy.ComplexFullBlock(1, 1),
+        ...     dkpy.ComplexFullBlock(1, 1),
+        ...     dkpy.ComplexFullBlock(2, 2),
+        ... ]
         >>> K, N, mu, d_scale_fit_info, info = dk_iter.synthesize(
         ...     eg["P"],
         ...     eg["n_y"],
@@ -490,7 +494,7 @@ class DkIterListOrder(DkIteration):
         ...     block_structure,
         ... )
         >>> mu
-        1.0360
+        1.03
         """
         super().__init__(
             controller_synthesis,
@@ -507,7 +511,7 @@ class DkIterListOrder(DkIteration):
         D_omega: np.ndarray,
         P: control.StateSpace,
         K: control.StateSpace,
-        block_structure: np.ndarray,
+        block_structure: List[uncertainty_structure.UncertaintyBlock],
     ) -> Optional[Union[int, np.ndarray]]:
         if iteration < len(self.fit_orders):
             return self.fit_orders[iteration]
@@ -560,7 +564,11 @@ class DkIterAutoOrder(DkIteration):
         ...     max_fit_order=4,
         ... )
         >>> omega = np.logspace(-3, 3, 61)
-        >>> block_structure = np.array([[1, 1], [1, 1], [2, 2]])
+        >>> block_structure = [
+        ...     dkpy.ComplexFullBlock(1, 1),
+        ...     dkpy.ComplexFullBlock(1, 1),
+        ...     dkpy.ComplexFullBlock(2, 2),
+        ... ]
         >>> K, N, mu, d_scale_fit_info, info = dk_iter.synthesize(
         ...     eg["P"],
         ...     eg["n_y"],
@@ -569,7 +577,7 @@ class DkIterAutoOrder(DkIteration):
         ...     block_structure,
         ... )
         >>> mu
-        1.0360
+        1.03
         """
         super().__init__(
             controller_synthesis,
@@ -589,7 +597,7 @@ class DkIterAutoOrder(DkIteration):
         D_omega: np.ndarray,
         P: control.StateSpace,
         K: control.StateSpace,
-        block_structure: np.ndarray,
+        block_structure: List[uncertainty_structure.UncertaintyBlock],
     ) -> Optional[Union[int, np.ndarray]]:
         # Check termination conditions
         if (self.max_iterations is not None) and (iteration >= self.max_iterations):
@@ -668,7 +676,11 @@ class DkIterInteractiveOrder(DkIteration):
         ...     max_fit_order=4,
         ... )
         >>> omega = np.logspace(-3, 3, 61)
-        >>> block_structure = np.array([[1, 1], [1, 1], [2, 2]])
+        >>> block_structure = [
+        ...     dkpy.ComplexFullBlock(1, 1),
+        ...     dkpy.ComplexFullBlock(1, 1),
+        ...     dkpy.ComplexFullBlock(2, 2),
+        ... ]
         >>> K, N, mu, d_scale_fit_info, info = dk_iter.synthesize(
         ...     eg["P"],
         ...     eg["n_y"],
@@ -686,14 +698,14 @@ class DkIterInteractiveOrder(DkIteration):
 
     def _get_fit_order(
         self,
-        iteration,
-        omega,
-        mu_omega,
-        D_omega,
-        P,
-        K,
-        block_structure,
-    ):
+        iteration: int,
+        omega: np.ndarray,
+        mu_omega: np.ndarray,
+        D_omega: np.ndarray,
+        P: control.StateSpace,
+        K: control.StateSpace,
+        block_structure: List[uncertainty_structure.UncertaintyBlock],
+    ) -> Optional[Union[int, np.ndarray]]:
         d_info = []
         for fit_order in range(self.max_fit_order + 1):
             D_fit, D_fit_inv = self.d_scale_fit.fit(
@@ -773,7 +785,11 @@ def plot_mu(
     Create a ``IterResult`` object from fit data and plot ``mu``
 
     >>> P, n_y, n_u, K = example_skogestad2006_p325
-    >>> block_structure = np.array([[1, 1], [1, 1], [2, 2]])
+    >>> block_structure = [
+    ...     dkpy.ComplexFullBlock(1, 1),
+    ...     dkpy.ComplexFullBlock(1, 1),
+    ...     dkpy.ComplexFullBlock(2, 2),
+    ... ]
     >>> omega = np.logspace(-3, 3, 61)
     >>> N = P.lft(K)
     >>> N_omega = N(1j * omega)
@@ -864,7 +880,11 @@ def plot_D(
     Create a ``IterResult`` object from fit data and plot ``D``
 
     >>> P, n_y, n_u, K = example_skogestad2006_p325
-    >>> block_structure = np.array([[1, 1], [1, 1], [2, 2]])
+    >>> block_structure = [
+    ...     dkpy.ComplexFullBlock(1, 1),
+    ...     dkpy.ComplexFullBlock(1, 1),
+    ...     dkpy.ComplexFullBlock(2, 2),
+    ... ]
     >>> omega = np.logspace(-3, 3, 61)
     >>> N = P.lft(K)
     >>> N_omega = N(1j * omega)
@@ -885,7 +905,8 @@ def plot_D(
     ... )
     >>> fig, ax = dkpy.plot_D(d_scale_fit_info)
     """
-    mask = d_scale_fit._mask_from_block_structure(d_scale_info.block_structure)
+    block_structure = d_scale_info.block_structure
+    mask = d_scale_fit._generate_d_scale_mask(block_structure)
     # Create figure if not provided
     if ax is None:
         fig, ax = plt.subplots(
@@ -962,6 +983,10 @@ def _augment_d_scales(
     Tuple[control.StateSpace, control.StateSpace]
         Augmented D-scales and inverse D-scales.
     """
-    D_aug = control.append(D, utilities._tf_eye(n_y))
-    D_aug_inv = control.append(D_inv, utilities._tf_eye(n_u))
+    D_aug = control.ss(
+        control.append(D, control.TransferFunction([1], [1]) * np.eye(n_y))
+    )
+    D_aug_inv = control.ss(
+        control.append(D_inv, control.TransferFunction([1], [1]) * np.eye(n_u))
+    )
     return (D_aug, D_aug_inv)

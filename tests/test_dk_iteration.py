@@ -14,29 +14,25 @@ class TestAugmentDScales:
         "D, D_inv, n_y, n_u, D_aug_exp, D_aug_inv_exp",
         [
             (
-                dkpy.utilities._tf_eye(2),
-                dkpy.utilities._tf_eye(2),
+                control.TransferFunction([1], [1]) * np.eye(2),
+                control.TransferFunction([1], [1]) * np.eye(2),
                 2,
                 1,
-                dkpy.utilities._tf_eye(4),
-                dkpy.utilities._tf_eye(3),
+                control.TransferFunction([1], [1]) * np.eye(4),
+                control.TransferFunction([1], [1]) * np.eye(3),
             ),
             (
-                0.5 * dkpy.utilities._tf_eye(2),
-                0.8 * dkpy.utilities._tf_eye(2),
+                control.TransferFunction([0.5], [1]) * np.eye(2),
+                control.TransferFunction([0.8], [1]) * np.eye(2),
                 2,
                 1,
-                control.ss2tf(
-                    control.append(
-                        0.5 * dkpy.utilities._tf_eye(2),
-                        dkpy.utilities._tf_eye(2),
-                    )
+                control.append(
+                    control.TransferFunction([0.5], [1]) * np.eye(2),
+                    control.TransferFunction([1], [1]) * np.eye(2),
                 ),
-                control.ss2tf(
-                    control.append(
-                        0.8 * dkpy.utilities._tf_eye(2),
-                        dkpy.utilities._tf_eye(1),
-                    )
+                control.append(
+                    control.TransferFunction([0.8], [1]) * np.eye(2),
+                    control.TransferFunction([1], [1]) * np.eye(1),
                 ),
             ),
         ],

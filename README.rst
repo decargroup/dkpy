@@ -102,7 +102,11 @@ Example
 
     # Synthesize a controller
     omega = np.logspace(-3, 3, 61)
-    block_structure = np.array([[1, 1], [1, 1], [2, 2]])
+    block_structure = [
+        dkpy.ComplexFullBlock(1, 1),
+        dkpy.ComplexFullBlock(1, 1),
+        dkpy.ComplexFullBlock(2, 2),
+    ]
     K, N, mu, d_scale_fit_info, info = dk_iter.synthesize(
         eg["P"],
         eg["n_y"],
@@ -131,12 +135,12 @@ If you use this software in your research, please cite it as below or see
 
 .. code-block:: bibtex
 
-    @software{dahdah_dkpy_2024,
+    @software{dahdah_dkpy_2025,
         title={{decargroup/dkpy}},
         doi={10.5281/zenodo.14511244},
         url={https://github.com/decargroup/dkpy},
         publisher={Zenodo},
-        author={Steven Dahdah and James Richard Forbes},
-        version = {{v0.1.9}},
-        year={2024},
+        author={Steven Dahdah and Timothy Everett Adams and James Richard Forbes},
+        version = {{v0.1.10}},
+        year={2025},
     }
