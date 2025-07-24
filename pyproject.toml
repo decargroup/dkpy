@@ -4,11 +4,11 @@ build-backend = "hatchling.build"
 
 [project]
 name = "dkpy"
-version = "0.1.9"
+version = "0.1.10"
 dependencies = [
     "numpy>=1.21.0",
     "scipy>=1.7.0",
-    "control>=0.10.0",
+    "control>=0.10.2",
     "slycot>=0.6.0",
     "cvxpy>=1.5.0",
     "joblib>=1.4.0",
