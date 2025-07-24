@@ -26,7 +26,7 @@ class StructuredSingularValue(metaclass=abc.ABCMeta):
         self,
         N_omega: np.ndarray,
         block_structure: Union[
-            List[uncertainty_structure.UncertaintyBlock], List[List[int]]
+            List[uncertainty_structure.UncertaintyBlock], List[List[int]], np.ndarray
         ],
     ) -> Tuple[np.ndarray, np.ndarray, Dict[str, Any]]:
         """Compute structured singular value.
@@ -35,7 +35,7 @@ class StructuredSingularValue(metaclass=abc.ABCMeta):
         ----------
         N_omega : np.ndarray
             Closed-loop transfer function evaluated at each frequency.
-        block_structure : Union[List[uncertainty_structure.UncertaintyBlock], List[List[int]]]
+        block_structure : Union[List[uncertainty_structure.UncertaintyBlock], List[List[int]], np.ndarray]
             Uncertainty block structure representation. Returns
         -------
         Tuple[np.ndarray, np.ndarray, Dict[str, Any]]
@@ -139,7 +139,7 @@ class SsvLmiBisection(StructuredSingularValue):
         self,
         N_omega: np.ndarray,
         block_structure: Union[
-            List[uncertainty_structure.UncertaintyBlock], List[List[int]]
+            List[uncertainty_structure.UncertaintyBlock], List[List[int]], np.ndarray
         ],
     ) -> Tuple[np.ndarray, np.ndarray, Dict[str, Any]]:
         # Solver settings

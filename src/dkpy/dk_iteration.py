@@ -48,7 +48,7 @@ class IterResult:
         D_fit_omega: np.ndarray,
         D_fit: control.StateSpace,
         block_structure: Union[
-            List[uncertainty_structure.UncertaintyBlock], List[List[int]]
+            List[uncertainty_structure.UncertaintyBlock], List[List[int]], np.ndarray
         ],
     ):
         """Instantiate :class:`IterResult`.
@@ -67,7 +67,7 @@ class IterResult:
             Fit D-scale magnitude at each frequency.
         D_fit : control.StateSpace
             Fit D-scale state-space representation.
-        uncertainty_structure : Union[List[uncertainty_structure.UncertaintyBlock], List[List[int]]]
+        uncertainty_structure : Union[List[uncertainty_structure.UncertaintyBlock], List[List[int]], np.ndarray]
             Uncertainty block structure representation.
         """
         self.omega = omega
@@ -93,7 +93,7 @@ class IterResult:
         D_fit: control.StateSpace,
         D_fit_inv: control.StateSpace,
         block_structure: Union[
-            List[uncertainty_structure.UncertaintyBlock], List[List[int]]
+            List[uncertainty_structure.UncertaintyBlock], List[List[int]], np.ndarray
         ],
     ) -> "IterResult":
         """Instantiate :class:`IterResult` from fit D-scales.
@@ -114,7 +114,7 @@ class IterResult:
             Fit D-scale magnitude at each frequency.
         D_fit_inv : control.StateSpace
             Fit inverse D-scale magnitude at each frequency.
-        block_structure : Union[List[uncertainty_structure.UncertaintyBlock], List[List[int]]]
+        block_structure : Union[List[uncertainty_structure.UncertaintyBlock], List[List[int]], np.ndarray]
             Uncertainty block structure representation.
 
         Returns
@@ -207,7 +207,7 @@ class DkIteration(metaclass=abc.ABCMeta):
         n_u: int,
         omega: np.ndarray,
         block_structure: Union[
-            List[uncertainty_structure.UncertaintyBlock], List[List[int]]
+            List[uncertainty_structure.UncertaintyBlock], List[List[int]], np.ndarray
         ],
     ) -> Tuple[
         control.StateSpace,
@@ -232,7 +232,7 @@ class DkIteration(metaclass=abc.ABCMeta):
             Number of controller outputs.
         omega : np.ndarray
             Angular frequencies to evaluate D-scales (rad/s).
-        block_structure : Optional[List[uncertainty_structure.UncertaintyBlock], List[List[int]]]
+        block_structure : Optional[List[uncertainty_structure.UncertaintyBlock], List[List[int]], np.ndarray]
             Uncertainty block structure representation.
 
         Returns
@@ -983,6 +983,10 @@ def _augment_d_scales(
     Tuple[control.StateSpace, control.StateSpace]
         Augmented D-scales and inverse D-scales.
     """
-    D_aug = control.ss(control.append(D, utilities._tf_eye(n_y)))
-    D_aug_inv = control.ss(control.append(D_inv, utilities._tf_eye(n_u)))
+    D_aug = control.ss(
+        control.append(D, control.TransferFunction([1], [1]) * np.eye(n_y))
+    )
+    D_aug_inv = control.ss(
+        control.append(D_inv, control.TransferFunction([1], [1]) * np.eye(n_u))
+    )
     return (D_aug, D_aug_inv)

@@ -186,7 +186,7 @@ class ComplexFullBlock(UncertaintyBlock):
 
 
 def _convert_block_structure_representation(
-    block_structure: Union[List[UncertaintyBlock], List[List[int]]],
+    block_structure: Union[List[UncertaintyBlock], List[List[int]], np.ndarray],
 ) -> List[UncertaintyBlock]:
     """
     Convert the uncertainty block description into the object-oriented description.

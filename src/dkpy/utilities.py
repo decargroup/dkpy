@@ -5,13 +5,10 @@ __all__ = [
     "example_skogestad2006_p325",
     "_ensure_tf",
     "_tf_close_coeff",
-    "_tf_eye",
-    "_tf_zeros",
-    "_tf_ones",
     "_auto_lmi_strictness",
 ]
 
-from typing import Any, Dict, List, Union
+from typing import Any, Dict, Union
 
 import control
 import cvxpy
@@ -225,93 +222,6 @@ def _ensure_tf(
             "`arraylike_or_tf` must only contain array-likes or transfer functions."
         )
     return tf
-
-
-def _tf_eye(
-    n: int,
-    dt: Union[None, bool, float] = None,
-) -> control.TransferFunction:
-    """Transfer function identity matrix.
-
-    Parameters
-    ----------
-    n : int
-        Dimension.
-    dt : Union[None, bool, float]
-        Timestep (s). Based on the ``control`` package, ``True`` indicates a
-        discrete-time system with unspecified timestep, ``0`` indicates a
-        continuous-time system, and ``None`` indicates a continuous- or
-        discrete-time system with unspecified timestep.
-
-    Returns
-    -------
-    control.TransferFunction
-        Identity transfer matrix.
-    """
-    num = np.eye(n).reshape(n, n, 1)
-    den = np.ones((n, n, 1))
-    eye = control.TransferFunction(num, den, dt=dt)
-    return eye
-
-
-def _tf_zeros(
-    m: int,
-    n: int,
-    dt: Union[None, bool, float] = None,
-) -> control.TransferFunction:
-    """Transfer function matrix of zeros.
-
-    Parameters
-    ----------
-    m : int
-        First dimension.
-    n : int
-        Second dimension.
-    dt : Union[None, bool, float]
-        Timestep (s). Based on the ``control`` package, ``True`` indicates a
-        discrete-time system with unspecified timestep, ``0`` indicates a
-        continuous-time system, and ``None`` indicates a continuous- or
-        discrete-time system with unspecified timestep.
-
-    Returns
-    -------
-    control.TransferFunction
-        Identity transfer matrix.
-    """
-    num = np.zeros((m, n, 1))
-    den = np.ones((m, n, 1))
-    zeros = control.TransferFunction(num, den, dt=dt)
-    return zeros
-
-
-def _tf_ones(
-    m: int,
-    n: int,
-    dt: Union[None, bool, float] = None,
-) -> control.TransferFunction:
-    """Transfer matrix of ones.
-
-    Parameters
-    ----------
-    m : int
-        First dimension.
-    n : int
-        Second dimension.
-    dt : Union[None, bool, float]
-        Timestep (s). Based on the ``control`` package, ``True`` indicates a
-        discrete-time system with unspecified timestep, ``0`` indicates a
-        continuous-time system, and ``None`` indicates a continuous- or
-        discrete-time system with unspecified timestep.
-
-    Returns
-    -------
-    control.TransferFunction
-        Identity transfer matrix.
-    """
-    num = np.ones((m, n, 1))
-    den = np.ones((m, n, 1))
-    zeros = control.TransferFunction(num, den, dt=dt)
-    return zeros
 
 
 def _auto_lmi_strictness(

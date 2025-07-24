@@ -6,7 +6,7 @@ __all__ = [
 ]
 
 import abc
-from typing import Tuple, Union, List
+from typing import Tuple, Union, List, Optional
 import warnings
 
 import control
@@ -26,8 +26,12 @@ class DScaleFit(metaclass=abc.ABCMeta):
         omega: np.ndarray,
         D_omega: np.ndarray,
         order: Union[int, np.ndarray] = 0,
-        block_structure: Union[
-            List[uncertainty_structure.UncertaintyBlock], List[List[int]], None
+        block_structure: Optional[
+            Union[
+                List[uncertainty_structure.UncertaintyBlock],
+                List[List[int]],
+                np.ndarray,
+            ]
         ] = None,
     ) -> Tuple[control.StateSpace, control.StateSpace]:
         """Fit D-scale magnitudes.
@@ -41,7 +45,7 @@ class DScaleFit(metaclass=abc.ABCMeta):
             dimension.
         order : Union[int, np.ndarray]
             Transfer function order to fit. Can be specified per-entry.
-        block_structure : List[uncertainty_structure.UncertaintyBlock]
+        block_structure : Optional[Union[List[uncertainty_structure.UncertaintyBlock], List[List[int], np.ndarray]]
             Uncertainty block structure description.
 
         Returns
@@ -90,8 +94,12 @@ class DScaleFitSlicot(DScaleFit):
         omega: np.ndarray,
         D_omega: np.ndarray,
         order: Union[int, np.ndarray] = 0,
-        block_structure: Union[
-            List[uncertainty_structure.UncertaintyBlock], List[List[int]], None
+        block_structure: Optional[
+            Union[
+                List[uncertainty_structure.UncertaintyBlock],
+                List[List[int]],
+                np.ndarray,
+            ]
         ] = None,
     ) -> Tuple[control.StateSpace, control.StateSpace]:
         # Get mask
