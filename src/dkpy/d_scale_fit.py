@@ -24,7 +24,8 @@ class DScaleFit(metaclass=abc.ABCMeta):
     def fit(
         self,
         omega: np.ndarray,
-        D_omega: np.ndarray,
+        D_l_omega: np.ndarray,
+        D_r_omega: np.ndarray,
         order: Union[int, np.ndarray] = 0,
         block_structure: Optional[
             Union[
@@ -40,7 +41,10 @@ class DScaleFit(metaclass=abc.ABCMeta):
         ----------
         omega : np.ndarray
             Angular frequencies (rad/s).
-        D_omega : np.ndarray
+        D_l_omega : np.ndarray
+            Transfer matrix evaluated at each frequency, with frequency as last
+            dimension.
+        D_r_omega: np.ndarray,
             Transfer matrix evaluated at each frequency, with frequency as last
             dimension.
         order : Union[int, np.ndarray]
@@ -82,17 +86,18 @@ class DScaleFitSlicot(DScaleFit):
     >>> omega = np.logspace(-3, 3, 61)
     >>> N = P.lft(K)
     >>> N_omega = N(1j * omega)
-    >>> mu_omega, D_omega, info = dkpy.SsvLmiBisection().compute_ssv(
+    >>> mu_omega, D_l_omega, D_r_omega, info = dkpy.SsvLmiBisection().compute_ssv(
     ...     N_omega,
     ...     block_structure,
     ... )
-    >>> D, D_inv = dkpy.DScaleFitSlicot().fit(omega, D_omega, 2, block_structure)
+    >>> D, D_inv = dkpy.DScaleFitSlicot().fit(omega, D_l_omega, D_r_omega, 2, block_structure)
     """
 
     def fit(
         self,
         omega: np.ndarray,
-        D_omega: np.ndarray,
+        D_l_omega: np.ndarray,
+        D_r_omega: np.ndarray,
         order: Union[int, np.ndarray] = 0,
         block_structure: Optional[
             Union[
@@ -104,59 +109,103 @@ class DScaleFitSlicot(DScaleFit):
     ) -> Tuple[control.StateSpace, control.StateSpace]:
         # Get mask
         if block_structure is None:
-            mask = -1 * np.ones((D_omega.shape[0], D_omega.shape[1]), dtype=int)
+            mask_l = -1 * np.ones((D_l_omega.shape[0], D_l_omega.shape[1]), dtype=int)
+            mask_r = -1 * np.ones((D_r_omega.shape[0], D_r_omega.shape[1]), dtype=int)
         else:
             block_structure = (
                 uncertainty_structure._convert_block_structure_representation(
                     block_structure
                 )
             )
-            mask = _generate_d_scale_mask(block_structure)
+            mask_l, mask_r = _generate_d_scale_mask(block_structure)
         # Check order dimensions
-        orders = order if isinstance(order, np.ndarray) else order * np.ones_like(mask)
-        if orders.shape != mask.shape:
+        # TODO: Fix method for specifying order of each D-scale element
+        orders_l = (
+            order if isinstance(order, np.ndarray) else order * np.ones_like(mask_l)
+        )
+        orders_r = (
+            order if isinstance(order, np.ndarray) else order * np.ones_like(mask_r)
+        )
+        if orders_l.shape != mask_l.shape:
             raise ValueError(
                 "`order` must be an integer or an array whose dimensions are "
                 "consistent with `uncertainty_structure`."
             )
+        if orders_r.shape != mask_r.shape:
+            raise ValueError(
+                "`order` must be an integer or an array whose dimensions are "
+                "consistent with `uncertainty_structure`."
+            )
+
         # Transfer matrix
-        tf_array = np.zeros((D_omega.shape[0], D_omega.shape[1]), dtype=object)
-        # Fit SISO transfer functions
-        for row in range(D_omega.shape[0]):
-            for col in range(D_omega.shape[1]):
-                if mask[row, col] == 0:
-                    tf_array[row, col] = control.TransferFunction([0], [1], dt=0)
-                elif mask[row, col] == 1:
-                    if isinstance(order, np.ndarray) and (orders[row, col] != 0):
+        tf_l_array = np.zeros((D_l_omega.shape[0], D_l_omega.shape[1]), dtype=object)
+        tf_r_array = np.zeros((D_r_omega.shape[0], D_r_omega.shape[1]), dtype=object)
+        # Fit SISO transfer functions of left scale
+        for row in range(D_l_omega.shape[0]):
+            for col in range(D_l_omega.shape[1]):
+                if mask_l[row, col] == 0:
+                    tf_l_array[row, col] = control.TransferFunction([0], [1], dt=0)
+                elif mask_l[row, col] == 1:
+                    if isinstance(order, np.ndarray) and (orders_l[row, col] != 0):
                         warnings.warn(
                             "Entries of `order` in last uncertainty block "
                             "should be 0 since those transfer functions are "
                             "known to be 1. Ignoring value of "
                             f"`order[{row}, {col}]`."
                         )
-                    tf_array[row, col] = control.TransferFunction([1], [1], dt=0)
+                    tf_l_array[row, col] = control.TransferFunction([1], [1], dt=0)
                 else:
                     n, A, B, C, D = slycot.sb10yd(
                         discfl=0,  # Continuous-time
                         flag=1,  # Constrain stable, minimum phase
                         lendat=omega.shape[0],
-                        rfrdat=np.real(D_omega[row, col, :]),
-                        ifrdat=np.imag(D_omega[row, col, :]),
+                        rfrdat=np.real(D_l_omega[row, col, :]),
+                        ifrdat=np.imag(D_l_omega[row, col, :]),
                         omega=omega,
-                        n=orders[row, col],
+                        n=orders_l[row, col],
                         tol=0,  # Length of cache array
                     )
                     sys = control.StateSpace(A, B, C, D, dt=0)
-                    tf_array[row, col] = control.ss2tf(sys)
-        tf = control.combine_tf(tf_array)
-        ss = control.tf2ss(tf)
-        ss_inv = _invert_biproper_ss(ss)
-        return ss, ss_inv
+                    tf_l_array[row, col] = control.ss2tf(sys)
+        # Fit SISO transfer functions of right scale
+        for row in range(D_r_omega.shape[0]):
+            for col in range(D_r_omega.shape[1]):
+                if mask_r[row, col] == 0:
+                    tf_r_array[row, col] = control.TransferFunction([0], [1], dt=0)
+                elif mask_r[row, col] == 1:
+                    if isinstance(order, np.ndarray) and (orders_r[row, col] != 0):
+                        warnings.warn(
+                            "Entries of `order` in last uncertainty block "
+                            "should be 0 since those transfer functions are "
+                            "known to be 1. Ignoring value of "
+                            f"`order[{row}, {col}]`."
+                        )
+                    tf_r_array[row, col] = control.TransferFunction([1], [1], dt=0)
+                else:
+                    n, A, B, C, D = slycot.sb10yd(
+                        discfl=0,  # Continuous-time
+                        flag=1,  # Constrain stable, minimum phase
+                        lendat=omega.shape[0],
+                        rfrdat=np.real(D_r_omega[row, col, :]),
+                        ifrdat=np.imag(D_r_omega[row, col, :]),
+                        omega=omega,
+                        n=orders_r[row, col],
+                        tol=0,  # Length of cache array
+                    )
+                    sys = control.StateSpace(A, B, C, D, dt=0)
+                    tf_r_array[row, col] = control.ss2tf(sys)
+
+        tf_l = control.combine_tf(tf_l_array)
+        tf_r = control.combine_tf(tf_r_array)
+        ss_l = control.tf2ss(tf_l)
+        ss_r = control.tf2ss(tf_r)
+        ss_r_inv = _invert_biproper_ss(ss_r)
+        return ss_l, ss_r_inv
 
 
 def _generate_d_scale_mask(
     block_structure: List[uncertainty_structure.UncertaintyBlock],
-) -> np.ndarray:
+) -> Tuple[np.ndarray, np.ndarray]:
     """Create a mask for the D-scale fit for the block structure.
 
     Entries known to be zero are set to 0. Entries known to be one are set to
@@ -169,28 +218,35 @@ def _generate_d_scale_mask(
 
     Returns
     -------
-    np.ndarray
+    Tuple[np.ndarray, np.ndarray]
         Array of integers indicating zero, one, and unknown elements in the
         block structure.
     """
     num_blocks = len(block_structure)
-    X_lst = []
+    mask_l_lst = []
+    mask_r_lst = []
     for i in range(num_blocks):
         # Uncertainty block
         block = block_structure[i]
-        if not block.is_complex:
-            raise NotImplementedError("Real perturbations are not yet supported.")
-        if block.is_diagonal:
-            raise NotImplementedError("Diagonal perturbations are not yet supported.")
-        if not block.is_square:
-            raise NotImplementedError("Nonsquare perturbations are not yet supported.")
-        # Set last scaling to identity
-        if i == num_blocks - 1:
-            X_lst.append(np.eye(block.num_inputs, dtype=int))
-        else:
-            X_lst.append(-1 * np.eye(block.num_inputs, dtype=int))
-    X = scipy.linalg.block_diag(*X_lst)
-    return X
+        if (i == num_blocks - 1) and (not block.is_diagonal):
+            # Last scaling is always identity if it is a full perturbation
+            mask_l_lst.append(np.eye(block.num_inputs, dtype=int))
+            mask_r_lst.append(np.eye(block.num_outputs, dtype=int))
+        elif (not block.is_complex) and (not block.is_diagonal):
+            raise NotImplementedError("Real full perturbations are not supported.")
+        elif (not block.is_complex) and (block.is_diagonal):
+            raise NotImplementedError(
+                "Real diagonal perturbations are not yet supported."
+            )
+        elif (block.is_complex) and (block.is_diagonal):
+            mask_l_lst.append(-1 * np.tri(block.num_inputs, dtype=int).T)
+            mask_r_lst.append(-1 * np.tri(block.num_inputs, dtype=int).T)
+        elif (block.is_complex) and (not block.is_diagonal):
+            mask_l_lst.append(-1 * np.eye(block.num_inputs, dtype=int))
+            mask_r_lst.append(-1 * np.eye(block.num_outputs, dtype=int))
+    mask_l = scipy.linalg.block_diag(*mask_l_lst)
+    mask_r = scipy.linalg.block_diag(*mask_r_lst)
+    return mask_l, mask_r
 
 
 def _invert_biproper_ss(ss: control.StateSpace) -> control.StateSpace:

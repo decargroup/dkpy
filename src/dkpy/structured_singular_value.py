@@ -28,7 +28,7 @@ class StructuredSingularValue(metaclass=abc.ABCMeta):
         block_structure: Union[
             List[uncertainty_structure.UncertaintyBlock], List[List[int]], np.ndarray
         ],
-    ) -> Tuple[np.ndarray, np.ndarray, Dict[str, Any]]:
+    ) -> Tuple[np.ndarray, np.ndarray, np.ndarray, Dict[str, Any]]:
         """Compute structured singular value.
 
         Parameters
@@ -141,7 +141,7 @@ class SsvLmiBisection(StructuredSingularValue):
         block_structure: Union[
             List[uncertainty_structure.UncertaintyBlock], List[List[int]], np.ndarray
         ],
-    ) -> Tuple[np.ndarray, np.ndarray, Dict[str, Any]]:
+    ) -> Tuple[np.ndarray, np.ndarray, np.ndarray, Dict[str, Any]]:
         # Solver settings
         solver_params = (
             {
@@ -173,7 +173,12 @@ class SsvLmiBisection(StructuredSingularValue):
 
         def _ssv_at_omega(
             N_omega: np.ndarray,
-        ) -> Tuple[Union[float, None], Union[np.ndarray, None], Dict[str, Any]]:
+        ) -> Tuple[
+            Union[float, None],
+            Union[np.ndarray, None],
+            Union[np.ndarray, None],
+            Dict[str, Any],
+        ]:
             """Compute the structured singular value at a given frequency.
 
             Split into its own function to allow parallelization over
@@ -187,10 +192,10 @@ class SsvLmiBisection(StructuredSingularValue):
             Returns
             -------
             Tuple[float, np.ndarray, Dict[str, Any]]
-                Structured singular value, D-scaling, and solution information.
-                If the structured singular value cannot be computed, the first
-                two elements of the tuple are ``None``, but solution
-                information is still returned.
+                Structured singular value, left and right D-scaling, and solution
+                information. If the structured singular value cannot be computed, the
+                first two elements of the tuple are ``None``, but solution information
+                is still returned.
 
             Raises
             ------
@@ -200,21 +205,21 @@ class SsvLmiBisection(StructuredSingularValue):
             info = {}
             # Get an optimization variable that shares its block structure with
             # the D-scalings
-            X = _generate_ssv_variable(block_structure)
+            X_l, X_r = _generate_ssv_variable(block_structure)
             # Set objective function
             if constant_objective:
                 objective = cvxpy.Minimize(1)
             else:
-                # `X` should have a real diagonal because it's Hermitian, but
-                # CVXPY does not realize this
-                objective = cvxpy.Minimize(cvxpy.real(cvxpy.trace(X)))
+                objective = cvxpy.Minimize(cvxpy.real(cvxpy.trace(X_l)))
             # Set upper bound on structured singular value squared as a parameter
             gamma_sq = cvxpy.Parameter(1, name="gamma_sq")
             # Set up the constraints
             constraints = [
-                X.conj().T == X,
-                X >> lmi_strictness,
-                N_omega.conj().T @ X @ N_omega - gamma_sq * X << -lmi_strictness,
+                X_l.conj().T == X_l,
+                X_r.conj().T == X_r,
+                X_l >> lmi_strictness,
+                X_r >> lmi_strictness,
+                N_omega.conj().T @ X_l @ N_omega - gamma_sq * X_r << -lmi_strictness,
             ]
             # Put everything together in the optimization problem
             problem = cvxpy.Problem(objective, constraints)
@@ -250,7 +255,7 @@ class SsvLmiBisection(StructuredSingularValue):
                 info["size_metrics"] = [p.size_metrics for p in problems]
                 info["results"] = results
                 info["iterations"] = n_iterations
-                return None, None, info
+                return None, None, None, info
             # Check if ``gamma`` was increased.
             if gamma_high > self.initial_guess:
                 warnings.warn(
@@ -295,15 +300,16 @@ class SsvLmiBisection(StructuredSingularValue):
                 info["size_metrics"] = [p.size_metrics for p in problems]
                 info["results"] = results
                 info["iterations"] = n_iterations
-                return None, None, info  # Save info
+                return None, None, None, info  # Save info
             info["status"] = "Bisection succeeded."
             info["gammas"] = gammas
             info["solver_stats"] = [p.solver_stats for p in problems]
             info["size_metrics"] = [p.size_metrics for p in problems]
             info["results"] = results
             info["iterations"] = n_iterations
-            D_omega = scipy.linalg.cholesky(X.value)
-            return (gammas[-1], D_omega, info)
+            D_l_omega = scipy.linalg.cholesky(X_l.value)
+            D_r_omega = scipy.linalg.cholesky(X_r.value)
+            return (gammas[-1], D_l_omega, D_r_omega, info)
 
         # Compute structured singular value and D scales for each frequency
         joblib_results = joblib.Parallel(n_jobs=self.n_jobs)(
@@ -313,19 +319,20 @@ class SsvLmiBisection(StructuredSingularValue):
             ]
         )
         # Extract and return results
-        mu_lst, D_scales_lst, info_lst = tuple(zip(*joblib_results))
+        mu_lst, D_l_scales_lst, D_r_scales_lst, info_lst = tuple(zip(*joblib_results))
         mu = np.array(mu_lst)
-        D_scales = np.moveaxis(np.array(D_scales_lst), 0, 2)
+        D_l_scales = np.array(D_l_scales_lst).transpose(1, 2, 0)
+        D_r_scales = np.array(D_r_scales_lst).transpose(1, 2, 0)
         info = {k: [d[k] for d in info_lst] for k in info_lst[0].keys()}
         info["solver_params"] = solver_params
         info["lmi_strictness"] = lmi_strictness
         info["constant_objective"] = constant_objective
-        return mu, D_scales, info
+        return mu, D_l_scales, D_r_scales, info
 
 
 def _generate_ssv_variable(
     block_structure: List[uncertainty_structure.UncertaintyBlock],
-) -> cvxpy.Variable:
+) -> Tuple[cvxpy.Variable, cvxpy.Variable]:
     """Get structured singular value optimization variable for the block structure.
 
     Parameters
@@ -335,50 +342,51 @@ def _generate_ssv_variable(
 
     Returns
     -------
-    cvxpy.Variable
-        CVXPY variable with specified block structure.
+    Tuple[cvxpy.Variable, cvxpy.Variable]
+        CVXPY variables with specified block structure.
     """
     num_blocks = len(block_structure)
-    X_lst = []
+    X_l_lst = []
+    X_r_lst = []
     for i in range(num_blocks):
-        row = []
+        row_l = []
+        row_r = []
         for j in range(num_blocks):
             # Uncertainty blocks
             block_i = block_structure[i]
             block_j = block_structure[j]
             if i == j:
                 # If on the block diagonal, insert variable
-                if (not block_i.is_complex) and (not block_i.is_diagonal):
+                if (i == num_blocks - 1) and (not block_i.is_diagonal):
+                    # Last scaling is always identity if it is a full perturbation
+                    row_l.append(np.eye(block_i.num_inputs))
+                    row_r.append(np.eye(block_i.num_outputs))
+                elif (not block_i.is_complex) and (not block_i.is_diagonal):
                     raise NotImplementedError(
                         "Real full perturbations are not supported."
                     )
-                if (not block_i.is_complex) and (block_i.is_diagonal):
+                elif (not block_i.is_complex) and (block_i.is_diagonal):
                     raise NotImplementedError(
                         "Real diagonal perturbations are not yet supported."
                     )
-                if (block_i.is_complex) and (block_i.is_diagonal):
-                    raise NotImplementedError(
-                        "Complex diagonal perturbations are not yet supported."
+                elif (block_i.is_complex) and (block_i.is_diagonal):
+                    X_i = cvxpy.Variable(
+                        (block_i.num_inputs, block_i.num_inputs),
+                        hermitian=True,
+                        name=f"X{i}",
                     )
-                if (block_i.is_complex) and (not block_i.is_square):
-                    raise NotImplementedError(
-                        "Nonsquare perturbations are not yet supported."
-                    )
-                if i == num_blocks - 1:
-                    # Last scaling is always identity
-                    row.append(np.eye(block_i.num_inputs))
-                else:
-                    # Every other scaling is either a scalar or a scalar
-                    # multiplied by identity
-                    if block_i.num_inputs == 1:
-                        xi = cvxpy.Variable((1, 1), complex=True, name=f"x{i}")
-                        row.append(xi)
-                    else:
-                        xi = cvxpy.Variable(1, complex=True, name=f"x{i}")
-                        row.append(xi * np.eye(block_i.num_inputs))
+                    row_l.append(X_i)
+                    row_r.append(X_i)
+                elif (block_i.is_complex) and (not block_i.is_diagonal):
+                    x_i = cvxpy.Variable((), complex=False, name=f"x{i}")
+                    row_l.append(x_i * np.eye(block_i.num_inputs))
+                    row_r.append(x_i * np.eye(block_i.num_outputs))
             else:
                 # If off the block diagonal, insert zeros
-                row.append(np.zeros((block_i.num_inputs, block_j.num_inputs)))
-        X_lst.append(row)
-    X = cvxpy.bmat(X_lst)
-    return X
+                row_l.append(np.zeros((block_i.num_inputs, block_j.num_inputs)))
+                row_r.append(np.zeros((block_i.num_outputs, block_j.num_outputs)))
+        X_l_lst.append(row_l)
+        X_r_lst.append(row_r)
+    X_l = cvxpy.bmat(X_l_lst)
+    X_r = cvxpy.bmat(X_r_lst)
+    return X_l, X_r
