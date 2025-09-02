@@ -25,7 +25,6 @@ from . import (
     d_scale_fit,
     structured_singular_value,
     uncertainty_structure,
-    utilities,
 )
 
 
@@ -135,15 +134,15 @@ class IterResult:
         >>> omega = np.logspace(-3, 3, 61)
         >>> N = P.lft(K)
         >>> N_omega = N(1j * omega)
-        >>> mu_omega, D_omega, info = dkpy.SsvLmiBisection().compute_ssv(
+        >>> mu_omega, D_l_omega, D_r_omega, info = dkpy.SsvLmiBisection().compute_ssv(
         ...     N_omega,
         ...     block_structure,
         ... )
-        >>> D, D_inv = dkpy.DScaleFitSlicot().fit(omega, D_omega, 2, block_structure)
+        >>> D, D_inv = dkpy.DScaleFitSlicot().fit(omega, D_l_omega, D_r_omega, 2, block_structure)
         >>> d_scale_fit_info = IterResult.create_from_fit(
         ...     omega,
         ...     mu_omega,
-        ...     D_omega,
+        ...     D_l_omega,
         ...     P,
         ...     K,
         ...     D,
@@ -270,9 +269,11 @@ class DkIteration(metaclass=abc.ABCMeta):
         )
         N = P.lft(K)
         N_omega = N(1j * omega)
-        mu_omega, D_omega, info = self.structured_singular_value.compute_ssv(
-            N_omega,
-            block_structure=block_structure,
+        mu_omega, D_l_omega, D_r_omega, info = (
+            self.structured_singular_value.compute_ssv(
+                N_omega,
+                block_structure=block_structure,
+            )
         )
         # Start iteration
         while True:
@@ -282,7 +283,8 @@ class DkIteration(metaclass=abc.ABCMeta):
                 iteration,
                 omega,
                 mu_omega,
-                D_omega,
+                D_l_omega,
+                D_r_omega,
                 P,
                 K,
                 block_structure,
@@ -294,7 +296,8 @@ class DkIteration(metaclass=abc.ABCMeta):
             # Fit transfer functions to gridded D-scales
             D_fit, D_fit_inv = self.d_scale_fit.fit(
                 omega,
-                D_omega,
+                D_l_omega,
+                D_r_omega,
                 order=fit_order,
                 block_structure=block_structure,
             )
@@ -303,7 +306,7 @@ class DkIteration(metaclass=abc.ABCMeta):
                 IterResult.create_from_fit(
                     omega,
                     mu_omega,
-                    D_omega,
+                    D_l_omega,
                     P,
                     K,
                     D_fit,
@@ -327,9 +330,11 @@ class DkIteration(metaclass=abc.ABCMeta):
             N = P.lft(K)
             # Compute structured singular values on grid
             N_omega = N(1j * omega)
-            mu_omega, D_omega, info = self.structured_singular_value.compute_ssv(
-                N_omega,
-                block_structure=block_structure,
+            mu_omega, D_l_omega, D_r_omega, info = (
+                self.structured_singular_value.compute_ssv(
+                    N_omega,
+                    block_structure=block_structure,
+                )
             )
             # Increment iteration
             iteration += 1
@@ -340,7 +345,8 @@ class DkIteration(metaclass=abc.ABCMeta):
         iteration: int,
         omega: np.ndarray,
         mu_omega: np.ndarray,
-        D_omega: np.ndarray,
+        D_l_omega: np.ndarray,
+        D_r_omega: np.ndarray,
         P: control.StateSpace,
         K: control.StateSpace,
         block_structure: List[uncertainty_structure.UncertaintyBlock],
@@ -355,8 +361,10 @@ class DkIteration(metaclass=abc.ABCMeta):
             Angular frequencies to evaluate D-scales (rad/s).
         mu_omega : np.ndarray
             Numerically computed structured singular value at each frequency.
-        D_omega : np.ndarray
-            Numerically computed D-scale magnitude at each frequency.
+        D_l_omega : np.ndarray
+            Numerically computed left D-scale magnitude at each frequency.
+        D_r_omega : np.ndarray
+            Numerically computed right D-scale magnitude at each frequency.
         P : control.StateSpace
             Generalized plant.
         K : control.StateSpace
@@ -437,7 +445,8 @@ class DkIterFixedOrder(DkIteration):
         iteration: int,
         omega: np.ndarray,
         mu_omega: np.ndarray,
-        D_omega: np.ndarray,
+        D_l_omega: np.ndarray,
+        D_r_omega: np.ndarray,
         P: control.StateSpace,
         K: control.StateSpace,
         block_structure: List[uncertainty_structure.UncertaintyBlock],
@@ -508,7 +517,8 @@ class DkIterListOrder(DkIteration):
         iteration: int,
         omega: np.ndarray,
         mu_omega: np.ndarray,
-        D_omega: np.ndarray,
+        D_l_omega: np.ndarray,
+        D_r_omega: np.ndarray,
         P: control.StateSpace,
         K: control.StateSpace,
         block_structure: List[uncertainty_structure.UncertaintyBlock],
@@ -594,7 +604,8 @@ class DkIterAutoOrder(DkIteration):
         iteration: int,
         omega: np.ndarray,
         mu_omega: np.ndarray,
-        D_omega: np.ndarray,
+        D_l_omega: np.ndarray,
+        D_r_omega: np.ndarray,
         P: control.StateSpace,
         K: control.StateSpace,
         block_structure: List[uncertainty_structure.UncertaintyBlock],
@@ -612,14 +623,15 @@ class DkIterAutoOrder(DkIteration):
         while True:
             D_fit, D_fit_inv = self.d_scale_fit.fit(
                 omega,
-                D_omega,
+                D_l_omega,
+                D_r_omega,
                 order=fit_order,
                 block_structure=block_structure,
             )
             d_scale_fit_info = IterResult.create_from_fit(
                 omega,
                 mu_omega,
-                D_omega,
+                D_l_omega,
                 P,
                 K,
                 D_fit,
@@ -701,7 +713,8 @@ class DkIterInteractiveOrder(DkIteration):
         iteration: int,
         omega: np.ndarray,
         mu_omega: np.ndarray,
-        D_omega: np.ndarray,
+        D_l_omega: np.ndarray,
+        D_r_omega: np.ndarray,
         P: control.StateSpace,
         K: control.StateSpace,
         block_structure: List[uncertainty_structure.UncertaintyBlock],
@@ -710,7 +723,8 @@ class DkIterInteractiveOrder(DkIteration):
         for fit_order in range(self.max_fit_order + 1):
             D_fit, D_fit_inv = self.d_scale_fit.fit(
                 omega,
-                D_omega,
+                D_l_omega,
+                D_r_omega,
                 order=fit_order,
                 block_structure=block_structure,
             )
@@ -718,7 +732,7 @@ class DkIterInteractiveOrder(DkIteration):
                 IterResult.create_from_fit(
                     omega,
                     mu_omega,
-                    D_omega,
+                    D_l_omega,
                     P,
                     K,
                     D_fit,
@@ -793,15 +807,15 @@ def plot_mu(
     >>> omega = np.logspace(-3, 3, 61)
     >>> N = P.lft(K)
     >>> N_omega = N(1j * omega)
-    >>> mu_omega, D_omega, info = dkpy.SsvLmiBisection().compute_ssv(
+    >>> mu_omega, D_l_omega, D_r_omega, info = dkpy.SsvLmiBisection().compute_ssv(
     ...     N_omega,
     ...     block_structure,
     ... )
-    >>> D, D_inv = dkpy.DScaleFitSlicot().fit(omega, D_omega, 2, block_structure)
+    >>> D, D_inv = dkpy.DScaleFitSlicot().fit(omega, D_l_omega, D_r_omega, 2, block_structure)
     >>> d_scale_fit_info = IterResult.create_from_fit(
     ...     omega,
     ...     mu_omega,
-    ...     D_omega,
+    ...     D_l_omega,
     ...     P,
     ...     K,
     ...     D,
@@ -888,15 +902,15 @@ def plot_D(
     >>> omega = np.logspace(-3, 3, 61)
     >>> N = P.lft(K)
     >>> N_omega = N(1j * omega)
-    >>> mu_omega, D_omega, info = dkpy.SsvLmiBisection().compute_ssv(
+    >>> mu_omega, D_l_omega, D_r_omega, info = dkpy.SsvLmiBisection().compute_ssv(
     ...     N_omega,
     ...     block_structure,
     ... )
-    >>> D, D_inv = dkpy.DScaleFitSlicot().fit(omega, D_omega, 2, block_structure)
+    >>> D, D_inv = dkpy.DScaleFitSlicot().fit(omega, D_l_omega, D_r_omega, 2, block_structure)
     >>> d_scale_fit_info = IterResult.create_from_fit(
     ...     omega,
     ...     mu_omega,
-    ...     D_omega,
+    ...     D_l_omega,
     ...     P,
     ...     K,
     ...     D,
@@ -906,12 +920,12 @@ def plot_D(
     >>> fig, ax = dkpy.plot_D(d_scale_fit_info)
     """
     block_structure = d_scale_info.block_structure
-    mask = d_scale_fit._generate_d_scale_mask(block_structure)
+    mask_l, mask_r = d_scale_fit._generate_d_scale_mask(block_structure)
     # Create figure if not provided
     if ax is None:
         fig, ax = plt.subplots(
-            mask.shape[0],
-            mask.shape[1],
+            mask_l.shape[0],
+            mask_l.shape[1],
             constrained_layout=True,
         )
     else:
@@ -930,7 +944,7 @@ def plot_D(
     mag_D_fit_omega = np.abs(d_scale_info.D_fit_omega)
     for i in range(ax.shape[0]):
         for j in range(ax.shape[1]):
-            if mask[i, j] != 0:
+            if mask_l[i, j] != 0:
                 dB_omega = 20 * np.log10(mag_D_omega[i, j, :])
                 dB_fit_omega = 20 * np.log10(mag_D_fit_omega[i, j, :])
                 if hide != "D_omega":
