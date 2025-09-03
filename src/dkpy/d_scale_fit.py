@@ -98,7 +98,7 @@ class DScaleFitSlicot(DScaleFit):
         omega: np.ndarray,
         D_l_omega: np.ndarray,
         D_r_omega: np.ndarray,
-        order: Union[int, np.ndarray] = 0,
+        order: Union[int, List[int], np.ndarray] = 0,
         block_structure: Optional[
             Union[
                 List[uncertainty_structure.UncertaintyBlock],
@@ -109,8 +109,16 @@ class DScaleFitSlicot(DScaleFit):
     ) -> Tuple[control.StateSpace, control.StateSpace]:
         # Get mask
         if block_structure is None:
-            mask_l = -1 * np.ones((D_l_omega.shape[0], D_l_omega.shape[1]), dtype=int)
-            mask_r = -1 * np.ones((D_r_omega.shape[0], D_r_omega.shape[1]), dtype=int)
+            # If there is no block structure, there should be no D-scale fitting. Therefore,
+            # the mask is set to identity to ensure the D-scale is identity.
+            if not isinstance(order, int):
+                raise ValueError(
+                    "`order` must be an `int` if `block_structure` is `None`."
+                )
+            mask_l = np.eye(D_l_omega.shape[0], dtype=int)
+            mask_r = np.eye(D_r_omega.shape[0], dtype=int)
+            orders_l = order * np.abs(mask_l)
+            orders_r = order * np.abs(mask_r)
         else:
             block_structure = (
                 uncertainty_structure._convert_block_structure_representation(
@@ -118,24 +126,24 @@ class DScaleFitSlicot(DScaleFit):
                 )
             )
             mask_l, mask_r = _generate_d_scale_mask(block_structure)
-        # Check order dimensions
-        # TODO: Fix method for specifying order of each D-scale element
-        orders_l = (
-            order if isinstance(order, np.ndarray) else order * np.ones_like(mask_l)
-        )
-        orders_r = (
-            order if isinstance(order, np.ndarray) else order * np.ones_like(mask_r)
-        )
-        if orders_l.shape != mask_l.shape:
-            raise ValueError(
-                "`order` must be an integer or an array whose dimensions are "
-                "consistent with `uncertainty_structure`."
-            )
-        if orders_r.shape != mask_r.shape:
-            raise ValueError(
-                "`order` must be an integer or an array whose dimensions are "
-                "consistent with `uncertainty_structure`."
-            )
+            if isinstance(order, int):
+                orders_l = order * np.abs(mask_l)
+                orders_r = order * np.abs(mask_r)
+            else:
+                if len(order) != len(block_structure):
+                    raise ValueError(
+                        "Length of `order` must be the same as length of `block_structure`."
+                    )
+                orders_l_lst = [
+                    order[i] * block_structure[i].num_inputs
+                    for i in range(len(block_structure))
+                ]
+                orders_r_lst = [
+                    order[i] * block_structure[i].num_outputs
+                    for i in range(len(block_structure))
+                ]
+                orders_l = scipy.linalg.block_diag(*orders_l_lst)
+                orders_r = scipy.linalg.block_diag(*orders_r_lst)
 
         # Transfer matrix
         tf_l_array = np.zeros((D_l_omega.shape[0], D_l_omega.shape[1]), dtype=object)

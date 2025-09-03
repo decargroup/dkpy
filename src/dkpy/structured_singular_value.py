@@ -37,6 +37,8 @@ class StructuredSingularValue(metaclass=abc.ABCMeta):
             Closed-loop transfer function evaluated at each frequency.
         block_structure : Union[List[uncertainty_structure.UncertaintyBlock], List[List[int]], np.ndarray]
             Uncertainty block structure representation. Returns
+
+        Returns
         -------
         Tuple[np.ndarray, np.ndarray, Dict[str, Any]]
             Structured singular value at each frequency, D-scales at each

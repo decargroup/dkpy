@@ -42,10 +42,13 @@ class IterResult:
         self,
         omega: np.ndarray,
         mu_omega: np.ndarray,
-        D_omega: np.ndarray,
+        D_l_omega: np.ndarray,
+        D_r_omega: np.ndarray,
         mu_fit_omega: np.ndarray,
-        D_fit_omega: np.ndarray,
-        D_fit: control.StateSpace,
+        D_l_fit_omega: np.ndarray,
+        D_r_fit_omega: np.ndarray,
+        D_l_fit: control.StateSpace,
+        D_r_fit: control.StateSpace,
         block_structure: Union[
             List[uncertainty_structure.UncertaintyBlock], List[List[int]], np.ndarray
         ],
@@ -58,23 +61,30 @@ class IterResult:
             Angular frequencies to evaluate D-scales (rad/s).
         mu_omega : np.ndarray
             Numerically computed structured singular value at each frequency.
-        D_omega : np.ndarray
-            Numerically computed D-scale magnitude at each frequency.
+        D_l_omega : np.ndarray
+            Numerically computed left D-scale magnitude at each frequency.
+        D_r_omega : np.ndarray
+            Numerically computed right D-scale magnitude at each frequency.
         mu_fit_omega : np.ndarray
             Fit structured singular value at each frequency.
         D_fit_omega : np.ndarray
             Fit D-scale magnitude at each frequency.
-        D_fit : control.StateSpace
-            Fit D-scale state-space representation.
+        D_l_fit_omega : np.ndarray
+            Fit left D-scale magnitude at each frequency.
+        D_r_fit : control.StateSpace
+            Fit right D-scale state-space representation.
         uncertainty_structure : Union[List[uncertainty_structure.UncertaintyBlock], List[List[int]], np.ndarray]
             Uncertainty block structure representation.
         """
         self.omega = omega
         self.mu_omega = mu_omega
-        self.D_omega = D_omega
+        self.D_l_omega = D_l_omega
+        self.D_r_omega = D_r_omega
         self.mu_fit_omega = mu_fit_omega
-        self.D_fit_omega = D_fit_omega
-        self.D_fit = D_fit
+        self.D_l_fit_omega = D_l_fit_omega
+        self.D_r_fit_omega = D_r_fit_omega
+        self.D_l_fit = D_l_fit
+        self.D_r_fit = D_r_fit
         self.block_structure = (
             uncertainty_structure._convert_block_structure_representation(
                 block_structure
@@ -86,11 +96,12 @@ class IterResult:
         cls,
         omega: np.ndarray,
         mu_omega: np.ndarray,
-        D_omega: np.ndarray,
+        D_l_omega: np.ndarray,
+        D_r_omega: np.ndarray,
         P: control.StateSpace,
         K: control.StateSpace,
-        D_fit: control.StateSpace,
-        D_fit_inv: control.StateSpace,
+        D_l_fit: control.StateSpace,
+        D_r_inv_fit: control.StateSpace,
         block_structure: Union[
             List[uncertainty_structure.UncertaintyBlock], List[List[int]], np.ndarray
         ],
@@ -103,16 +114,18 @@ class IterResult:
             Angular frequencies to evaluate D-scales (rad/s).
         mu_omega : np.ndarray
             Numerically computed structured singular value at each frequency.
-        D_omega : np.ndarray
-            Numerically computed D-scale magnitude at each frequency.
+        D_l_omega : np.ndarray
+            Numerically computed left D-scale magnitude at each frequency.
+        D_r_omega : np.ndarray
+            Numerically computed right D-scale magnitude at each frequency.
         P : control.StateSpace
             Generalized plant.
         K : control.StateSpace
             Controller.
-        D_fit : control.StateSpace
-            Fit D-scale magnitude at each frequency.
-        D_fit_inv : control.StateSpace
-            Fit inverse D-scale magnitude at each frequency.
+        D_l_fit : control.StateSpace
+            Fit left D-scale magnitude at each frequency.
+        D_r_inv_fit : control.StateSpace
+            Fit inverse right D-scale magnitude at each frequency.
         block_structure : Union[List[uncertainty_structure.UncertaintyBlock], List[List[int]], np.ndarray]
             Uncertainty block structure representation.
 
@@ -138,22 +151,32 @@ class IterResult:
         ...     N_omega,
         ...     block_structure,
         ... )
-        >>> D, D_inv = dkpy.DScaleFitSlicot().fit(omega, D_l_omega, D_r_omega, 2, block_structure)
+        >>> D_l, D_r_inv = dkpy.DScaleFitSlicot().fit(omega, D_l_omega, D_r_omega, 2, block_structure)
         >>> d_scale_fit_info = IterResult.create_from_fit(
         ...     omega,
         ...     mu_omega,
         ...     D_l_omega,
+        ...     D_r_omega,
         ...     P,
         ...     K,
-        ...     D,
-        ...     D_inv,
+        ...     D_l,
+        ...     D_r_inv,
         ...     block_structure,
         ... )
         """
 
+        # Compute `D_r^{-1}(omega)` from `D_r(omega)`
+        D_r_inv_omega = np.array(
+            [
+                scipy.linalg.solve(
+                    D_r_omega[:, :, i], np.eye(D_r_omega[:, :, i].shape[0])
+                )
+                for i in range(D_r_omega.shape[2])
+            ]
+        )
         # Compute ``mu(omega)`` based on fit D-scales
         N = P.lft(K)
-        scaled_cl = (D_fit * N * D_fit_inv)(1j * omega)
+        scaled_cl = (D_l_fit * N * D_r_inv_fit)(1j * omega)
         mu_fit_omega = np.array(
             [
                 np.max(scipy.linalg.svdvals(scaled_cl[:, :, i]))
@@ -161,14 +184,18 @@ class IterResult:
             ]
         )
         # Compute ``D(omega)`` based on fit D-scales
-        D_fit_omega = D_fit(1j * omega)
+        D_l_fit_omega = D_l_fit(1j * omega)
+        D_r_inv_fit_omega = D_l_fit(1j * omega)
         return cls(
             omega,
             mu_omega,
-            D_omega,
+            D_l_omega,
+            D_r_inv_omega,
             mu_fit_omega,
-            D_fit_omega,
-            D_fit,
+            D_l_fit_omega,
+            D_r_inv_fit_omega,
+            D_l_fit,
+            D_r_inv_fit,
             block_structure,
         )
 
@@ -294,7 +321,7 @@ class DkIteration(metaclass=abc.ABCMeta):
                 self._log.info("Iteration complete")
                 break
             # Fit transfer functions to gridded D-scales
-            D_fit, D_fit_inv = self.d_scale_fit.fit(
+            D_l_fit, D_r_fit_inv = self.d_scale_fit.fit(
                 omega,
                 D_l_omega,
                 D_r_omega,
@@ -307,17 +334,18 @@ class DkIteration(metaclass=abc.ABCMeta):
                     omega,
                     mu_omega,
                     D_l_omega,
+                    D_r_omega,
                     P,
                     K,
-                    D_fit,
-                    D_fit_inv,
+                    D_l_fit,
+                    D_r_fit_inv,
                     block_structure,
                 )
             )
             # Augment D-scales with identity transfer functions
             D_aug, D_aug_inv = _augment_d_scales(
-                D_fit,
-                D_fit_inv,
+                D_l_fit,
+                D_r_fit_inv,
                 n_y=n_y,
                 n_u=n_u,
             )
@@ -621,7 +649,7 @@ class DkIterAutoOrder(DkIteration):
         fit_order = 0
         relative_errors = []
         while True:
-            D_fit, D_fit_inv = self.d_scale_fit.fit(
+            D_l_fit, D_r_fit_inv = self.d_scale_fit.fit(
                 omega,
                 D_l_omega,
                 D_r_omega,
@@ -632,10 +660,11 @@ class DkIterAutoOrder(DkIteration):
                 omega,
                 mu_omega,
                 D_l_omega,
+                D_r_omega,
                 P,
                 K,
-                D_fit,
-                D_fit_inv,
+                D_l_fit,
+                D_r_fit_inv,
                 block_structure,
             )
             error = np.abs(mu_omega - d_scale_fit_info.mu_fit_omega)
@@ -649,6 +678,7 @@ class DkIterAutoOrder(DkIteration):
             if relative_error >= self.max_mu_fit_error:
                 fit_order += 1
             else:
+                best_order = fit_order
                 self._log.info(
                     f"Reached structured singular value target with order {best_order}"
                 )
@@ -811,15 +841,16 @@ def plot_mu(
     ...     N_omega,
     ...     block_structure,
     ... )
-    >>> D, D_inv = dkpy.DScaleFitSlicot().fit(omega, D_l_omega, D_r_omega, 2, block_structure)
+    >>> D_l, D_r_inv = dkpy.DScaleFitSlicot().fit(omega, D_l_omega, D_r_omega, 2, block_structure)
     >>> d_scale_fit_info = IterResult.create_from_fit(
     ...     omega,
     ...     mu_omega,
     ...     D_l_omega,
+    ...     D_r_omega,
     ...     P,
     ...     K,
-    ...     D,
-    ...     D_inv,
+    ...     D_l,
+    ...     D_r_inv,
     ...     block_structure,
     ... )
     >>> fig, ax = dkpy.plot_mu(d_scale_fit_info)
@@ -906,15 +937,16 @@ def plot_D(
     ...     N_omega,
     ...     block_structure,
     ... )
-    >>> D, D_inv = dkpy.DScaleFitSlicot().fit(omega, D_l_omega, D_r_omega, 2, block_structure)
+    >>> D_l, D_r_inv = dkpy.DScaleFitSlicot().fit(omega, D_l_omega, D_r_omega, 2, block_structure)
     >>> d_scale_fit_info = IterResult.create_from_fit(
     ...     omega,
     ...     mu_omega,
     ...     D_l_omega,
+    ...     D_r_omega,
     ...     P,
     ...     K,
-    ...     D,
-    ...     D_inv,
+    ...     D_l,
+    ...     D_r_inv,
     ...     block_structure,
     ... )
     >>> fig, ax = dkpy.plot_D(d_scale_fit_info)
@@ -940,8 +972,8 @@ def plot_D(
     _ = plot_kw.pop("ls", None)
     _ = plot_kw.pop("linestyle", None)
     # Plot D
-    mag_D_omega = np.abs(d_scale_info.D_omega)
-    mag_D_fit_omega = np.abs(d_scale_info.D_fit_omega)
+    mag_D_omega = np.abs(d_scale_info.D_l_omega)
+    mag_D_fit_omega = np.abs(d_scale_info.D_l_fit_omega)
     for i in range(ax.shape[0]):
         for j in range(ax.shape[1]):
             if mask_l[i, j] != 0:

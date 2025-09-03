@@ -48,13 +48,11 @@ def example_dk_iter_auto_order():
     # uncertainty_structure = dkpy.UncertaintyBlockStructure(
     #     [[1, 1], [1, 1], [2, 2]]
     # )
-    uncertainty_structure = dkpy.UncertaintyBlockStructure(
-        [
-            dkpy.ComplexFullBlock(1, 1),
-            dkpy.ComplexFullBlock(1, 1),
-            dkpy.ComplexFullBlock(2, 2),
-        ]
-    )
+    uncertainty_structure = [
+        dkpy.ComplexFullBlock(1, 1),
+        dkpy.ComplexFullBlock(1, 1),
+        dkpy.ComplexFullBlock(2, 2),
+    ]
     K, N, mu, iter_results, info = dk_iter.synthesize(
         eg["P"],
         eg["n_y"],
