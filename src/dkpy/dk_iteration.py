@@ -43,12 +43,12 @@ class IterResult:
         omega: np.ndarray,
         mu_omega: np.ndarray,
         D_l_omega: np.ndarray,
-        D_r_omega: np.ndarray,
+        D_r_inv_omega: np.ndarray,
         mu_fit_omega: np.ndarray,
         D_l_fit_omega: np.ndarray,
-        D_r_fit_omega: np.ndarray,
+        D_r_inv_fit_omega: np.ndarray,
         D_l_fit: control.StateSpace,
-        D_r_fit: control.StateSpace,
+        D_r_inv_fit: control.StateSpace,
         block_structure: Union[
             List[uncertainty_structure.UncertaintyBlock], List[List[int]], np.ndarray
         ],
@@ -63,15 +63,17 @@ class IterResult:
             Numerically computed structured singular value at each frequency.
         D_l_omega : np.ndarray
             Numerically computed left D-scale magnitude at each frequency.
-        D_r_omega : np.ndarray
-            Numerically computed right D-scale magnitude at each frequency.
+        D_r_inv_omega : np.ndarray
+            Numerically computed inverse right D-scale magnitude at each frequency.
         mu_fit_omega : np.ndarray
             Fit structured singular value at each frequency.
-        D_fit_omega : np.ndarray
+        D_l_fit_omega : np.ndarray
+            Fit left D-scale magnitude at each frequency.
+        D_r_inv_fit_omega : np.ndarray
             Fit D-scale magnitude at each frequency.
         D_l_fit_omega : np.ndarray
             Fit left D-scale magnitude at each frequency.
-        D_r_fit : control.StateSpace
+        D_r_inv_fit : control.StateSpace
             Fit right D-scale state-space representation.
         uncertainty_structure : Union[List[uncertainty_structure.UncertaintyBlock], List[List[int]], np.ndarray]
             Uncertainty block structure representation.
@@ -79,12 +81,12 @@ class IterResult:
         self.omega = omega
         self.mu_omega = mu_omega
         self.D_l_omega = D_l_omega
-        self.D_r_omega = D_r_omega
+        self.D_r_inv_omega = D_r_inv_omega
         self.mu_fit_omega = mu_fit_omega
         self.D_l_fit_omega = D_l_fit_omega
-        self.D_r_fit_omega = D_r_fit_omega
+        self.D_r_inv_fit_omega = D_r_inv_fit_omega
         self.D_l_fit = D_l_fit
-        self.D_r_fit = D_r_fit
+        self.D_r_inv_fit = D_r_inv_fit
         self.block_structure = (
             uncertainty_structure._convert_block_structure_representation(
                 block_structure
@@ -173,7 +175,7 @@ class IterResult:
                 )
                 for i in range(D_r_omega.shape[2])
             ]
-        )
+        ).transpose(1, 2, 0)
         # Compute ``mu(omega)`` based on fit D-scales
         N = P.lft(K)
         scaled_cl = (D_l_fit * N * D_r_inv_fit)(1j * omega)
@@ -185,7 +187,7 @@ class IterResult:
         )
         # Compute ``D(omega)`` based on fit D-scales
         D_l_fit_omega = D_l_fit(1j * omega)
-        D_r_inv_fit_omega = D_l_fit(1j * omega)
+        D_r_inv_fit_omega = D_r_inv_fit(1j * omega)
         return cls(
             omega,
             mu_omega,
@@ -899,6 +901,7 @@ def plot_D(
     ax: Optional[np.ndarray] = None,
     plot_kw: Optional[Dict[str, Any]] = None,
     hide: Optional[str] = None,
+    plot_select: Optional[str] = "standard",
 ) -> Tuple[plt.Figure, np.ndarray]:
     """Plot D.
 
@@ -913,6 +916,9 @@ def plot_D(
     hide : Optional[str]
         Set to ``'D_omega'`` or ``'D_fit_omega'`` to hide either one of
         those lines.
+    plot_select: Optional[str]
+        Set to ``standard`` to plot ``D_omega`` and ``D_fit_omega`` or ``inverse`` to plot
+        ``D_inv_omega`` and ``D_inv_fit_omega``.
 
     Returns
     -------
@@ -972,37 +978,74 @@ def plot_D(
     _ = plot_kw.pop("ls", None)
     _ = plot_kw.pop("linestyle", None)
     # Plot D
-    mag_D_omega = np.abs(d_scale_info.D_l_omega)
-    mag_D_fit_omega = np.abs(d_scale_info.D_l_fit_omega)
-    for i in range(ax.shape[0]):
-        for j in range(ax.shape[1]):
-            if mask_l[i, j] != 0:
-                dB_omega = 20 * np.log10(mag_D_omega[i, j, :])
-                dB_fit_omega = 20 * np.log10(mag_D_fit_omega[i, j, :])
-                if hide != "D_omega":
-                    ax[i, j].semilogx(
-                        d_scale_info.omega,
-                        dB_omega,
-                        label=label_D_omega,
-                        ls="--",
-                        **plot_kw,
-                    )
-                if hide != "D_fit_omega":
-                    ax[i, j].semilogx(
-                        d_scale_info.omega,
-                        dB_fit_omega,
-                        label=label_D_fit_omega,
-                        **plot_kw,
-                    )
-                # Set axis labels
-                ax[i, j].set_xlabel(r"$\omega$ (rad/s)")
-                ax[i, j].set_ylabel(rf"$D_{{{i}{j}}}(\omega) (dB)$")
-                ax[i, j].grid(linestyle="--")
-            else:
-                ax[i, j].axis("off")
-    fig.legend(handles=ax[0, 0].get_lines(), loc="lower left")
-    # Return figure and axes
-    return fig, ax
+    if plot_select == "standard":
+        mag_D_omega = np.abs(d_scale_info.D_l_omega)
+        mag_D_fit_omega = np.abs(d_scale_info.D_l_fit_omega)
+        for i in range(ax.shape[0]):
+            for j in range(ax.shape[1]):
+                if mask_l[i, j] != 0:
+                    dB_omega = 20 * np.log10(mag_D_omega[i, j, :])
+                    dB_fit_omega = 20 * np.log10(mag_D_fit_omega[i, j, :])
+                    if hide != "D_omega":
+                        ax[i, j].semilogx(
+                            d_scale_info.omega,
+                            dB_omega,
+                            label=label_D_omega,
+                            ls="--",
+                            **plot_kw,
+                        )
+                    if hide != "D_fit_omega":
+                        ax[i, j].semilogx(
+                            d_scale_info.omega,
+                            dB_fit_omega,
+                            label=label_D_fit_omega,
+                            **plot_kw,
+                        )
+                    # Set axis labels
+                    ax[i, j].set_xlabel(r"$\omega$ (rad/s)")
+                    ax[i, j].set_ylabel(rf"$D_{{{i}{j}}}(\omega) (dB)$")
+                    ax[i, j].grid(linestyle="--")
+                else:
+                    ax[i, j].axis("off")
+        fig.legend(handles=ax[0, 0].get_lines(), loc="lower left")
+        # Return figure and axes
+        return fig, ax
+    elif plot_select == "inverse":
+        mag_D_inv_omega = np.abs(d_scale_info.D_r_inv_omega)
+        mag_D_inv_fit_omega = np.abs(d_scale_info.D_r_inv_fit_omega)
+        for i in range(ax.shape[0]):
+            for j in range(ax.shape[1]):
+                if mask_l[i, j] != 0:
+                    dB_omega = 20 * np.log10(mag_D_inv_omega[i, j, :])
+                    dB_fit_omega = 20 * np.log10(mag_D_inv_fit_omega[i, j, :])
+                    if hide != "D_omega":
+                        ax[i, j].semilogx(
+                            d_scale_info.omega,
+                            dB_omega,
+                            label=label_D_omega,
+                            ls="--",
+                            **plot_kw,
+                        )
+                    if hide != "D_fit_omega":
+                        ax[i, j].semilogx(
+                            d_scale_info.omega,
+                            dB_fit_omega,
+                            label=label_D_fit_omega,
+                            **plot_kw,
+                        )
+                    # Set axis labels
+                    ax[i, j].set_xlabel(r"$\omega$ (rad/s)")
+                    ax[i, j].set_ylabel(rf"$D_{{{i}{j}}}(\omega)^{{-1}} (dB)$")
+                    ax[i, j].grid(linestyle="--")
+                else:
+                    ax[i, j].axis("off")
+        fig.legend(handles=ax[0, 0].get_lines(), loc="lower left")
+        # Return figure and axes
+        return fig, ax
+    else:
+        raise ValueError(
+            'Invalid `select` argument. `select` must either be "standard" or "inverse".'
+        )
 
 
 def _augment_d_scales(
