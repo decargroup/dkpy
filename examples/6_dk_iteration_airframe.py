@@ -14,8 +14,8 @@ r: Yaw rate
 
 Control Inputs
 --------------
-zeta: Rudder input
-xi: Aileron input
+zeta: Rudder angle input
+xi: Aileron angle input
 
 Disturbances
 ------------
@@ -79,7 +79,7 @@ def example_dk_iter_list_order_aircraft():
     # block_structure = np.array([[n_u_delta, n_y_delta], [n_w, n_z]])
     block_structure = [
         dkpy.ComplexFullBlock(n_y_delta, n_u_delta),
-        dkpy.ComplexFullBlock(n_z, n_w),
+        dkpy.ComplexFullBlock(n_w, n_z),
     ]
     controller, N, mu, iter_results, info = dk_iter.synthesize(
         plant_gen,

@@ -238,8 +238,8 @@ def _generate_d_scale_mask(
         block = block_structure[i]
         if (i == num_blocks - 1) and (not block.is_diagonal):
             # Last scaling is always identity if it is a full perturbation
-            mask_l_lst.append(np.eye(block.num_inputs, dtype=int))
-            mask_r_lst.append(np.eye(block.num_outputs, dtype=int))
+            mask_l_lst.append(np.eye(block.num_perf_outputs, dtype=int))
+            mask_r_lst.append(np.eye(block.num_exog_inputs, dtype=int))
         elif (not block.is_complex) and (not block.is_diagonal):
             raise NotImplementedError("Real full perturbations are not supported.")
         elif (not block.is_complex) and (block.is_diagonal):
@@ -247,11 +247,11 @@ def _generate_d_scale_mask(
                 "Real diagonal perturbations are not yet supported."
             )
         elif (block.is_complex) and (block.is_diagonal):
-            mask_l_lst.append(-1 * np.tri(block.num_inputs, dtype=int).T)
-            mask_r_lst.append(-1 * np.tri(block.num_inputs, dtype=int).T)
+            mask_l_lst.append(-1 * np.tri(block.num_perf_outputs, dtype=int).T)
+            mask_r_lst.append(-1 * np.tri(block.num_perf_outputs, dtype=int).T)
         elif (block.is_complex) and (not block.is_diagonal):
-            mask_l_lst.append(-1 * np.eye(block.num_inputs, dtype=int))
-            mask_r_lst.append(-1 * np.eye(block.num_outputs, dtype=int))
+            mask_l_lst.append(-1 * np.eye(block.num_perf_outputs, dtype=int))
+            mask_r_lst.append(-1 * np.eye(block.num_exog_inputs, dtype=int))
     mask_l = scipy.linalg.block_diag(*mask_l_lst)
     mask_r = scipy.linalg.block_diag(*mask_r_lst)
     return mask_l, mask_r

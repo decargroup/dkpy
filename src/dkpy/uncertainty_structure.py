@@ -10,14 +10,14 @@ class UncertaintyBlock(metaclass=abc.ABCMeta):
 
     @property
     @abc.abstractmethod
-    def num_inputs(self) -> int:
-        """Get number of inputs of the uncertainty block."""
+    def num_exog_inputs(self) -> int:
+        """Get number of exogenous inputs (w) for the uncertainty block."""
         raise NotImplementedError()
 
     @property
     @abc.abstractmethod
-    def num_outputs(self) -> int:
-        """Get number of output of the uncertainty block."""
+    def num_perf_outputs(self) -> int:
+        """Get number of performance outputs (z) for the uncertainty block."""
         raise NotImplementedError()
 
     @property
@@ -48,7 +48,8 @@ class RealDiagonalBlock(UncertaintyBlock):
         Parameters
         ----------
         num_channels : int
-            Number of inputs/outputs to the uncertainty block.
+            Number of exogenous inputs (w) and performance outputs (z) for the
+            uncertainty block.
 
         Raises
         ------
@@ -61,27 +62,23 @@ class RealDiagonalBlock(UncertaintyBlock):
         self._num_channels = num_channels
 
     @property
-    def num_inputs(self) -> int:
+    def num_exog_inputs(self) -> int:
         return self._num_channels
 
     @property
-    def num_outputs(self) -> int:
-        """Get number of output of the uncertainty block."""
+    def num_perf_outputs(self) -> int:
         return self._num_channels
 
     @property
     def is_diagonal(self) -> bool:
-        """Get boolean for diagonal uncertainty."""
         return True
 
     @property
     def is_complex(self) -> bool:
-        """Get boolean for complex uncertainty."""
         return False
 
     @property
     def is_square(self) -> bool:
-        """Get boolean for square uncertainty."""
         return True
 
 
@@ -94,7 +91,8 @@ class ComplexDiagonalBlock(UncertaintyBlock):
         Parameters
         ----------
         num_channels : int
-            Number of inputs/outputs to the uncertainty block.
+            Number of exogenous inputs (w) and performance outputs (z) for the
+            uncertainty block.
 
         Raises
         ------
@@ -107,82 +105,74 @@ class ComplexDiagonalBlock(UncertaintyBlock):
         self._num_channels = num_channels
 
     @property
-    def num_inputs(self) -> int:
+    def num_exog_inputs(self) -> int:
         return self._num_channels
 
     @property
-    def num_outputs(self) -> int:
-        """Get number of output of the uncertainty block."""
+    def num_perf_outputs(self) -> int:
         return self._num_channels
 
     @property
     def is_diagonal(self) -> bool:
-        """Get boolean for diagonal uncertainty."""
         return True
 
     @property
     def is_complex(self) -> bool:
-        """Get boolean for complex uncertainty."""
         return True
 
     @property
     def is_square(self) -> bool:
-        """Get boolean for square uncertainty."""
         return True
 
 
 class ComplexFullBlock(UncertaintyBlock):
     """Complex-valued full uncertainty block."""
 
-    def __init__(self, num_inputs: int, num_outputs: int):
+    def __init__(self, num_exog_inputs: int, num_perf_outputs: int):
         """Instantiate :class:`ComplexFullBlock`.
 
         Parameters
         ----------
-        num_inputs : int
-            Number of inputs (columns) to the uncertainty block.
-        num_outputs : int
-            Number of outputs (rows) to the uncertainty block.
+        num_exog_inputs : int
+            Number of exogenous inputs (w) for the uncertainty block.
+        num_perf_outputs : int
+            Number of performance outputs (z) for the uncertainty block.
 
         Raises
         ------
         ValueError
-            If ``num_inputs`` is not greater than zero.
+            If ``num_exog_inputs`` is not greater than zero.
         ValueError
-            If ``num_outputs`` is not greater than zero.
+            If ``num_perf_outputs`` is not greater than zero.
         """
 
-        if num_inputs <= 0:
-            raise ValueError("`num_inputs` must be greater than 0.")
-        if num_outputs <= 0:
-            raise ValueError("`num_outputs` must be greater than 0.")
+        if num_exog_inputs <= 0:
+            raise ValueError("`num_exog_inputs` must be greater than 0.")
+        if num_perf_outputs <= 0:
+            raise ValueError("`num_perf_outputs` must be greater than 0.")
 
-        self._num_inputs = num_inputs
-        self._num_outputs = num_outputs
-
-    @property
-    def num_inputs(self) -> int:
-        return self._num_inputs
+        self._num_exog_inputs = num_exog_inputs
+        self._num_perf_outputs = num_perf_outputs
 
     @property
-    def num_outputs(self) -> int:
-        """Get number of output of the uncertainty block."""
-        return self._num_outputs
+    def num_exog_inputs(self) -> int:
+        return self._num_exog_inputs
+
+    @property
+    def num_perf_outputs(self) -> int:
+        return self._num_perf_outputs
 
     @property
     def is_diagonal(self) -> bool:
-        """Get boolean for diagonal uncertainty."""
         return False
 
     @property
     def is_complex(self) -> bool:
-        """Get boolean for complex uncertainty."""
         return True
 
     @property
     def is_square(self) -> bool:
-        """Get boolean for square uncertainty."""
-        return self._num_inputs == self._num_outputs
+        return self._num_exog_inputs == self._num_perf_outputs
 
 
 def _convert_block_structure_representation(
@@ -247,7 +237,7 @@ def _convert_block_structure_representation(
             block_structure_oop.append(ComplexDiagonalBlock(block_matlab[0]))
         elif (block_matlab[0] > 0) and (block_matlab[1] > 0):
             block_structure_oop.append(
-                ComplexFullBlock(block_matlab[1], block_matlab[0])
+                ComplexFullBlock(block_matlab[0], block_matlab[1])
             )
         else:
             raise ValueError(
