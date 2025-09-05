@@ -107,43 +107,49 @@ class DScaleFitSlicot(DScaleFit):
             ]
         ] = None,
     ) -> Tuple[control.StateSpace, control.StateSpace]:
+        # Check D-scale dimensions
+        if D_l_omega.shape[0] != D_l_omega.shape[1]:
+            raise ValueError(
+                "The left D-scale must be square "
+                "(D_l_omega.shape[0] = D_l_omega.shape[1])."
+            )
+        if D_r_omega.shape[0] != D_r_omega.shape[1]:
+            raise ValueError(
+                "The right D-scale must be square "
+                "(D_r_omega.shape[0] = D_r_omega.shape[1])."
+            )
         # Get mask
         if block_structure is None:
-            # If there is no block structure, there should be no D-scale fitting. Therefore,
-            # the mask is set to identity to ensure the D-scale is identity.
-            if not isinstance(order, int):
-                raise ValueError(
-                    "`order` must be an `int` if `block_structure` is `None`."
+            block_structure = [
+                uncertainty_structure.ComplexFullBlock(
+                    D_r_omega.shape[0], D_l_omega.shape[0]
                 )
-            mask_l = np.eye(D_l_omega.shape[0], dtype=int)
-            mask_r = np.eye(D_r_omega.shape[0], dtype=int)
-            orders_l = order * np.abs(mask_l)
-            orders_r = order * np.abs(mask_r)
+            ]
         else:
             block_structure = (
                 uncertainty_structure._convert_block_structure_representation(
                     block_structure
                 )
             )
-            mask_l, mask_r = _generate_d_scale_mask(block_structure)
-            if isinstance(order, int):
-                orders_l = order * np.abs(mask_l)
-                orders_r = order * np.abs(mask_r)
-            else:
-                if len(order) != len(block_structure):
-                    raise ValueError(
-                        "Length of `order` must be the same as length of `block_structure`."
-                    )
-                orders_l_lst = [
-                    order[i] * block_structure[i].num_inputs
-                    for i in range(len(block_structure))
-                ]
-                orders_r_lst = [
-                    order[i] * block_structure[i].num_outputs
-                    for i in range(len(block_structure))
-                ]
-                orders_l = scipy.linalg.block_diag(*orders_l_lst)
-                orders_r = scipy.linalg.block_diag(*orders_r_lst)
+        mask_l, mask_r = _generate_d_scale_mask(block_structure)
+        if isinstance(order, int):
+            orders_l = order * np.abs(mask_l)
+            orders_r = order * np.abs(mask_r)
+        else:
+            if len(order) != len(block_structure):
+                raise ValueError(
+                    "Length of `order` must be the same as length of `block_structure`."
+                )
+            orders_l_lst = [
+                order[i] * block_structure[i].num_perf_outputs
+                for i in range(len(block_structure))
+            ]
+            orders_r_lst = [
+                order[i] * block_structure[i].num_exog_inputs
+                for i in range(len(block_structure))
+            ]
+            orders_l = scipy.linalg.block_diag(*orders_l_lst)
+            orders_r = scipy.linalg.block_diag(*orders_r_lst)
 
         # Transfer matrix
         tf_l_array = np.zeros((D_l_omega.shape[0], D_l_omega.shape[1]), dtype=object)
@@ -231,12 +237,17 @@ def _generate_d_scale_mask(
         block structure.
     """
     num_blocks = len(block_structure)
+    idx_last_full_block = -1
+    for idx, block in enumerate(reversed(block_structure)):
+        if isinstance(block, uncertainty_structure.ComplexFullBlock):
+            idx_last_full_block = len(block_structure) - 1 - idx
+            break
     mask_l_lst = []
     mask_r_lst = []
     for i in range(num_blocks):
         # Uncertainty block
         block = block_structure[i]
-        if (i == num_blocks - 1) and (not block.is_diagonal):
+        if (i == idx_last_full_block) and (not block.is_diagonal):
             # Last scaling is always identity if it is a full perturbation
             mask_l_lst.append(np.eye(block.num_perf_outputs, dtype=int))
             mask_r_lst.append(np.eye(block.num_exog_inputs, dtype=int))

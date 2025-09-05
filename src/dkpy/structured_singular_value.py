@@ -25,9 +25,13 @@ class StructuredSingularValue(metaclass=abc.ABCMeta):
     def compute_ssv(
         self,
         N_omega: np.ndarray,
-        block_structure: Union[
-            List[uncertainty_structure.UncertaintyBlock], List[List[int]], np.ndarray
-        ],
+        block_structure: Optional[
+            Union[
+                List[uncertainty_structure.UncertaintyBlock],
+                List[List[int]],
+                np.ndarray,
+            ]
+        ] = None,
     ) -> Tuple[np.ndarray, np.ndarray, np.ndarray, Dict[str, Any]]:
         """Compute structured singular value.
 
@@ -140,9 +144,13 @@ class SsvLmiBisection(StructuredSingularValue):
     def compute_ssv(
         self,
         N_omega: np.ndarray,
-        block_structure: Union[
-            List[uncertainty_structure.UncertaintyBlock], List[List[int]], np.ndarray
-        ],
+        block_structure: Optional[
+            Union[
+                List[uncertainty_structure.UncertaintyBlock],
+                List[List[int]],
+                np.ndarray,
+            ]
+        ] = None,
     ) -> Tuple[np.ndarray, np.ndarray, np.ndarray, Dict[str, Any]]:
         # Solver settings
         solver_params = (
@@ -169,9 +177,18 @@ class SsvLmiBisection(StructuredSingularValue):
         else:
             raise ValueError("`objective` must be `'minimize'` or `'constant'`.")
         # Convert uncertainty block structure representation
-        block_structure = uncertainty_structure._convert_block_structure_representation(
-            block_structure
-        )
+        if block_structure is None:
+            block_structure = [
+                uncertainty_structure.ComplexFullBlock(
+                    N_omega.shape[1], N_omega.shape[0]
+                )
+            ]
+        else:
+            block_structure = (
+                uncertainty_structure._convert_block_structure_representation(
+                    block_structure
+                )
+            )
 
         def _ssv_at_omega(
             N_omega: np.ndarray,
@@ -348,6 +365,12 @@ def _generate_ssv_variable(
         CVXPY variables with specified block structure.
     """
     num_blocks = len(block_structure)
+    idx_last_full_block = -1
+    for idx, block in enumerate(reversed(block_structure)):
+        if isinstance(block, uncertainty_structure.ComplexFullBlock):
+            idx_last_full_block = len(block_structure) - 1 - idx
+            break
+    print(idx_last_full_block)
     X_l_lst = []
     X_r_lst = []
     for i in range(num_blocks):
@@ -359,7 +382,7 @@ def _generate_ssv_variable(
             block_j = block_structure[j]
             if i == j:
                 # If on the block diagonal, insert variable
-                if (i == num_blocks - 1) and (not block_i.is_diagonal):
+                if (i == idx_last_full_block) and (not block_i.is_diagonal):
                     # Last scaling is always identity if it is a full perturbation
                     row_l.append(np.eye(block_i.num_perf_outputs))
                     row_r.append(np.eye(block_i.num_exog_inputs))

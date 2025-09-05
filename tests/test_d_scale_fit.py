@@ -15,122 +15,6 @@ class TestTfFitSlicot:
         [
             (
                 np.logspace(-2, 2, 100),
-                control.TransferFunction([10], [1]),
-                control.TransferFunction([10], [1]),
-                0,
-                None,
-                1e-6,
-            ),
-            (
-                np.logspace(-2, 2, 100),
-                control.TransferFunction([1, 1], [1, 10]),
-                control.TransferFunction([1, 1], [1, 10]),
-                1,
-                None,
-                1e-2,
-            ),
-            (
-                np.logspace(-2, 2, 100),
-                control.TransferFunction(
-                    [
-                        [
-                            [1, 1],
-                            [1, 1],
-                        ],
-                        [
-                            [1, 1],
-                            [1, 1],
-                        ],
-                    ],
-                    [
-                        [
-                            [1, 10],
-                            [1, 9],
-                        ],
-                        [
-                            [1, 8],
-                            [1, 10],
-                        ],
-                    ],
-                ),
-                control.TransferFunction(
-                    [
-                        [
-                            [1, 1],
-                            [1, 1],
-                        ],
-                        [
-                            [1, 1],
-                            [1, 1],
-                        ],
-                    ],
-                    [
-                        [
-                            [1, 10],
-                            [1, 9],
-                        ],
-                        [
-                            [1, 8],
-                            [1, 10],
-                        ],
-                    ],
-                ),
-                1,
-                None,
-                1e-2,
-            ),
-            (
-                np.logspace(-2, 2, 100),
-                control.TransferFunction(
-                    [
-                        [
-                            [1, 2, 1],
-                            [1, 2, 1],
-                        ],
-                        [
-                            [1, 2, 1],
-                            [1, 2, 1],
-                        ],
-                    ],
-                    [
-                        [
-                            [1, 10, 1],
-                            [1, 9, 2],
-                        ],
-                        [
-                            [1, 8, 3],
-                            [1, 10, 4],
-                        ],
-                    ],
-                ),
-                control.TransferFunction(
-                    [
-                        [
-                            [1, 2, 1],
-                            [1, 2, 1],
-                        ],
-                        [
-                            [1, 2, 1],
-                            [1, 2, 1],
-                        ],
-                    ],
-                    [
-                        [
-                            [1, 10, 1],
-                            [1, 9, 2],
-                        ],
-                        [
-                            [1, 8, 3],
-                            [1, 10, 4],
-                        ],
-                    ],
-                ),
-                2,
-                None,
-                1e-2,
-            ),
-            (
-                np.logspace(-2, 2, 100),
                 control.TransferFunction(
                     [
                         [
@@ -379,56 +263,6 @@ class TestTfFitSlicot:
                 np.array([[1, 1], [1, 1]]),
                 1e-2,
             ),
-            (
-                np.logspace(-2, 2, 100),
-                control.TransferFunction(
-                    [
-                        [
-                            [1],
-                            [0],
-                        ],
-                        [
-                            [0],
-                            [1],
-                        ],
-                    ],
-                    [
-                        [
-                            [1],
-                            [1],
-                        ],
-                        [
-                            [1],
-                            [1],
-                        ],
-                    ],
-                ),
-                control.TransferFunction(
-                    [
-                        [
-                            [1],
-                            [0],
-                        ],
-                        [
-                            [0],
-                            [1],
-                        ],
-                    ],
-                    [
-                        [
-                            [1],
-                            [1],
-                        ],
-                        [
-                            [1],
-                            [1],
-                        ],
-                    ],
-                ),
-                1,
-                np.array([[2, 2]]),
-                1e-2,
-            ),
         ],
     )
     def test_tf_fit_slicot(self, omega, tf_l, tf_r, order, block_structure, atol):
@@ -450,55 +284,6 @@ class TestTfFitSlicot:
     @pytest.mark.parametrize(
         "omega, tf_l, tf_r, order, block_structure",
         [
-            (
-                np.logspace(-2, 2, 100),
-                control.TransferFunction(
-                    [
-                        [
-                            [1, 1],
-                            [1, 1],
-                        ],
-                        [
-                            [1, 1],
-                            [1, 1],
-                        ],
-                    ],
-                    [
-                        [
-                            [1, 10],
-                            [1, 10],
-                        ],
-                        [
-                            [1, 10],
-                            [1, 10],
-                        ],
-                    ],
-                ),
-                control.TransferFunction(
-                    [
-                        [
-                            [1, 1],
-                            [1, 1],
-                        ],
-                        [
-                            [1, 1],
-                            [1, 1],
-                        ],
-                    ],
-                    [
-                        [
-                            [1, 10],
-                            [1, 10],
-                        ],
-                        [
-                            [1, 10],
-                            [1, 10],
-                        ],
-                    ],
-                ),
-                1,
-                None,
-            ),
             (
                 np.logspace(-2, 2, 100),
                 control.TransferFunction(
@@ -631,7 +416,7 @@ class TestGenerateDScaleMask:
                 ),
             ),
             (
-                [dkpy.ComplexDiagonalBlock(2), dkpy.ComplexFullBlock(3, 2)],
+                [dkpy.ComplexDiagonalBlock(2), dkpy.ComplexFullBlock(2, 3)],
                 np.array(
                     [
                         [-1, -1, 0, 0, 0],
@@ -653,12 +438,12 @@ class TestGenerateDScaleMask:
                 ),
             ),
             (
-                [dkpy.ComplexFullBlock(3, 2), dkpy.ComplexDiagonalBlock(2)],
+                [dkpy.ComplexFullBlock(2, 3), dkpy.ComplexDiagonalBlock(2)],
                 np.array(
                     [
-                        [-1, 0, 0, 0, 0],
-                        [0, -1, 0, 0, 0],
-                        [0, 0, -1, 0, 0],
+                        [1, 0, 0, 0, 0],
+                        [0, 1, 0, 0, 0],
+                        [0, 0, 1, 0, 0],
                         [0, 0, 0, -1, -1],
                         [0, 0, 0, 0, -1],
                     ],
@@ -666,10 +451,42 @@ class TestGenerateDScaleMask:
                 ),
                 np.array(
                     [
-                        [-1, 0, 0, 0],
-                        [0, -1, 0, 0],
+                        [1, 0, 0, 0],
+                        [0, 1, 0, 0],
                         [0, 0, -1, -1],
                         [0, 0, 0, -1],
+                    ],
+                    dtype=int,
+                ),
+            ),
+            (
+                [
+                    dkpy.ComplexDiagonalBlock(3),
+                    dkpy.ComplexFullBlock(2, 3),
+                    dkpy.ComplexDiagonalBlock(2),
+                ],
+                np.array(
+                    [
+                        [-1, -1, -1, 0, 0, 0, 0, 0],
+                        [0, -1, -1, 0, 0, 0, 0, 0],
+                        [0, 0, -1, 0, 0, 0, 0, 0],
+                        [0, 0, 0, 1, 0, 0, 0, 0],
+                        [0, 0, 0, 0, 1, 0, 0, 0],
+                        [0, 0, 0, 0, 0, 1, 0, 0],
+                        [0, 0, 0, 0, 0, 0, -1, -1],
+                        [0, 0, 0, 0, 0, 0, 0, -1],
+                    ],
+                    dtype=int,
+                ),
+                np.array(
+                    [
+                        [-1, -1, -1, 0, 0, 0, 0],
+                        [0, -1, -1, 0, 0, 0, 0],
+                        [0, 0, -1, 0, 0, 0, 0],
+                        [0, 0, 0, 1, 0, 0, 0],
+                        [0, 0, 0, 0, 1, 0, 0],
+                        [0, 0, 0, 0, 0, -1, -1],
+                        [0, 0, 0, 0, 0, 0, -1],
                     ],
                     dtype=int,
                 ),

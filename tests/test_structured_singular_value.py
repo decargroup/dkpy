@@ -91,10 +91,10 @@ class TestGenerateSsvVariable:
                 [
                     dkpy.ComplexDiagonalBlock(2),
                     dkpy.ComplexDiagonalBlock(1),
-                    dkpy.ComplexFullBlock(3, 2),
+                    dkpy.ComplexFullBlock(2, 3),
                     dkpy.ComplexFullBlock(3, 3),
                     dkpy.ComplexDiagonalBlock(3),
-                    dkpy.ComplexFullBlock(1, 2),
+                    dkpy.ComplexFullBlock(2, 1),
                 ],
                 (
                     cvxpy.bmat(
@@ -203,6 +203,45 @@ class TestGenerateSsvVariable:
                     ),
                 ),
             ),
+            (
+                [
+                    dkpy.ComplexDiagonalBlock(2),
+                    dkpy.ComplexFullBlock(3, 3),
+                    dkpy.ComplexDiagonalBlock(3),
+                ],
+                (
+                    cvxpy.bmat(
+                        [
+                            [
+                                cvxpy.Variable((2, 2), hermitian=True, name="X0"),
+                                np.zeros((2, 3)),
+                                np.zeros((2, 3)),
+                            ],
+                            [np.zeros((3, 2)), np.eye(3), np.zeros((3, 3))],
+                            [
+                                np.zeros((3, 2)),
+                                np.zeros((3, 3)),
+                                cvxpy.Variable((3, 3), hermitian=True, name="X2"),
+                            ],
+                        ]
+                    ),
+                    cvxpy.bmat(
+                        [
+                            [
+                                cvxpy.Variable((2, 2), hermitian=True, name="X0"),
+                                np.zeros((2, 3)),
+                                np.zeros((2, 3)),
+                            ],
+                            [np.zeros((3, 2)), np.eye(3), np.zeros((3, 3))],
+                            [
+                                np.zeros((3, 2)),
+                                np.zeros((3, 3)),
+                                cvxpy.Variable((3, 3), hermitian=True, name="X2"),
+                            ],
+                        ]
+                    ),
+                ),
+            ),
         ],
     )
     def test_generate_ssv_variable(self, block_structure, variable_exp):
@@ -237,8 +276,8 @@ class TestSsvLmiBisection:
                 [
                     dkpy.ComplexDiagonalBlock(2),
                     dkpy.ComplexDiagonalBlock(1),
-                    dkpy.ComplexFullBlock(3, 2),
-                    dkpy.ComplexFullBlock(1, 2),
+                    dkpy.ComplexFullBlock(2, 3),
+                    dkpy.ComplexFullBlock(2, 1),
                 ],
                 10.5523,
             ),
@@ -258,8 +297,8 @@ class TestSsvLmiBisection:
                     ]
                 ),
                 [
-                    dkpy.ComplexFullBlock(4, 2),
-                    dkpy.ComplexFullBlock(6, 2),
+                    dkpy.ComplexFullBlock(2, 4),
+                    dkpy.ComplexFullBlock(2, 6),
                 ],
                 10.2438,
             ),
