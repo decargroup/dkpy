@@ -351,9 +351,10 @@ class DkIteration(metaclass=abc.ABCMeta):
                 n_y=n_y,
                 n_u=n_u,
             )
+            plant_gen_scale = D_aug * P * D_aug_inv
             # Synthesize controller
             K, _, gamma, info = self.controller_synthesis.synthesize(
-                D_aug * P * D_aug_inv,
+                plant_gen_scale,
                 n_y,
                 n_u,
             )
@@ -765,6 +766,7 @@ class DkIterInteractiveOrder(DkIteration):
                     omega,
                     mu_omega,
                     D_l_omega,
+                    D_r_omega,
                     P,
                     K,
                     D_fit,

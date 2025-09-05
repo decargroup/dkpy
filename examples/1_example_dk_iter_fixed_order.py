@@ -19,7 +19,7 @@ def example_dk_iter_fixed_order():
     )
 
     omega = np.logspace(-3, 3, 61)
-    # Alternative MATLAB descr.
+    # Alternative MATLAB block structure description
     # uncertainty_structure = dkpy.UncertaintyBlockStructure(
     #     [[1, 1], [1, 1], [2, 2]]
     # )

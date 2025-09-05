@@ -35,7 +35,7 @@ class MyDkIter(dkpy.DkIteration):
         D_r_omega,
         P,
         K,
-        uncertainty_structure,
+        block_structure,
     ):
         print(f"Iteration {self.my_iter_count} with mu of {np.max(mu_omega)}")
         if self.my_iter_count < 3:
@@ -71,7 +71,7 @@ def example_dk_iter_custom():
     )
 
     omega = np.logspace(-3, 3, 61)
-    # Alternative MATLAB descr.
+    # Alternative MATLAB block structure description
     # uncertainty_structure = dkpy.UncertaintyBlockStructure(
     #     [[1, 1], [1, 1], [2, 2]]
     # )

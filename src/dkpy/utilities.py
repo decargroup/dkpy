@@ -126,6 +126,198 @@ def example_skogestad2006_p325() -> Dict[str, Any]:
     return out
 
 
+def example_mackenroth2004_p430():
+    """Add generalized plant from [M04]_, Section 14.1 (p. 430)."""
+    # Airframe model
+    A_af = np.array(
+        [
+            [-0.0869, 0, 0.039, -1],
+            [-4.424, -1.184, 0, 0.335],
+            [0, 1, 0, 0],
+            [2.148, -0.021, 0, -0.228],
+        ]
+    )
+    B1_af = np.array([[0.0869, 0], [4.424, 1.184], [0, -1], [-2.148, 0.021]])
+    B2_af = np.array([[0.0223, 0], [0.547, 2.12], [0, 0], [-1.169, 0.065]])
+    B_af = np.block([[B1_af, B2_af]])
+    C_af = np.eye(4)
+    D_af = np.zeros((4, 4))
+    airframe = control.StateSpace(A_af, B_af, C_af, D_af, name="airframe")
+    airframe.set_inputs(["beta_w", "p_w", "zeta", "xi"])
+    airframe.set_outputs(["beta", "p", "phi", "r"])
+
+    # Actuator model
+    A_act = np.array(
+        [[0, 1, 0, 0], [-1600, -56, 0, 0], [0, 0, 0, 1], [0, 0, -1600, -56]]
+    )
+    B_act = np.array([[0, 0], [1600, 0], [0, 0], [0, 1600]])
+    C_act = np.eye(4)
+    D_act = np.zeros((4, 2))
+    actuator = control.StateSpace(A_act, B_act, C_act, D_act, name="actuator")
+    actuator.set_inputs(["zeta_unc", "xi_unc"])
+    actuator.set_outputs(["zeta", "rate_zeta", "xi", "rate_xi"])
+
+    # Performance weight
+    weight_perf_angle = control.TransferFunction([1, 1.5], [1.5, 0.015])
+    weight_perf_rate = control.TransferFunction([1, 1.5], [10, 20])
+    weight_perf = control.append(
+        weight_perf_angle,
+        weight_perf_angle,
+        weight_perf_rate,
+        weight_perf_rate,
+        name="weight_perf",
+    )
+    weight_perf.set_inputs(["e_phi", "beta", "p", "r"])
+    weight_perf.set_outputs(weight_perf.noutputs, "z_p")
+
+    # Actuator weight
+    weight_actu_angle = control.StateSpace([], [], [], [[1 / 20]])
+    weight_actu_rate = control.StateSpace([], [], [], [[1 / 60]])
+    weight_actu = control.append(
+        weight_actu_angle,
+        weight_actu_angle,
+        weight_actu_rate,
+        weight_actu_rate,
+        name="weight_actu",
+    )
+    weight_actu.set_inputs(["zeta_c", "xi_c", "rate_zeta", "rate_xi"])
+    weight_actu.set_outputs(weight_actu.noutputs, "z_u")
+
+    # Disturbance weight
+    weight_dist_channel = control.StateSpace([], [], [], [[1]])
+    weight_dist = control.append(
+        weight_dist_channel, weight_dist_channel, name="weight_dist"
+    )
+    weight_dist.set_inputs(["beta_w_nor", "p_w_nor"])
+    weight_dist.set_outputs(["beta_w", "p_w"])
+
+    # Reference weight
+    weight_ref = control.TransferFunction([2.25], [1, 2.1, 2.25])
+    weight_ref = control.ss(weight_ref, name="weight_ref")
+    weight_ref.set_inputs("phi_ref_nor")
+    weight_ref.set_outputs("phi_ref")
+
+    # Noise weight
+    weight_noise_channel = 0.0005 * control.TransferFunction([1 / 0.02, 1], [1, 1])
+    weight_noise = control.append(
+        weight_noise_channel,
+        weight_noise_channel,
+        weight_noise_channel,
+        weight_noise_channel,
+        name="weight_noise",
+    )
+    weight_noise.set_inputs(weight_noise.ninputs, "n_nor")
+    weight_noise.set_outputs(weight_noise.noutputs, "n")
+
+    # Input multiplicative uncertainty weight
+    weight_unc_channel = control.TransferFunction([0.25, 0.05], [0.125, 1])
+    weight_unc = control.append(
+        weight_unc_channel,
+        weight_unc_channel,
+        name="weight_unc",
+    )
+    weight_unc.set_inputs(["zeta_c", "xi_c"])
+    weight_unc.set_outputs(weight_unc.noutputs, "y_del")
+
+    # Uncertainty summation junction
+    sum_uncertainty = control.StateSpace([], [], [], [[1, 0, 1, 0], [0, 1, 0, 1]])
+    sum_uncertainty.set_inputs(["zeta_c", "xi_c", "u_del[0]", "u_del[1]"])
+    sum_uncertainty.set_outputs(["zeta_unc", "xi_unc"])
+
+    # Reference tracking error difference junction
+    sum_error = control.StateSpace([], [], [], [[-1, 1]])
+    sum_error.set_inputs(["phi", "phi_ref"])
+    sum_error.set_outputs("e_phi")
+
+    # Noise summation junction
+    sum_noise = control.StateSpace([], [], [], np.block([[np.eye(4), np.eye(4)]]))
+    sum_noise.set_inputs(["phi", "beta", "p", "r", "n[0]", "n[1]", "n[2]", "n[3]"])
+    sum_noise.set_outputs(["phi_meas", "beta_meas", "p_meas", "r_meas"])
+
+    # Reference signal passthrough (control.interconnect cannot have the interconnected
+    # system have an output that is not the output of a sub-system)
+    passthrough_ref = control.StateSpace([], [], [], np.eye(1))
+    passthrough_ref.set_inputs(["phi_ref_exo"])
+    passthrough_ref.set_outputs(["phi_ref_nor"])
+
+    # Generalized plant
+    input_id_list = [
+        "u_del[0]",
+        "u_del[1]",
+        "phi_ref_exo",
+        "n_nor[0]",
+        "n_nor[1]",
+        "n_nor[2]",
+        "n_nor[3]",
+        "beta_w_nor",
+        "p_w_nor",
+        "zeta_c",
+        "xi_c",
+    ]
+    output_id_list = [
+        "y_del[0]",
+        "y_del[1]",
+        "z_p[0]",
+        "z_p[1]",
+        "z_p[2]",
+        "z_p[3]",
+        "z_u[0]",
+        "z_u[1]",
+        "z_u[2]",
+        "z_u[3]",
+        "phi_ref_nor",
+        "phi_meas",
+        "beta_meas",
+        "p_meas",
+        "r_meas",
+    ]
+    plant_gen = control.interconnect(
+        syslist=[
+            airframe,
+            actuator,
+            weight_perf,
+            weight_actu,
+            weight_dist,
+            weight_ref,
+            weight_noise,
+            weight_unc,
+            sum_uncertainty,
+            sum_error,
+            sum_noise,
+            passthrough_ref,
+        ],
+        inplist=input_id_list,
+        outlist=output_id_list,
+        name="plant_gen",
+    )
+    plant_gen.set_inputs(input_id_list)
+    plant_gen.set_outputs(output_id_list)
+    plant_gen = plant_gen.minreal()
+    # Dimensions
+    n_y = 5
+    n_u = 2
+    n_u_delta = 2
+    n_y_delta = 2
+    n_w = 7
+    n_z = 8
+    # Example output dictionary
+    out = {
+        "P": plant_gen,
+        "airframe": airframe,
+        "actuator": actuator,
+        "weight_unc": weight_unc,
+        "sum_noise": sum_noise,
+        "sum_uncertainty": sum_uncertainty,
+        "n_u": n_u,
+        "n_y": n_y,
+        "n_u_delta": n_u_delta,
+        "n_y_delta": n_y_delta,
+        "n_w": n_w,
+        "n_z": n_z,
+    }
+    return out
+
+
 def _tf_close_coeff(
     tf_a: control.TransferFunction,
     tf_b: control.TransferFunction,
