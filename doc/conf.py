@@ -9,8 +9,8 @@
 project = "dkpy"
 copyright = "2024, Steven Dahdah, Timothy Everett Adams and James Richard Forbes"
 author = "Steven Dahdah, Timothy Everett Adams and James Richard Forbes"
-version = "0.1.10"
-release = "0.1.10"
+version = "0.1.11"
+release = "0.1.11"
 
 # -- General configuration ---------------------------------------------------
 # https://www.sphinx-doc.org/en/master/usage/configuration.html#general-configuration
