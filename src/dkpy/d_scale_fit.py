@@ -136,16 +136,29 @@ class DScaleFitSlicot(DScaleFit):
             orders_l = order * np.abs(mask_l)
             orders_r = order * np.abs(mask_r)
         else:
-            if len(order) != len(block_structure):
+            order = np.array(order)
+            if order.size != len(block_structure):
                 raise ValueError(
                     "Length of `order` must be the same as length of `block_structure`."
                 )
             orders_l_lst = [
-                order[i] * block_structure[i].num_perf_outputs
+                order[i]
+                * np.ones(
+                    (
+                        block_structure[i].num_perf_outputs,
+                        block_structure[i].num_perf_outputs,
+                    )
+                )
                 for i in range(len(block_structure))
             ]
             orders_r_lst = [
-                order[i] * block_structure[i].num_exog_inputs
+                order[i]
+                * np.ones(
+                    (
+                        block_structure[i].num_exog_inputs,
+                        block_structure[i].num_exog_inputs,
+                    )
+                )
                 for i in range(len(block_structure))
             ]
             orders_l = scipy.linalg.block_diag(*orders_l_lst)

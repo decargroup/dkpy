@@ -370,7 +370,6 @@ def _generate_ssv_variable(
         if isinstance(block, uncertainty_structure.ComplexFullBlock):
             idx_last_full_block = len(block_structure) - 1 - idx
             break
-    print(idx_last_full_block)
     X_l_lst = []
     X_r_lst = []
     for i in range(num_blocks):

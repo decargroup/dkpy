@@ -16,9 +16,9 @@ def example_dk_iter_list_order():
         d_scale_fit=dkpy.DScaleFitSlicot(),
         # fit_orders=[4, 4, 4],  # <- an alternative
         fit_orders=[
-            np.diag([4, 4, 0, 0]),
-            np.diag([4, 4, 0, 0]),
-            np.diag([4, 4, 0, 0]),
+            [4, 4, 0],
+            [4, 4, 0],
+            [4, 4, 0],
         ],
     )
 

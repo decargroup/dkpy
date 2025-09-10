@@ -144,3 +144,34 @@ Output::
 
 .. image:: _static/plot_mu.png
 .. image:: _static/plot_D.png
+
+
+D-K iteration with list of fit orders and simulation of perturbed systems 
+-------------------------------------------------------------------------
+
+In this example, the orders are specified in a list. Once the robust controller
+is synthesized, it is tested on a set of perturbed systems by generating a set
+of perturbations `Δ` that have H-infinity norm less than or equal to 1.
+
+In this example, a controller is designed for the linearized lateral dynamics
+of an aircraft from an example given in Section 14.1 of [M04]_.
+
+.. literalinclude:: ../examples/6_dk_iteration_airframe.py
+   :language: python
+
+Output::
+
+    mu: 0.9824275970458984
+
+.. image:: _static/example_6/plot_mu.png
+
+After the controller is synthesized, a set of off-nominal models are generated
+by interconnecting various admissible perturbations `Δ` with the nominal model.
+Then, the closed-loop systems are formed for each perturbed system. The time
+domain response of the systems can be obtained for a step response in the roll
+angle reference signal, no external disturbances, and moderate sensor noise. In
+particular, the response of the system states and actuator inputs are shown.
+
+.. image:: _static/example_6/plot_states.png
+
+.. image:: _static/example_6/plot_inputs.png
