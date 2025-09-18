@@ -229,7 +229,9 @@ class SsvLmiBisection(StructuredSingularValue):
             if constant_objective:
                 objective = cvxpy.Minimize(1)
             else:
-                objective = cvxpy.Minimize(cvxpy.real(cvxpy.trace(X_l)))
+                objective = cvxpy.Minimize(
+                    cvxpy.real(cvxpy.trace(X_l)) + cvxpy.real(cvxpy.trace(X_r))
+                )
             # Set upper bound on structured singular value squared as a parameter
             gamma_sq = cvxpy.Parameter(1, name="gamma_sq")
             # Set up the constraints
@@ -383,8 +385,8 @@ def _generate_ssv_variable(
                 # If on the block diagonal, insert variable
                 if (i == idx_last_full_block) and (not block_i.is_diagonal):
                     # Last scaling is always identity if it is a full perturbation
-                    row_l.append(np.eye(block_i.num_perf_outputs))
-                    row_r.append(np.eye(block_i.num_exog_inputs))
+                    row_l.append(np.eye(block_i.n_exogenous_outputs))
+                    row_r.append(np.eye(block_i.n_exogenous_inputs))
                 elif (not block_i.is_complex) and (not block_i.is_diagonal):
                     raise NotImplementedError(
                         "Real full perturbations are not supported."
@@ -395,7 +397,7 @@ def _generate_ssv_variable(
                     )
                 elif (block_i.is_complex) and (block_i.is_diagonal):
                     X_i = cvxpy.Variable(
-                        (block_i.num_perf_outputs, block_i.num_perf_outputs),
+                        (block_i.n_exogenous_outputs, block_i.n_exogenous_outputs),
                         hermitian=True,
                         name=f"X{i}",
                     )
@@ -403,15 +405,15 @@ def _generate_ssv_variable(
                     row_r.append(X_i)
                 elif (block_i.is_complex) and (not block_i.is_diagonal):
                     x_i = cvxpy.Variable((), complex=False, name=f"x{i}")
-                    row_l.append(x_i * np.eye(block_i.num_perf_outputs))
-                    row_r.append(x_i * np.eye(block_i.num_exog_inputs))
+                    row_l.append(x_i * np.eye(block_i.n_exogenous_outputs))
+                    row_r.append(x_i * np.eye(block_i.n_exogenous_inputs))
             else:
                 # If off the block diagonal, insert zeros
                 row_l.append(
-                    np.zeros((block_i.num_perf_outputs, block_j.num_perf_outputs))
+                    np.zeros((block_i.n_exogenous_outputs, block_j.n_exogenous_outputs))
                 )
                 row_r.append(
-                    np.zeros((block_i.num_exog_inputs, block_j.num_exog_inputs))
+                    np.zeros((block_i.n_exogenous_inputs, block_j.n_exogenous_inputs))
                 )
         X_l_lst.append(row_l)
         X_r_lst.append(row_r)

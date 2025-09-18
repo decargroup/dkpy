@@ -169,12 +169,7 @@ class IterResult:
 
         # Compute `D_r^{-1}(omega)` from `D_r(omega)`
         D_r_inv_omega = np.array(
-            [
-                scipy.linalg.solve(
-                    D_r_omega[:, :, i], np.eye(D_r_omega[:, :, i].shape[0])
-                )
-                for i in range(D_r_omega.shape[2])
-            ]
+            [scipy.linalg.inv(D_r_omega[:, :, i]) for i in range(D_r_omega.shape[2])]
         ).transpose(1, 2, 0)
         # Compute ``mu(omega)`` based on fit D-scales
         N = P.lft(K)
@@ -892,6 +887,9 @@ def plot_mu(
     # Set axis labels
     ax.set_xlabel(r"$\omega$ (rad/s)")
     ax.set_ylabel(r"$\mu(\omega)$")
+    ax.set_ylim(
+        (0.75 * np.min(d_scale_info.mu_omega), 1.25 * np.max(d_scale_info.mu_omega))
+    )
     ax.grid(linestyle="--")
     ax.legend(loc="lower left")
     # Return figure and axes
@@ -903,7 +901,7 @@ def plot_D(
     ax: Optional[np.ndarray] = None,
     plot_kw: Optional[Dict[str, Any]] = None,
     hide: Optional[str] = None,
-    plot_select: Optional[str] = "standard",
+    plot_inverse: Optional[bool] = False,
 ) -> Tuple[plt.Figure, np.ndarray]:
     """Plot D.
 
@@ -918,9 +916,8 @@ def plot_D(
     hide : Optional[str]
         Set to ``'D_omega'`` or ``'D_fit_omega'`` to hide either one of
         those lines.
-    plot_select: Optional[str]
-        Set to ``standard`` to plot ``D_omega`` and ``D_fit_omega`` or ``inverse`` to plot
-        ``D_inv_omega`` and ``D_inv_fit_omega``.
+    plot_inverse: Optional[bool]
+        Plot the inverse right D-scale.
 
     Returns
     -------
@@ -980,7 +977,7 @@ def plot_D(
     _ = plot_kw.pop("ls", None)
     _ = plot_kw.pop("linestyle", None)
     # Plot D
-    if plot_select == "standard":
+    if not plot_inverse:
         mag_D_omega = np.abs(d_scale_info.D_l_omega)
         mag_D_fit_omega = np.abs(d_scale_info.D_l_fit_omega)
         for i in range(ax.shape[0]):
@@ -1012,7 +1009,8 @@ def plot_D(
         fig.legend(handles=ax[0, 0].get_lines(), loc="lower left")
         # Return figure and axes
         return fig, ax
-    elif plot_select == "inverse":
+    # Plot D_inv
+    else:
         mag_D_inv_omega = np.abs(d_scale_info.D_r_inv_omega)
         mag_D_inv_fit_omega = np.abs(d_scale_info.D_r_inv_fit_omega)
         for i in range(ax.shape[0]):
@@ -1044,10 +1042,6 @@ def plot_D(
         fig.legend(handles=ax[0, 0].get_lines(), loc="lower left")
         # Return figure and axes
         return fig, ax
-    else:
-        raise ValueError(
-            'Invalid `select` argument. `select` must either be "standard" or "inverse".'
-        )
 
 
 def _augment_d_scales(

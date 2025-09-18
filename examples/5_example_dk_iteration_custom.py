@@ -66,6 +66,7 @@ def example_dk_iter_custom():
                 solver="MOSEK",
                 eps=1e-9,
             ),
+            n_jobs=1,
         ),
         d_scale_fit=dkpy.DScaleFitSlicot(),
     )
@@ -96,7 +97,7 @@ def example_dk_iter_custom():
 
     ax = None
     for i, ds in enumerate(iter_results):
-        _, ax = dkpy.plot_D(ds, ax=ax, plot_kw=dict(label=f"iter{i}"))
+        fig, ax = dkpy.plot_D(ds, ax=ax, plot_kw=dict(label=f"iter{i}"))
 
     plt.show()
 

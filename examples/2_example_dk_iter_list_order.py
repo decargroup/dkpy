@@ -48,7 +48,7 @@ def example_dk_iter_list_order():
 
     ax = None
     for i, ds in enumerate(iter_results):
-        _, ax = dkpy.plot_D(ds, ax=ax, plot_kw=dict(label=f"iter{i}"))
+        fig, ax = dkpy.plot_D(ds, ax=ax, plot_kw=dict(label=f"iter{i}"))
 
     plt.show()
 

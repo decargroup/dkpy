@@ -1,4 +1,5 @@
-"""
+"""D-K iteration with nonsquare perturbations
+
 D-K iteration with a fixed number of iterations and fit order and closed-loop
 simluation of perturbed models for the linearized lateral dynamics of an
 aircraft.
@@ -23,7 +24,7 @@ beta_w: Sideslip angle wind disturbance
 p_w: Roll rate wind disturbance
 
 Tracking Reference
----------
+------------------
 phi_ref: Roll angle reference
 """
 
@@ -96,7 +97,6 @@ def example_dk_iter_list_order_aircraft():
     fig, ax = plt.subplots()
     for i, ds in enumerate(iter_results):
         dkpy.plot_mu(ds, ax=ax, plot_kw=dict(label=f"iter{i}"))
-    plt.show()
 
     # Generate off-nominal models with different perturbations
     delta_block_list = []
@@ -209,15 +209,19 @@ def example_dk_iter_list_order_aircraft():
     ax.plot(time, phi_ref)
     ax.set_ylabel("$\\phi_r$ (deg)")
     ax.set_xlabel("$t$ (s)")
-    plt.show()
+    ax.grid(linestyle="--")
+
     # Plot - Disturbance signals
     fig, ax = plt.subplots(2, layout="constrained", sharex=True)
     ax[0].plot(time, beta_w)
     ax[1].plot(time, p_w)
     ax[0].set_ylabel("$\\beta_w$ (deg)")
+    ax[0].grid(linestyle="--")
     ax[1].set_ylabel("$p_w$ (deg)")
+    ax[1].grid(linestyle="--")
     ax[-1].set_xlabel("$t$ (s)")
-    plt.show()
+    fig.align_ylabels()
+
     # Plot - Noise signals
     fig, ax = plt.subplots(4, layout="constrained", sharex=True)
     ax[0].plot(time, noise_phi)
@@ -229,7 +233,10 @@ def example_dk_iter_list_order_aircraft():
     ax[2].set_ylabel("$n_{p}$ (deg/s)")
     ax[3].set_ylabel("$n_{r}$ (deg/s)")
     ax[-1].set_xlabel("$t$ (s)")
-    plt.show()
+    for a in ax:
+        a.grid(linestyle="--")
+    fig.align_ylabels()
+
     # Plot - Output signals
     fig, ax = plt.subplots(4, layout="constrained", sharex=True)
     # Reference signal
@@ -257,17 +264,20 @@ def example_dk_iter_list_order_aircraft():
     ax[2].set_ylabel("$p$ (deg/s)")
     ax[3].set_ylabel("$r$ (deg/s)")
     ax[-1].set_xlabel("$t$ (s)")
+    for a in ax:
+        a.grid(linestyle="--")
     handles, labels = ax[0].get_legend_handles_labels()
     legend_dict = dict(zip(labels, handles))
+    fig.align_ylabels()
     fig.legend(
         handles=legend_dict.values(),
         labels=legend_dict.keys(),
         loc="outside lower center",
         ncol=3,
     )
-    plt.show()
+
     # Plot - Input signals
-    fig, ax = plt.subplots(2, 2, layout="constrained", sharex=True)
+    fig, ax = plt.subplots(4, layout="constrained", sharex=True)
     for idx_sim, trd_sim in enumerate(reversed(trd_sim_list)):
         # Control signals
         zeta = trd_sim.y[6, :]
@@ -275,20 +285,20 @@ def example_dk_iter_list_order_aircraft():
         rate_zeta = trd_sim.y[8, :]
         rate_xi = trd_sim.y[9, :]
         if idx_sim == len(trd_sim_list) - 1:
-            ax[0, 0].plot(
+            ax[0].plot(
                 time, zeta, color="tab:blue", linestyle="-", label="Actuator (Nominal)"
             )
-            ax[0, 1].plot(
+            ax[1].plot(
                 time,
                 rate_zeta,
                 color="tab:blue",
                 linestyle="-",
                 label="Actuator (Nominal)",
             )
-            ax[1, 0].plot(
+            ax[2].plot(
                 time, xi, color="tab:blue", linestyle="-", label="Actuator (Nominal)"
             )
-            ax[1, 1].plot(
+            ax[3].plot(
                 time,
                 rate_xi,
                 color="tab:blue",
@@ -296,7 +306,7 @@ def example_dk_iter_list_order_aircraft():
                 label="Actuator (Nominal)",
             )
         else:
-            ax[0, 0].plot(
+            ax[0].plot(
                 time,
                 zeta,
                 color="tab:orange",
@@ -304,7 +314,7 @@ def example_dk_iter_list_order_aircraft():
                 linestyle="-",
                 label="Actuator (Off-Nominal)",
             )
-            ax[0, 1].plot(
+            ax[1].plot(
                 time,
                 rate_zeta,
                 color="tab:orange",
@@ -312,7 +322,7 @@ def example_dk_iter_list_order_aircraft():
                 linestyle="-",
                 label="Actuator (Off-Nominal)",
             )
-            ax[1, 0].plot(
+            ax[2].plot(
                 time,
                 xi,
                 color="tab:orange",
@@ -320,7 +330,7 @@ def example_dk_iter_list_order_aircraft():
                 linestyle="-",
                 label="Actuator (Off-Nominal)",
             )
-            ax[1, 1].plot(
+            ax[3].plot(
                 time,
                 rate_xi,
                 color="tab:orange",
@@ -328,14 +338,16 @@ def example_dk_iter_list_order_aircraft():
                 linestyle="-",
                 label="Actuator (Off-Nominal)",
             )
-    ax[0, 0].set_ylabel("$\\zeta$ (deg)")
-    ax[1, 0].set_ylabel("$\\xi$ (deg)")
-    ax[0, 1].set_ylabel("$\\dot{\\zeta}$ (deg/s)")
-    ax[1, 1].set_ylabel("$\\dot{\\xi}$ (deg/s)")
-    ax[1, 0].set_xlabel("$t$ (s)")
-    ax[1, 1].set_xlabel("$t$ (s)")
-    handles, labels = ax[0, 0].get_legend_handles_labels()
+    ax[0].set_ylabel("$\\zeta$ (deg)")
+    ax[1].set_ylabel("$\\xi$ (deg)")
+    ax[2].set_ylabel("$\\dot{\\zeta}$ (deg/s)")
+    ax[3].set_ylabel("$\\dot{\\xi}$ (deg/s)")
+    ax[-1].set_xlabel("$t$ (s)")
+    for a in ax:
+        a.grid(linestyle="--")
+    handles, labels = ax[0].get_legend_handles_labels()
     legend_dict = dict(zip(labels, handles))
+    fig.align_ylabels()
     fig.legend(
         handles=legend_dict.values(),
         labels=legend_dict.keys(),

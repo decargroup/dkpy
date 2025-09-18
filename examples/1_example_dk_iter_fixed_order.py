@@ -12,7 +12,7 @@ def example_dk_iter_fixed_order():
 
     dk_iter = dkpy.DkIterFixedOrder(
         controller_synthesis=dkpy.HinfSynSlicot(),
-        structured_singular_value=dkpy.SsvLmiBisection(),
+        structured_singular_value=dkpy.SsvLmiBisection(n_jobs=1),
         d_scale_fit=dkpy.DScaleFitSlicot(),
         n_iterations=3,
         fit_order=4,
@@ -44,7 +44,7 @@ def example_dk_iter_fixed_order():
 
     ax = None
     for i, ds in enumerate(iter_results):
-        _, ax = dkpy.plot_D(ds, ax=ax, plot_kw=dict(label=f"iter{i}"))
+        fig, ax = dkpy.plot_D(ds, ax=ax, plot_kw=dict(label=f"iter{i}"))
 
     plt.show()
 

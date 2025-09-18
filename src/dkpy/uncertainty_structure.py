@@ -10,14 +10,14 @@ class UncertaintyBlock(metaclass=abc.ABCMeta):
 
     @property
     @abc.abstractmethod
-    def num_exog_inputs(self) -> int:
+    def n_exogenous_inputs(self) -> int:
         """Get number of exogenous inputs (w) for the uncertainty block."""
         raise NotImplementedError()
 
     @property
     @abc.abstractmethod
-    def num_perf_outputs(self) -> int:
-        """Get number of performance outputs (z) for the uncertainty block."""
+    def n_exogenous_outputs(self) -> int:
+        """Get number of exogenous outputs (z) for the uncertainty block."""
         raise NotImplementedError()
 
     @property
@@ -48,7 +48,7 @@ class RealDiagonalBlock(UncertaintyBlock):
         Parameters
         ----------
         num_channels : int
-            Number of exogenous inputs (w) and performance outputs (z) for the
+            Number of exogenous inputs (w) and exogenous outputs (z) for the
             uncertainty block.
 
         Raises
@@ -62,11 +62,11 @@ class RealDiagonalBlock(UncertaintyBlock):
         self._num_channels = num_channels
 
     @property
-    def num_exog_inputs(self) -> int:
+    def n_exogenous_inputs(self) -> int:
         return self._num_channels
 
     @property
-    def num_perf_outputs(self) -> int:
+    def n_exogenous_outputs(self) -> int:
         return self._num_channels
 
     @property
@@ -91,7 +91,7 @@ class ComplexDiagonalBlock(UncertaintyBlock):
         Parameters
         ----------
         num_channels : int
-            Number of exogenous inputs (w) and performance outputs (z) for the
+            Number of exogenous inputs (w) and exogenous outputs (z) for the
             uncertainty block.
 
         Raises
@@ -105,11 +105,11 @@ class ComplexDiagonalBlock(UncertaintyBlock):
         self._num_channels = num_channels
 
     @property
-    def num_exog_inputs(self) -> int:
+    def n_exogenous_inputs(self) -> int:
         return self._num_channels
 
     @property
-    def num_perf_outputs(self) -> int:
+    def n_exogenous_outputs(self) -> int:
         return self._num_channels
 
     @property
@@ -128,39 +128,39 @@ class ComplexDiagonalBlock(UncertaintyBlock):
 class ComplexFullBlock(UncertaintyBlock):
     """Complex-valued full uncertainty block."""
 
-    def __init__(self, num_exog_inputs: int, num_perf_outputs: int):
+    def __init__(self, n_exogenous_inputs: int, n_exogenous_outputs: int):
         """Instantiate :class:`ComplexFullBlock`.
 
         Parameters
         ----------
-        num_exog_inputs : int
+        n_exogenous_inputs : int
             Number of exogenous inputs (w) for the uncertainty block.
-        num_perf_outputs : int
-            Number of performance outputs (z) for the uncertainty block.
+        n_exogenous_outputs : int
+            Number of exogenous outputs (z) for the uncertainty block.
 
         Raises
         ------
         ValueError
-            If ``num_exog_inputs`` is not greater than zero.
+            If ``n_exogenous_inputs`` is not greater than zero.
         ValueError
-            If ``num_perf_outputs`` is not greater than zero.
+            If ``n_exogenous_outputs`` is not greater than zero.
         """
 
-        if num_exog_inputs <= 0:
-            raise ValueError("`num_exog_inputs` must be greater than 0.")
-        if num_perf_outputs <= 0:
-            raise ValueError("`num_perf_outputs` must be greater than 0.")
+        if n_exogenous_inputs <= 0:
+            raise ValueError("`num_exogenous_inputs` must be greater than 0.")
+        if n_exogenous_outputs <= 0:
+            raise ValueError("`num_exogenous_outputs` must be greater than 0.")
 
-        self._num_exog_inputs = num_exog_inputs
-        self._num_perf_outputs = num_perf_outputs
-
-    @property
-    def num_exog_inputs(self) -> int:
-        return self._num_exog_inputs
+        self._n_exogenous_inputs = n_exogenous_inputs
+        self._n_exogenous_outputs = n_exogenous_outputs
 
     @property
-    def num_perf_outputs(self) -> int:
-        return self._num_perf_outputs
+    def n_exogenous_inputs(self) -> int:
+        return self._n_exogenous_inputs
+
+    @property
+    def n_exogenous_outputs(self) -> int:
+        return self._n_exogenous_outputs
 
     @property
     def is_diagonal(self) -> bool:
@@ -172,7 +172,7 @@ class ComplexFullBlock(UncertaintyBlock):
 
     @property
     def is_square(self) -> bool:
-        return self._num_exog_inputs == self._num_perf_outputs
+        return self._n_exogenous_inputs == self._n_exogenous_outputs
 
 
 def _convert_block_structure_representation(
