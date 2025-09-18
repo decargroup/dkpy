@@ -13,8 +13,8 @@ class TestRealDiagonalBlock:
         """Test :class:`RealDiagonalBlock`."""
         block = dkpy.RealDiagonalBlock(5)
 
-        assert block.num_exog_inputs == 5
-        assert block.num_perf_outputs == 5
+        assert block.n_exogenous_inputs == 5
+        assert block.n_exogenous_outputs == 5
         assert block.is_diagonal
         assert not block.is_complex
 
@@ -25,8 +25,8 @@ class TestComplexDiagonalBlock:
     def test_complex_diagonal_block(self):
         """Test :class:`ComplexDiagonalBlock`."""
         block = dkpy.ComplexDiagonalBlock(5)
-        assert block.num_exog_inputs == 5
-        assert block.num_perf_outputs == 5
+        assert block.n_exogenous_inputs == 5
+        assert block.n_exogenous_outputs == 5
         assert block.is_diagonal
         assert block.is_complex
 
@@ -37,8 +37,8 @@ class TestComplexFullBlock:
     def test_complex_full_block(self):
         """Test :class:`ComplexFullBlock`."""
         block = dkpy.ComplexFullBlock(5, 10)
-        assert block.num_exog_inputs == 5
-        assert block.num_perf_outputs == 10
+        assert block.n_exogenous_inputs == 5
+        assert block.n_exogenous_outputs == 10
         assert not block.is_diagonal
         assert block.is_complex
 
@@ -47,7 +47,7 @@ class TestUncertaintyBlockStructure:
     """Test :class:`UncertaintyBlockStructure"""
 
     @pytest.mark.parametrize(
-        "block_structure, num_exog_inputs_list, num_perf_outputs_list,"
+        "block_structure, n_exogenous_inputs_list, n_exogenous_outputs_list,"
         " is_diagonal_list, is_complex_list",
         [
             (
@@ -131,8 +131,8 @@ class TestUncertaintyBlockStructure:
     def test_convert_block_structure_representation(
         self,
         block_structure,
-        num_exog_inputs_list,
-        num_perf_outputs_list,
+        n_exogenous_inputs_list,
+        n_exogenous_outputs_list,
         is_diagonal_list,
         is_complex_list,
     ):
@@ -144,7 +144,7 @@ class TestUncertaintyBlockStructure:
 
         for idx_block in range(len(block_structure)):
             block = block_structure[idx_block]
-            assert block.num_exog_inputs == num_exog_inputs_list[idx_block]
-            assert block.num_perf_outputs == num_perf_outputs_list[idx_block]
+            assert block.n_exogenous_inputs == n_exogenous_inputs_list[idx_block]
+            assert block.n_exogenous_outputs == n_exogenous_outputs_list[idx_block]
             assert block.is_diagonal == is_diagonal_list[idx_block]
             assert block.is_complex == is_complex_list[idx_block]
