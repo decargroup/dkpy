@@ -18,12 +18,15 @@ with them. The abstract classes are provided below.
    dkpy.DkIteration
 
 The steps of the D-K iteration algorithm are as follows [SP06]_. 
+
 1. Controller synthesis (:class:`ControllerSynthesis`): Synthesize an
    H-infinity controller for the scaled problem with fixed fitted D-scales.
+
 2. Structured singular value and D-scale computation
    (:class:`StructuredSingularValue`): Compute the structured singular value
    and the D-scales over a discrete grid of frequencies with a fixed
    controller.
+
 3. D-scale fit (:class:`DScaleFit`): Fit the magnitude of each D-scale to a
    stable minimum-phase LTI system.
 

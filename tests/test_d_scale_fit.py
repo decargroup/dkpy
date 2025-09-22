@@ -11,108 +11,32 @@ class TestTfFitSlicot:
     """Test :class:`DScaleFitSlicot`."""
 
     @pytest.mark.parametrize(
-        "omega, tf, order, block_structure, atol",
+        "omega, tf_l, tf_r, order, block_structure, atol",
         [
             (
                 np.logspace(-2, 2, 100),
-                control.TransferFunction([10], [1]),
-                0,
-                None,
-                1e-6,
-            ),
-            (
-                np.logspace(-2, 2, 100),
-                control.TransferFunction([1, 1], [1, 10]),
-                1,
-                None,
-                1e-2,
-            ),
-            (
-                np.logspace(-2, 2, 100),
                 control.TransferFunction(
                     [
                         [
                             [1, 1],
-                            [1, 1],
+                            [0],
                         ],
                         [
-                            [1, 1],
-                            [1, 1],
+                            [0],
+                            [1],
                         ],
                     ],
                     [
                         [
                             [1, 10],
-                            [1, 9],
+                            [1],
                         ],
                         [
-                            [1, 8],
-                            [1, 10],
+                            [1],
+                            [1],
                         ],
                     ],
                 ),
-                1,
-                None,
-                1e-2,
-            ),
-            (
-                np.logspace(-2, 2, 100),
-                control.TransferFunction(
-                    [
-                        [
-                            [1, 2, 1],
-                            [1, 2, 1],
-                        ],
-                        [
-                            [1, 2, 1],
-                            [1, 2, 1],
-                        ],
-                    ],
-                    [
-                        [
-                            [1, 10, 1],
-                            [1, 9, 2],
-                        ],
-                        [
-                            [1, 8, 3],
-                            [1, 10, 4],
-                        ],
-                    ],
-                ),
-                2,
-                None,
-                1e-2,
-            ),
-            (
-                np.logspace(-2, 2, 100),
-                control.TransferFunction(
-                    [
-                        [
-                            [1, 2, 1],
-                            [1, 2, 1],
-                        ],
-                        [
-                            [1, 2, 1],
-                            [1, 2, 1],
-                        ],
-                    ],
-                    [
-                        [
-                            [1, 10, 1],
-                            [1, 9, 2],
-                        ],
-                        [
-                            [1, 8, 3],
-                            [1, 10, 4],
-                        ],
-                    ],
-                ),
-                2 * np.ones((2, 2)),
-                None,
-                1e-2,
-            ),
-            (
-                np.logspace(-2, 2, 100),
                 control.TransferFunction(
                     [
                         [
@@ -163,12 +87,56 @@ class TestTfFitSlicot:
                         ],
                     ],
                 ),
-                np.diag([1, 0]),
+                control.TransferFunction(
+                    [
+                        [
+                            [1, 1],
+                            [0],
+                        ],
+                        [
+                            [0],
+                            [1],
+                        ],
+                    ],
+                    [
+                        [
+                            [1, 10],
+                            [1],
+                        ],
+                        [
+                            [1],
+                            [1],
+                        ],
+                    ],
+                ),
+                [1, 0],
                 [dkpy.ComplexFullBlock(1, 1), dkpy.ComplexFullBlock(1, 1)],
                 1e-2,
             ),
             (
                 np.logspace(-2, 2, 100),
+                control.TransferFunction(
+                    [
+                        [
+                            [1],
+                            [0],
+                        ],
+                        [
+                            [0],
+                            [1],
+                        ],
+                    ],
+                    [
+                        [
+                            [1],
+                            [1],
+                        ],
+                        [
+                            [1],
+                            [1],
+                        ],
+                    ],
+                ),
                 control.TransferFunction(
                     [
                         [
@@ -219,6 +187,28 @@ class TestTfFitSlicot:
                         ],
                     ],
                 ),
+                control.TransferFunction(
+                    [
+                        [
+                            [1, 1],
+                            [0],
+                        ],
+                        [
+                            [0],
+                            [1],
+                        ],
+                    ],
+                    [
+                        [
+                            [1, 10],
+                            [1],
+                        ],
+                        [
+                            [1],
+                            [1],
+                        ],
+                    ],
+                ),
                 1,
                 np.array([[1, 1], [1, 1]]),
                 1e-2,
@@ -247,16 +237,10 @@ class TestTfFitSlicot:
                         ],
                     ],
                 ),
-                np.diag([1, 0]),
-                np.array([[1, 1], [1, 1]]),
-                1e-2,
-            ),
-            (
-                np.logspace(-2, 2, 100),
                 control.TransferFunction(
                     [
                         [
-                            [1],
+                            [1, 1],
                             [0],
                         ],
                         [
@@ -266,7 +250,7 @@ class TestTfFitSlicot:
                     ],
                     [
                         [
-                            [1],
+                            [1, 10],
                             [1],
                         ],
                         [
@@ -275,25 +259,30 @@ class TestTfFitSlicot:
                         ],
                     ],
                 ),
-                1,
-                np.array([[2, 2]]),
+                [1, 0],
+                np.array([[1, 1], [1, 1]]),
                 1e-2,
             ),
         ],
     )
-    def test_tf_fit_slicot(self, omega, tf, order, block_structure, atol):
+    def test_tf_fit_slicot(self, omega, tf_l, tf_r, order, block_structure, atol):
         """Test :class:`DScaleFitSlicot`."""
-        D_omega = tf(1j * omega)
-        if D_omega.ndim == 1:
-            D_omega = D_omega.reshape((1, 1, -1))
-        tf_fit, _ = dkpy.DScaleFitSlicot().fit(omega, D_omega, order, block_structure)
-        D_omega_fit = tf_fit(1j * omega)
-        if D_omega_fit.ndim == 1:
-            D_omega_fit = D_omega_fit.reshape((1, 1, -1))
-        np.testing.assert_allclose(D_omega, D_omega_fit, atol=atol)
+        D_l_omega = tf_l(1j * omega)
+        D_r_omega = tf_r(1j * omega)
+        if D_l_omega.ndim == 1:
+            D_l_omega = D_l_omega.reshape((1, 1, -1))
+        if D_r_omega.ndim == 1:
+            D_r_omega = D_r_omega.reshape((1, 1, -1))
+        tf_l_fit, _ = dkpy.DScaleFitSlicot().fit(
+            omega, D_l_omega, D_r_omega, order, block_structure
+        )
+        D_l_omega_fit = tf_l_fit(1j * omega)
+        if D_l_omega_fit.ndim == 1:
+            D_l_omega_fit = D_l_omega_fit.reshape((1, 1, -1))
+        np.testing.assert_allclose(D_l_omega, D_l_omega_fit, atol=atol)
 
     @pytest.mark.parametrize(
-        "omega, tf, order, block_structure",
+        "omega, tf_l, tf_r, order, block_structure",
         [
             (
                 np.logspace(-2, 2, 100),
@@ -302,8 +291,10 @@ class TestTfFitSlicot:
                         [
                             [1, 1],
                             [1, 1],
+                            [1, 1],
                         ],
                         [
+                            [1, 1],
                             [1, 1],
                             [1, 1],
                         ],
@@ -311,19 +302,16 @@ class TestTfFitSlicot:
                     [
                         [
                             [1, 10],
-                            [1, 10],
+                            [1, 9],
+                            [1, 7],
                         ],
                         [
-                            [1, 10],
+                            [1, 8],
+                            [1, 6],
                             [1, 10],
                         ],
                     ],
                 ),
-                1,
-                None,
-            ),
-            (
-                np.logspace(-2, 2, 100),
                 control.TransferFunction(
                     [
                         [
@@ -355,19 +343,22 @@ class TestTfFitSlicot:
             ),
         ],
     )
-    def test_tf_fit_slicot_error(self, omega, tf, order, block_structure):
+    def test_tf_fit_slicot_error(self, omega, tf_l, tf_r, order, block_structure):
         with pytest.raises(ValueError):
-            D_omega = tf(1j * omega)
-            if D_omega.ndim == 1:
-                D_omega = D_omega.reshape((1, 1, -1))
+            D_l_omega = tf_l(1j * omega)
+            D_r_omega = tf_r(1j * omega)
+            if D_l_omega.ndim == 1:
+                D_l_omega = D_l_omega.reshape((1, 1, -1))
+            if D_r_omega.ndim == 1:
+                D_r_omega = D_r_omega.reshape((1, 1, -1))
             tf_fit, _ = dkpy.DScaleFitSlicot().fit(
-                omega, D_omega, order, block_structure
+                omega, D_l_omega, D_r_omega, order, block_structure
             )
 
 
 class TestGenerateDScaleMask:
     @pytest.mark.parametrize(
-        "block_structure, mask_exp",
+        "block_structure, mask_l_exp, mask_r_exp",
         [
             (
                 [dkpy.ComplexFullBlock(1, 1), dkpy.ComplexFullBlock(1, 1)],
@@ -378,9 +369,24 @@ class TestGenerateDScaleMask:
                     ],
                     dtype=int,
                 ),
+                np.array(
+                    [
+                        [-1, 0],
+                        [0, 1],
+                    ],
+                    dtype=int,
+                ),
             ),
             (
                 [dkpy.ComplexFullBlock(2, 2), dkpy.ComplexFullBlock(1, 1)],
+                np.array(
+                    [
+                        [-1, 0, 0],
+                        [0, -1, 0],
+                        [0, 0, 1],
+                    ],
+                    dtype=int,
+                ),
                 np.array(
                     [
                         [-1, 0, 0],
@@ -400,13 +406,98 @@ class TestGenerateDScaleMask:
                     ],
                     dtype=int,
                 ),
+                np.array(
+                    [
+                        [-1, 0, 0],
+                        [0, 1, 0],
+                        [0, 0, 1],
+                    ],
+                    dtype=int,
+                ),
+            ),
+            (
+                [dkpy.ComplexDiagonalBlock(2), dkpy.ComplexFullBlock(2, 3)],
+                np.array(
+                    [
+                        [-1, -1, 0, 0, 0],
+                        [0, -1, 0, 0, 0],
+                        [0, 0, 1, 0, 0],
+                        [0, 0, 0, 1, 0],
+                        [0, 0, 0, 0, 1],
+                    ],
+                    dtype=int,
+                ),
+                np.array(
+                    [
+                        [-1, -1, 0, 0],
+                        [0, -1, 0, 0],
+                        [0, 0, 1, 0],
+                        [0, 0, 0, 1],
+                    ],
+                    dtype=int,
+                ),
+            ),
+            (
+                [dkpy.ComplexFullBlock(2, 3), dkpy.ComplexDiagonalBlock(2)],
+                np.array(
+                    [
+                        [1, 0, 0, 0, 0],
+                        [0, 1, 0, 0, 0],
+                        [0, 0, 1, 0, 0],
+                        [0, 0, 0, -1, -1],
+                        [0, 0, 0, 0, -1],
+                    ],
+                    dtype=int,
+                ),
+                np.array(
+                    [
+                        [1, 0, 0, 0],
+                        [0, 1, 0, 0],
+                        [0, 0, -1, -1],
+                        [0, 0, 0, -1],
+                    ],
+                    dtype=int,
+                ),
+            ),
+            (
+                [
+                    dkpy.ComplexDiagonalBlock(3),
+                    dkpy.ComplexFullBlock(2, 3),
+                    dkpy.ComplexDiagonalBlock(2),
+                ],
+                np.array(
+                    [
+                        [-1, -1, -1, 0, 0, 0, 0, 0],
+                        [0, -1, -1, 0, 0, 0, 0, 0],
+                        [0, 0, -1, 0, 0, 0, 0, 0],
+                        [0, 0, 0, 1, 0, 0, 0, 0],
+                        [0, 0, 0, 0, 1, 0, 0, 0],
+                        [0, 0, 0, 0, 0, 1, 0, 0],
+                        [0, 0, 0, 0, 0, 0, -1, -1],
+                        [0, 0, 0, 0, 0, 0, 0, -1],
+                    ],
+                    dtype=int,
+                ),
+                np.array(
+                    [
+                        [-1, -1, -1, 0, 0, 0, 0],
+                        [0, -1, -1, 0, 0, 0, 0],
+                        [0, 0, -1, 0, 0, 0, 0],
+                        [0, 0, 0, 1, 0, 0, 0],
+                        [0, 0, 0, 0, 1, 0, 0],
+                        [0, 0, 0, 0, 0, -1, -1],
+                        [0, 0, 0, 0, 0, 0, -1],
+                    ],
+                    dtype=int,
+                ),
             ),
         ],
     )
-    def test_generate_d_scale_mask(self, block_structure, mask_exp):
+    def test_generate_d_scale_mask(self, block_structure, mask_l_exp, mask_r_exp):
         """Test :func:`_mask_from_block_strucure`."""
-        mask = dkpy.d_scale_fit._generate_d_scale_mask(block_structure)
-        np.testing.assert_allclose(mask_exp, mask)
+        mask_l, mask_r = dkpy.d_scale_fit._generate_d_scale_mask(block_structure)
+        np.testing.assert_allclose(mask_l_exp, mask_l)
+        np.testing.assert_allclose(mask_r_exp, mask_r)
 
 
 class TestInvertBiproperSs:

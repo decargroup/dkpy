@@ -35,6 +35,7 @@ def example_dk_iter_auto_order():
                 solver="MOSEK",
                 eps=1e-9,
             ),
+            n_jobs=1,
         ),
         d_scale_fit=dkpy.DScaleFitSlicot(),
         max_mu=1,
@@ -44,17 +45,15 @@ def example_dk_iter_auto_order():
     )
 
     omega = np.logspace(-3, 3, 61)
-    # Alternative MATLAB descr.
+    # Alternative MATLAB block structure description
     # uncertainty_structure = dkpy.UncertaintyBlockStructure(
     #     [[1, 1], [1, 1], [2, 2]]
     # )
-    uncertainty_structure = dkpy.UncertaintyBlockStructure(
-        [
-            dkpy.ComplexFullBlock(1, 1),
-            dkpy.ComplexFullBlock(1, 1),
-            dkpy.ComplexFullBlock(2, 2),
-        ]
-    )
+    uncertainty_structure = [
+        dkpy.ComplexFullBlock(1, 1),
+        dkpy.ComplexFullBlock(1, 1),
+        dkpy.ComplexFullBlock(2, 2),
+    ]
     K, N, mu, iter_results, info = dk_iter.synthesize(
         eg["P"],
         eg["n_y"],
@@ -71,8 +70,7 @@ def example_dk_iter_auto_order():
 
     ax = None
     for i, ds in enumerate(iter_results):
-        _, ax = dkpy.plot_D(ds, ax=ax, plot_kw=dict(label=f"iter{i}"))
-
+        fig, ax = dkpy.plot_D(ds, ax=ax, plot_kw=dict(label=f"iter{i}"))
     plt.show()
 
 

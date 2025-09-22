@@ -20,10 +20,10 @@ to 4.
 
 Output::
 
-    mu=1.0132789611816406
+    mu=1.0368156433105469
 
-.. image:: _static/plot_mu.png
-.. image:: _static/plot_D.png
+.. image:: _static/example_1/1_plot_mu.png
+.. image:: _static/example_1/1_plot_D.png
 
 D-K iteration with list of fit orders
 -------------------------------------
@@ -37,10 +37,10 @@ integer.
 
 Output::
 
-    mu=1.0132789611816406
+    mu=1.0368156433105469
 
-.. image:: _static/plot_mu.png
-.. image:: _static/plot_D.png
+.. image:: _static/example_2/2_plot_mu.png
+.. image:: _static/example_2/2_plot_D.png
 
 D-K iteration with automatically selected fit orders
 ----------------------------------------------------
@@ -53,34 +53,34 @@ with the lowest relative error is selected.
 
 Output::
 
-    INFO:DkIterAutoOrder:Iteration: 0, mu: 1.1792325973510742
-    INFO:DkIterAutoOrder:Order 0 relative error: 0.5122457769147215
-    INFO:DkIterAutoOrder:Order 1 relative error: 0.34431183690576633
-    INFO:DkIterAutoOrder:Order 2 relative error: 0.8970100659296376
-    INFO:DkIterAutoOrder:Order 3 relative error: 0.030844892155775263
-    INFO:DkIterAutoOrder:Order 4 relative error: 0.015896380940858944
+    INFO:DkIterAutoOrder:Iteration: 0, mu: 1.1792182922363281
+    INFO:DkIterAutoOrder:Order 0 relative error: 0.5066119732511977
+    INFO:DkIterAutoOrder:Order 1 relative error: 0.3356881131800033
+    INFO:DkIterAutoOrder:Order 2 relative error: 0.643462672042705
+    INFO:DkIterAutoOrder:Order 3 relative error: 0.031649076289004166
+    INFO:DkIterAutoOrder:Order 4 relative error: 0.012866875729555234
     INFO:DkIterAutoOrder:Reached max fit order, selecting order 4
-    INFO:DkIterAutoOrder:Iteration: 1, mu: 1.0256481170654297
-    INFO:DkIterAutoOrder:Order 0 relative error: 9.350642790785383
-    INFO:DkIterAutoOrder:Order 1 relative error: 1.327796980729705
-    INFO:DkIterAutoOrder:Order 2 relative error: 7.58063969442474
-    INFO:DkIterAutoOrder:Order 3 relative error: 0.13472058625314948
-    INFO:DkIterAutoOrder:Order 4 relative error: 0.05262584627773765
+    INFO:DkIterAutoOrder:Iteration: 1, mu: 1.0274028778076172
+    INFO:DkIterAutoOrder:Order 0 relative error: 9.780743577129419
+    INFO:DkIterAutoOrder:Order 1 relative error: 1.4151255816143613
+    INFO:DkIterAutoOrder:Order 2 relative error: 8.507402105789147
+    INFO:DkIterAutoOrder:Order 3 relative error: 0.15216618301078452
+    INFO:DkIterAutoOrder:Order 4 relative error: 0.05185270360448734
     INFO:DkIterAutoOrder:Reached max fit order, selecting order 4
-    INFO:DkIterAutoOrder:Iteration: 2, mu: 1.0201168060302734
-    INFO:DkIterAutoOrder:Order 0 relative error: 28.96943897648902
-    INFO:DkIterAutoOrder:Order 1 relative error: 3.9918344794684804
-    INFO:DkIterAutoOrder:Order 2 relative error: 7.000978128580445
-    INFO:DkIterAutoOrder:Order 3 relative error: 0.22159755671770862
-    INFO:DkIterAutoOrder:Order 4 relative error: 0.06377761160336083
+    INFO:DkIterAutoOrder:Iteration: 2, mu: 1.0203123092651367
+    INFO:DkIterAutoOrder:Order 0 relative error: 30.002715934629506
+    INFO:DkIterAutoOrder:Order 1 relative error: 4.172954343879354
+    INFO:DkIterAutoOrder:Order 2 relative error: 9.026259323212026
+    INFO:DkIterAutoOrder:Order 3 relative error: 0.24098884948353583
+    INFO:DkIterAutoOrder:Order 4 relative error: 0.04541136749668787
     INFO:DkIterAutoOrder:Reached max fit order, selecting order 4
-    INFO:DkIterAutoOrder:Iteration: 3, mu: 1.0132789611816406
+    INFO:DkIterAutoOrder:Iteration: 3, mu: 1.0144329071044922
     INFO:DkIterAutoOrder:Iteration terminated: reached maximum number of iterations
     INFO:DkIterAutoOrder:Iteration complete
-    mu=1.0132789611816406
+    mu=1.0144329071044922
 
-.. image:: _static/plot_mu.png
-.. image:: _static/plot_D.png
+.. image:: _static/example_3/3_plot_mu.png
+.. image:: _static/example_3/3_plot_D.png
 
 D-K iteration with interactively selected fit orders
 ----------------------------------------------------
@@ -92,38 +92,38 @@ singular value plots at each iteration.
 .. literalinclude:: ../examples/4_example_dk_iter_interactive.py
   :language: python
 
-.. image:: _static/interactive_1.png
+.. image:: _static/example_4/4_interactive_1.png
 
 Prompt::
 
     Close plot to continue...
     Select order (<Enter> to end iteration): 4
 
-.. image:: _static/interactive_2.png
+.. image:: _static/example_4/4_interactive_2.png
 
 Prompt::
 
     Close plot to continue...
     Select order (<Enter> to end iteration): 4
 
-.. image:: _static/interactive_3.png
+.. image:: _static/example_4/4_interactive_3.png
 
 Prompt::
 
     Close plot to continue...
     Select order (<Enter> to end iteration): 4
 
-.. image:: _static/interactive_4.png
+.. image:: _static/example_4/4_interactive_4.png
 
 Output::
 
     Close plot to continue...
     Select order (<Enter> to end iteration): 
     Iteration ended.
-    mu=1.0132789611816406
+    mu=1.0144329071044922
 
-.. image:: _static/plot_mu.png
-.. image:: _static/plot_D.png
+.. image:: _static/example_4/4_plot_mu.png
+.. image:: _static/example_4/4_plot_D.png
 
 D-K iteration with a custom fit order selection method
 ------------------------------------------------------
@@ -136,11 +136,44 @@ after 3 iterations of 4th order fits.
 
 Output::
 
-    Iteration 0 with mu of 1.1792325973510742
-    Iteration 1 with mu of 1.0256481170654297
-    Iteration 2 with mu of 1.0201168060302734
-    Iteration 3 with mu of 1.0132789611816406
-    mu=1.0132789611816406
+    Iteration 0 with mu of 1.1792182922363281
+    Iteration 1 with mu of 1.0274028778076172
+    Iteration 2 with mu of 1.0203123092651367
+    Iteration 3 with mu of 1.0144329071044922
+    mu=1.0144329071044922
 
-.. image:: _static/plot_mu.png
-.. image:: _static/plot_D.png
+.. image:: _static/example_5/5_plot_mu.png
+.. image:: _static/example_5/5_plot_D.png
+
+
+D-K iteration for non-square perturbation and simulation of perturbed systems 
+-----------------------------------------------------------------------------
+
+In this example, the perturbation `Δ` is non-square. In other words, the inputs
+and outputs of the perturbation are not identical. The orders are specified in
+a list. Once the robust controller is synthesized, it is tested on a set of
+perturbed systems by generating a set of perturbations `Δ` that have H-infinity
+norm less than or equal to 1.
+
+In this example, a controller is designed for the linearized lateral dynamics
+of an aircraft from an example given in Section 14.1 of [M04]_.
+
+.. literalinclude:: ../examples/6_dk_iteration_non_square_perturbation.py
+   :language: python
+
+Output::
+
+    mu: 0.9824275970458984
+
+.. image:: _static/example_6/6_plot_mu.png
+
+After the controller is synthesized, a set of off-nominal models are generated
+by interconnecting various admissible perturbations `Δ` with the nominal model.
+Then, the closed-loop systems are formed for each perturbed system. The time
+domain response of the systems can be obtained for a step response in the roll
+angle reference signal, no external disturbances, and moderate sensor noise. In
+particular, the response of the system states and actuator inputs are shown.
+
+.. image:: _static/example_6/6_plot_states.png
+
+.. image:: _static/example_6/6_plot_inputs.png

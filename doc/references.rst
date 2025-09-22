@@ -10,3 +10,7 @@ References
 .. [SP06] S. Skogestad and I. Postlethwaite, Multivariable Feedback Control:
    Analysis and Design. West Sussex, England: Wiley, 2006.
    ISBN 978-0-47-001168-3.
+.. [M04] U. Mackenroth, Robust Control Systems: Theory and Case Studies.
+   Berlin, Heidelberg: Springer, 2004. ISBN 978-3-642-05891-2.
+
+
