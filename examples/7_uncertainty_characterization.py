@@ -116,7 +116,28 @@ def example_uncertainty_characterization():
         uncertainty_models,
     )
 
+    # Plot: Singular value response of uncerainty residuals
     dkpy.plot_singular_value_response_uncertainty_residual(uncertainty_residuals_dict)
+    plt.show()
+
+    # Plot: Comparison of singular value response of uncerainty residuals for each
+    # uncertainty model
+    dkpy.plot_singular_value_response_uncertainty_residual_comparison(
+        uncertainty_residuals_dict
+    )
+    plt.show()
+
+    # Compute uncertainty weight frequency response
+    response_weight_left, response_weight_right = (
+        dkpy.compute_optimal_uncertainty_weight_response(
+            uncertainty_residuals_dict["I"], "diagonal", "diagonal"
+        )
+    )
+
+    # Plot:
+    dkpy.plot_magnitude_response_uncertainty_weight(
+        response_weight_left, response_weight_right
+    )
     plt.show()
 
 

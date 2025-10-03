@@ -8,6 +8,8 @@ __all__ = [
     "plot_phase_response_nom_offnom",
     "plot_singular_value_response_nom_offnom",
     "plot_singular_value_response_uncertainty_residual",
+    "plot_singular_value_response_uncertainty_residual_comparison",
+    "plot_magnitude_response_uncertainty_weight",
 ]
 
 import warnings
@@ -17,7 +19,7 @@ import numpy as np
 import cvxpy
 from matplotlib import pyplot as plt
 from typing import List, Optional, Union, Tuple, Dict, Callable, Set
-from scipy import linalg
+import scipy
 
 
 def compute_uncertainty_residual_response(
@@ -238,7 +240,7 @@ def _compute_uncertainty_residual_multiplicative_input_freq(
 
     A = frequency_response_nom_freq
     B = frequency_response_offnom_freq - frequency_response_nom_freq
-    X, residues_lstsq, _, _ = linalg.lstsq(A, B)
+    X, residues_lstsq, _, _ = scipy.linalg.lstsq(A, B)
     residual_freq = X
 
     if num_inputs >= num_outputs:
@@ -291,7 +293,7 @@ def _compute_uncertainty_residual_multiplicative_output_freq(
         )
     A = frequency_response_nom_freq.T
     B = frequency_response_offnom_freq.T - frequency_response_nom_freq.T
-    X, residues_lstsq, _, _ = linalg.lstsq(A, B)
+    X, residues_lstsq, _, _ = scipy.linalg.lstsq(A, B)
     residual_freq = X.T
 
     if num_inputs <= num_outputs:
@@ -345,10 +347,10 @@ def _compute_uncertainty_residual_inverse_additive_freq(
 
     A1 = frequency_response_offnom_freq
     B1 = frequency_response_offnom_freq - frequency_response_nom_freq
-    Y, residues_lstsq_1, _, _ = linalg.lstsq(A1, B1)
+    Y, residues_lstsq_1, _, _ = scipy.linalg.lstsq(A1, B1)
     A2 = frequency_response_nom_freq.T
     B2 = Y.T
-    X, residues_lstsq_2, _, _ = linalg.lstsq(A2, B2)
+    X, residues_lstsq_2, _, _ = scipy.linalg.lstsq(A2, B2)
     residual_freq = X.T
 
     if num_inputs == num_outputs:
@@ -406,7 +408,7 @@ def _compute_uncertainty_residual_inverse_multiplicative_input_freq(
 
     A = frequency_response_offnom_freq
     B = frequency_response_offnom_freq - frequency_response_nom_freq
-    X, residues_lstsq, _, _ = linalg.lstsq(A, B)
+    X, residues_lstsq, _, _ = scipy.linalg.lstsq(A, B)
     residual_freq = X
 
     if num_inputs >= num_outputs:
@@ -460,7 +462,7 @@ def _compute_uncertainty_residual_inverse_multiplicative_output_freq(
         )
     A = frequency_response_offnom_freq.T
     B = frequency_response_offnom_freq.T - frequency_response_nom_freq.T
-    X, residues_lstsq, _, _ = linalg.lstsq(A, B)
+    X, residues_lstsq, _, _ = scipy.linalg.lstsq(A, B)
     residual_freq = X.T
 
     if num_inputs <= num_outputs:
@@ -480,20 +482,106 @@ def _compute_uncertainty_residual_inverse_multiplicative_output_freq(
 
 
 def compute_optimal_uncertainty_weight_response(
-    residual_response_list: control.FrequencyResponseList,
+    response_residual_list: control.FrequencyResponseList,
+    weight_left_structure: str,
+    weight_right_structure: str,
 ) -> Tuple[control.FrequencyResponseData, control.FrequencyResponseData]:
-    pass
+    """Compute the optimal uncertainty weight frequency response.
+
+    Parameters
+    ----------
+    response_residual_list : control.FrequencyResponseList
+        Frequency response of the residuals for which to compute the optimal uncertainty
+        weights.
+    weight_left_structure : str
+        Structure of the left uncertainty weight. Valid structures include: "diagonal",
+        "scalar", and "identity".
+    weight_right_structure : str
+        Structure of the right uncertainty weight. Valid structures include: "diagonal",
+        "scalar", and "identity".
+
+    Returns
+    -------
+    Tuple[control.FrequencyResponseData, control.FrequencyResponse]
+        Frequency response of the diagonal elements of the left and right uncertainty
+        weights.
+    """
+    # Frequency grid
+    frequency = response_residual_list[0].frequency
+
+    # Parse residual response data
+    complex_response_residual_list = []
+    for residual_response in response_residual_list:
+        complex_response_residual = residual_response.complex
+        complex_response_residual_list.append(complex_response_residual)
+    complex_response_residual_array = np.array(complex_response_residual_list)
+
+    # Compute optimal uncertainty weights
+    complex_response_weight_left_list = []
+    complex_response_weight_right_list = []
+    for idx_freq in range(frequency.size):
+        complex_residual_freq = complex_response_residual_array[:, :, :, idx_freq]
+        weight_left_freq, weight_right_freq = _compute_optimal_weight_freq(
+            complex_residual_freq, weight_left_structure, weight_right_structure
+        )
+        complex_response_weight_left_list.append(weight_left_freq)
+        complex_response_weight_right_list.append(weight_right_freq)
+
+    # Generate left uncertainty weight frequency response
+    complex_response_weight_left_array = np.array(
+        complex_response_weight_left_list
+    ).transpose(1, 2, 0)
+    response_weight_left = control.FrequencyResponseData(
+        complex_response_weight_left_array, frequency
+    )
+
+    # Generate right uncertainty weight frequency response
+    complex_response_weight_right_array = np.array(
+        complex_response_weight_right_list
+    ).transpose(1, 2, 0)
+    response_weight_right = control.FrequencyResponseData(
+        complex_response_weight_right_array, frequency
+    )
+
+    return response_weight_left, response_weight_right
 
 
+# NOTE: I'm not sure if the function should return a 1D array for the diagonal
+# elements of the uncertainty weights, or return a 2D array of the diagonal matrix
 def _compute_optimal_weight_freq(
     residual_offnom_set_freq: np.ndarray,
     weight_left_structure: str,
     weight_right_structure: str,
-):
+) -> Tuple[np.ndarray, np.ndarray]:
+    """Compute the optimal uncertainty weight at a given frequency.
+
+    Parameters
+    ----------
+    residual_offnom_set_freq : control.FrequencyResponseList
+        Frequency response matrix of the off-nominal models at a given frequency.
+    weight_left_structure : str
+        Structure of the left uncertainty weight. Valid structures include: "diagonal",
+        "scalar", and "identity".
+    weight_right_structure : str
+        Structure of the right uncertainty weight. Valid structures include: "diagonal",
+        "scalar", and "identity".
+
+    Returns
+    -------
+    Tuple[np.ndarray, np.ndarray]
+        The left and right uncertainty weight frequency response matrices at a given
+        frequency.
+    """
+
     # System parameters
     num_left = residual_offnom_set_freq.shape[1]
     num_right = residual_offnom_set_freq.shape[2]
     num_offnom = residual_offnom_set_freq.shape[0]
+
+    # if num_left == 1 and weight_left_structure == "diagonal":
+    #     weight_left_structure = "scalar"
+    # if num_right == 1 and weight_right_structure == "diagonal":
+    #     weight_right_structure = "scalar"
 
     # HACK: Find a better way to parse the structure assumptions of the weights
 
@@ -502,22 +590,34 @@ def _compute_optimal_weight_freq(
         L = cvxpy.Variable((num_left, num_left), diag=True)
     elif weight_left_structure == "scalar":
         L_scalar = cvxpy.Variable()
-        L = L_scalar * np.eye(num_left)
+        L = L_scalar * scipy.sparse.eye_array(num_left)
     elif weight_left_structure == "identity":
-        L = cvxpy.Parameter(shape=(num_left, num_left), value=np.eye(num_left))
+        L = cvxpy.Parameter(
+            shape=(num_left, num_left), value=np.eye(num_left), diag=True
+        )
     else:
-        raise ValueError("Invalid value for `weight_left_structure`.")
+        raise ValueError(
+            f'"{weight_left_structure}" is not a valid value for '
+            '`weight_right_structure`. It must take a value of either "diagonal" '
+            '"scalar", or "identity".'
+        )
 
     # Generate right weight variable
     if weight_right_structure == "diagonal":
         R = cvxpy.Variable((num_right, num_right), diag=True)
     elif weight_right_structure == "scalar":
         R_scalar = cvxpy.Variable()
-        R = R_scalar * np.eye(num_right)
+        R = R_scalar * scipy.sparse.eye_array(num_right)
     elif weight_right_structure == "identity":
-        R = cvxpy.Parameter(shape=(num_right, num_right), value=np.eye(num_right))
+        R = cvxpy.Parameter(
+            shape=(num_right, num_right), value=np.eye(num_right), diag=True
+        )
     else:
-        raise ValueError("Invalid value for `weight_right_structure`.")
+        raise ValueError(
+            f'"{weight_right_structure}" is not a valid value for '
+            '`weight_right_structure`. It must take a value of either "diagonal" '
+            '"scalar", or "identity".'
+        )
 
     # Generate optimal uncertainty weight constraints
     constraint_freq_list = []
@@ -541,20 +641,21 @@ def _compute_optimal_weight_freq(
     constraint_freq_list.append(R >> 0)
 
     # Semidefinite program
-    objective = cvxpy.Minimize(cvxpy.trace(L + R))
+    objective = cvxpy.Minimize(cvxpy.trace(L) + cvxpy.trace(R))
     problem = cvxpy.Problem(objective, constraint_freq_list)
     problem.solve(solver="MOSEK")
 
-    # Extract solution
-    if L.shape == (1, 1):
-        L_value = np.array(cvxpy.diag(L).value)[0]
+    # Extract left weight
+    if weight_left_structure == "identity":
+        L_value = np.array(L.value)
     else:
-        L_value = np.array(cvxpy.diag(L).value)
-    if R.shape == (1, 1):
-        R_value = np.array(cvxpy.diag(R).value)[0]
-    else:
-        R_value = np.array(cvxpy.diag(R).value)
+        L_value = np.array(L.value.toarray())
     weight_l = np.sqrt(L_value)
+    # Extract right weight
+    if weight_right_structure == "identity":
+        R_value = np.array(R.value)
+    else:
+        R_value = np.array(R.value.toarray())
     weight_r = np.sqrt(R_value)
 
     return weight_l, weight_r
@@ -741,22 +842,32 @@ def plot_singular_value_response_uncertainty_residual(
         uncertainty_model_id,
         uncertainty_residual_response_list,
     ) in uncertainty_residual_response_dict.items():
+        frequency = uncertainty_residual_response_list[0].frequency
         fig, ax = plt.subplots()
+        sval_response_residual_list = []
         for uncertainty_residual_response in uncertainty_residual_response_list:
-            frequency = uncertainty_residual_response.frequency
             residual_response_matrix = uncertainty_residual_response.complex
             residual_response_sval = np.linalg.svdvals(
                 residual_response_matrix.transpose(2, 0, 1)
             )
+            sval_response_residual_list.append(residual_response_sval)
             for idx_sval in range(residual_response_sval.shape[1]):
                 ax.semilogx(
                     frequency,
                     control.mag2db(residual_response_sval[:, idx_sval]),
                     color="grey",
                     alpha=0.5,
-                    label=f"$E_{{{uncertainty_model_id}}}$",
+                    label=f"$\\sigma(E_{{{uncertainty_model_id}}})$",
                 )
-
+        sval_max_response_residual = np.max(
+            np.array(sval_response_residual_list), axis=(0, 2)
+        )
+        ax.semilogx(
+            frequency,
+            control.mag2db(sval_max_response_residual),
+            color="black",
+            label=f"$\\max \\; \\sigma(E_{{{uncertainty_model_id}}})$",
+        )
         # Plot settings
         ax.set_ylabel("Magnitude (dB)")
         ax.grid()
@@ -769,3 +880,94 @@ def plot_singular_value_response_uncertainty_residual(
             loc="outside lower center",
             ncol=2,
         )
+
+
+# TODO: Increase customizability of plot
+def plot_singular_value_response_uncertainty_residual_comparison(
+    uncertainty_residual_response_dict: Dict[str, control.FrequencyResponseList],
+):
+    # Maximum singular value response of uncertainty residuals
+    sval_max_response_residual_dict = {}
+    for (
+        uncertainty_model_id,
+        uncertainty_residual_response_list,
+    ) in uncertainty_residual_response_dict.items():
+        frequency = uncertainty_residual_response_list[0].frequency
+        sval_response_residual_list = []
+        for uncertainty_residual_response in uncertainty_residual_response_list:
+            residual_response_matrix = uncertainty_residual_response.complex
+            residual_response_sval = np.linalg.svdvals(
+                residual_response_matrix.transpose(2, 0, 1)
+            )
+            sval_response_residual_list.append(residual_response_sval)
+        sval_max_response_residual = np.max(
+            np.array(sval_response_residual_list), axis=(0, 2)
+        )
+        sval_max_response_residual_dict[uncertainty_model_id] = (
+            control.FrequencyResponseData(sval_max_response_residual, frequency)
+        )
+
+    fig, ax = plt.subplots()
+    for (
+        uncertainty_model_id,
+        sval_max_response_residual,
+    ) in sval_max_response_residual_dict.items():
+        frequency = sval_max_response_residual.frequency
+        sval_max_response = sval_max_response_residual.magnitude
+        ax.semilogx(
+            frequency,
+            control.mag2db(sval_max_response),
+            label=f"$\\max \\; {{\\sigma}}(E_{{{uncertainty_model_id}}})$",
+        )
+
+    # Plot settings
+    ax.set_ylabel("Magnitude (dB)")
+    ax.grid()
+    ax.set_xlabel("$\\omega$ (rad/s)")
+    handles, labels = ax.get_legend_handles_labels()
+    legend_dict = dict(zip(labels, handles))
+    fig.legend(
+        labels=legend_dict.keys(),
+        handles=legend_dict.values(),
+        loc="outside lower center",
+        ncol=6,
+    )
+
+
+def plot_magnitude_response_uncertainty_weight(
+    response_weight_left: control.FrequencyResponseData,
+    response_weight_right: control.FrequencyResponseData,
+):
+    #
+    num_left = response_weight_left.ninputs
+    num_right = response_weight_right.ninputs
+
+    magnitude_response_weight_left = response_weight_left.magnitude
+    magnitude_response_weight_right = response_weight_right.magnitude
+
+    frequency = response_weight_left.frequency
+
+    fig, ax = plt.subplots(max(num_left, num_right), 2, sharex=True)
+    for idx_left in range(num_left):
+        ax[idx_left, 0].semilogx(
+            frequency,
+            control.mag2db(magnitude_response_weight_left[idx_left, idx_left, :]),
+        )
+        ax[idx_left, 0].set_ylabel("$|W_{L, (1, 1)}|$ (dB)")
+        ax[idx_left, 0].grid()
+
+    for idx_right in range(num_left):
+        ax[idx_right, 1].semilogx(
+            frequency,
+            control.mag2db(magnitude_response_weight_right[idx_right, idx_right, :]),
+        )
+        ax[idx_right, 1].set_ylabel("$|W_{L, (1, 1)}|$ (dB)")
+        ax[idx_right, 1].grid()
+
+    for idx_col in range(2):
+        ax[-1, idx_col].set_xlabel("$\\omega$ (rad/s)")
+
+    for ax_row in ax:
+        for ax_row_col in ax_row:
+            if not ax_row_col.has_data():
+                fig.delaxes(ax_row_col)
