@@ -18,8 +18,10 @@ import control
 import numpy as np
 import cvxpy
 from matplotlib import pyplot as plt
-from typing import List, Optional, Union, Tuple, Dict, Callable, Set
+from typing import List, Optional, Union, Tuple, Dict, Callable, Set, Any
 import scipy
+
+from . import utilities
 
 
 def compute_uncertainty_residual_response(
@@ -546,8 +548,6 @@ def compute_optimal_uncertainty_weight_response(
     return response_weight_left, response_weight_right
 
 
-# NOTE: I'm not sure if the function should return a 1D array for the diagonal
-# elements of the uncertainty weights, or return a 2D array of the diagonal matrix
 def _compute_optimal_weight_freq(
     residual_offnom_set_freq: np.ndarray,
     weight_left_structure: str,
@@ -662,10 +662,91 @@ def _compute_optimal_weight_freq(
 
 
 def fit_overbounding_uncertainty_weight(
-    uncertainty_weight_left_response: control.FrequencyResponseData,
-    uncertainty_weight_right_response: control.FrequencyResponseData,
-) -> Tuple[control.TransferFunction, control.TransferFunction]:
-    pass
+    response_uncertainty_weight: control.FrequencyResponseData,
+    order: Union[int, List[int], np.ndarray],
+    weight: Optional[np.ndarray] = None,
+    linear_solver_param: Dict[str, Any] = {},
+    tol_bisection: float = 1e-3,
+    max_iter_bisection: int = 500,
+    num_spec_constr: int = 500,
+) -> control.StateSpace:
+    """
+    Fit an overbounding stable and minimum-phase state-space uncertainty weight to
+    frequency response data.
+
+    Parameters
+    ----------
+    response_uncertainty_weight : control.FrequencyResponseData
+        Uncertainty weight frequency response used for the overbounding fit.
+    order : Union[int, List[int], np.ndarray]
+        Order of the LTI system fit. If `order` is an `int`, the order will be
+        used for all elements of the weight. If `order` is a `List` or `np.ndarray`,
+        the order can be specified for each element of the weight.
+    weight : Optional[np.ndarray] = None
+        Frequency-dependent weight used to improve the fit over certain bandwidths.
+    linear_solver_param : Dict[str, Any]
+        Keyword arguments for the linear feasibility problem solver. See
+        [#cvxpy_solver]_ for more information.
+    tol_bisection : float
+        Numerical tolerance for the bisection algorithm.
+    max_iter_bisection : int
+        Maximum allowable number of iterations in the bisection algorithm.
+    num_spec_constr : int
+        Number of constraints used to enforce the spectral factorizability of the
+        fitted autocorrelation.
+
+    Returns
+    -------
+    control.StateSpace
+        Fitted overbounding uncertainty weight state-space systems.
+
+    References
+    ----------
+    .. [#cxvpy_solver] https://www.cvxpy.org/tutorial/solvers/index.html
+    """
+
+    # Parse arguments
+    num_elements = response_uncertainty_weight.ninputs
+    omega = response_uncertainty_weight.frequency
+    order_list = (
+        order * np.ones(num_elements) if isinstance(order, int) else np.array(order)
+    )
+
+    # NOTE: Is this a sensible default?
+    if weight is None:
+        # Take the default frequency-dependent weight as the normalized magnitude the
+        # uncertainty weight magnitude in order to place greater importance on tightly
+        # overbounding at the largest uncertainties
+        weight = np.diagonal(response_uncertainty_weight.magnitude, axis1=0, axis2=1)
+        weight = weight / np.max(weight, axis=0)
+
+    uncertainty_weight_list = []
+    for idx_element in range(num_elements):
+        # Extract the parameters relevant to each SISO uncertainty weight element
+        magnitude_response_weight_element = np.array(
+            response_uncertainty_weight.magnitude[idx_element, idx_element, :]
+        )
+        order_element = order_list[idx_element]
+        weight_element = weight[:, idx_element]
+
+        # Fit the uncertainty weight to each SISO element
+        uncertainty_weight_element = utilities._fit_magnitude_log_chebyshev_siso(
+            omega,
+            magnitude_response_weight_element,
+            order_element,
+            magnitude_lower_bound=magnitude_response_weight_element,
+            weight=weight_element,
+            linear_solver_param=linear_solver_param,
+            tol_bisection=tol_bisection,
+            max_iter_bisection=max_iter_bisection,
+            num_spec_constr=num_spec_constr,
+        )
+        uncertainty_weight_list.append(uncertainty_weight_element)
+
+    # Construct uncertainty weight fit from SISO elements
+    uncertainty_weight = control.append(*uncertainty_weight_list)
+
+    return uncertainty_weight
 
 
 # TODO: Increase customizability of plot
@@ -907,7 +988,10 @@ def plot_singular_value_response_uncertainty_residual_comparison(
             control.FrequencyResponseData(sval_max_response_residual, frequency)
         )
 
+    # Initialize figure
     fig, ax = plt.subplots()
+
+    # Maximum singular value reponse of uncertainty residuals
     for (
         uncertainty_model_id,
         sval_max_response_residual,
@@ -937,6 +1021,8 @@ def plot_singular_value_response_uncertainty_residual_comparison(
 def plot_magnitude_response_uncertainty_weight(
     response_weight_left: control.FrequencyResponseData,
     response_weight_right: control.FrequencyResponseData,
+    weight_left: Optional[control.StateSpace] = None,
+    weight_right: Optional[control.StateSpace] = None,
 ):
     #
     num_left = response_weight_left.ninputs
@@ -947,27 +1033,75 @@ def plot_magnitude_response_uncertainty_weight(
 
     frequency = response_weight_left.frequency
 
-    fig, ax = plt.subplots(max(num_left, num_right), 2, sharex=True)
+    # Initialize figure
+    fig, ax = plt.subplots(
+        max(num_left, num_right), 2, sharex=True, layout="constrained"
+    )
+
+    # Plot left uncertainty weight frequency response
     for idx_left in range(num_left):
         ax[idx_left, 0].semilogx(
             frequency,
             control.mag2db(magnitude_response_weight_left[idx_left, idx_left, :]),
+            linestyle="",
+            marker="*",
+            color="tab:blue",
+            label="Response",
         )
         ax[idx_left, 0].set_ylabel("$|W_{L, (1, 1)}|$ (dB)")
         ax[idx_left, 0].grid()
-
+    # Plot right uncertainty weight frequency response
     for idx_right in range(num_left):
         ax[idx_right, 1].semilogx(
             frequency,
             control.mag2db(magnitude_response_weight_right[idx_right, idx_right, :]),
+            linestyle="",
+            marker="*",
+            color="tab:blue",
+            label="Response",
         )
-        ax[idx_right, 1].set_ylabel("$|W_{L, (1, 1)}|$ (dB)")
+        ax[idx_right, 1].set_ylabel("$|W_{R, (1, 1)}|$ (dB)")
         ax[idx_right, 1].grid()
 
+    # Plot left uncertainty weight fit frequency response
+    if weight_left is not None:
+        response_fit_weight_left = control.frequency_response(weight_left, frequency)
+        magnitude_response_fit_weight_left = response_fit_weight_left.magnitude
+        for idx_left in range(num_left):
+            ax[idx_left, 0].semilogx(
+                frequency,
+                control.mag2db(
+                    magnitude_response_fit_weight_left[idx_left, idx_left, :]
+                ),
+                color="tab:orange",
+                label="Fit",
+            )
+    # Plot right uncertainty weight fit frequency response
+    if weight_right is not None:
+        response_fit_weight_right = control.frequency_response(weight_right, frequency)
+        magnitude_response_fit_weight_right = response_fit_weight_right.magnitude
+        for idx_right in range(num_right):
+            ax[idx_right, 1].semilogx(
+                frequency,
+                control.mag2db(
+                    magnitude_response_fit_weight_right[idx_right, idx_right, :]
+                ),
+                color="tab:orange",
+                label="Fit",
+            )
+
+    # Plot settings
     for idx_col in range(2):
         ax[-1, idx_col].set_xlabel("$\\omega$ (rad/s)")
-
     for ax_row in ax:
         for ax_row_col in ax_row:
             if not ax_row_col.has_data():
                 fig.delaxes(ax_row_col)
+    handles, labels = ax[0, 0].get_legend_handles_labels()
+    legend_dict = dict(zip(labels, handles))
+    fig.legend(
+        labels=legend_dict.keys(),
+        handles=legend_dict.values(),
+        loc="outside lower center",
+        ncol=2,
+    )
