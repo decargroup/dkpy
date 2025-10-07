@@ -626,7 +626,7 @@ def _compute_optimal_weight_freq(
     complex_residual_offnom_set_freq: np.ndarray,
     weight_left_structure: str,
     weight_right_structure: str,
-    solver_param: Dict[str, Any] = {},
+    solver_params: Optional[Dict[str, Any]] = None,
 ) -> Tuple[np.ndarray, np.ndarray]:
     """Compute the optimal uncertainty weight at a given frequency.
 
@@ -654,6 +654,20 @@ def _compute_optimal_weight_freq(
     ----------
     .. [#cxvpy_solver] https://www.cvxpy.org/tutorial/solvers/index.html
     """
+
+    # Solver settings
+    solver_params = (
+        {
+            "solver": cvxpy.CLARABEL,
+            "tol_gap_abs": 1e-9,
+            "tol_gap_rel": 1e-9,
+            "tol_feas": 1e-9,
+            "tol_infeas_abs": 1e-9,
+            "tol_infeas_rel": 1e-9,
+        }
+        if solver_params is None
+        else solver_params
+    )
 
     # System parameters
     num_left = complex_residual_offnom_set_freq.shape[1]
@@ -747,7 +761,7 @@ def fit_overbounding_uncertainty_weight(
     omega: np.ndarray,
     order: Union[int, List[int], np.ndarray],
     weight: Optional[np.ndarray] = None,
-    linear_solver_param: Dict[str, Any] = {},
+    linear_solver_params: Optional[Dict[str, Any]] = None,
     tol_bisection: float = 1e-3,
     max_iter_bisection: int = 500,
     num_spec_constr: int = 500,
@@ -815,6 +829,20 @@ def fit_overbounding_uncertainty_weight(
     ----------
     .. [#cxvpy_solver] https://www.cvxpy.org/tutorial/solvers/index.html
     """
+
+    # Solver settings
+    linear_solver_params = (
+        {
+            "solver": cvxpy.CLARABEL,
+            "tol_gap_abs": 1e-9,
+            "tol_gap_rel": 1e-9,
+            "tol_feas": 1e-9,
+            "tol_infeas_abs": 1e-9,
+            "tol_infeas_rel": 1e-9,
+        }
+        if linear_solver_params is None
+        else linear_solver_params
+    )
 
     # Parse arguments
     num_elements = complex_response_uncertainty_weight.shape[1]
