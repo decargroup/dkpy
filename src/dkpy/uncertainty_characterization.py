@@ -1215,7 +1215,7 @@ def plot_singular_value_response_uncertainty_residual_comparison(
         labels=legend_dict.keys(),
         handles=legend_dict.values(),
         loc="outside lower center",
-        ncol=6,
+        ncol=3,
     )
 
     return fig, ax
@@ -1276,7 +1276,9 @@ def plot_magnitude_response_uncertainty_weight(
             label="Response",
         )
         ax[idx_left, 0].set_ylabel(
-            "$|W_{L, (1, 1)}|$ (dB)" if db else "$|W_{L, (1, 1)}|$ (-)"
+            f"$|W_{{L, ({idx_left + 1}, {idx_left + 1})}}|$ (dB)"
+            if db
+            else f"$|W_{{L, ({idx_left + 1}, {idx_left + 1})}}|$ (-)"
         )
         ax[idx_left, 0].grid()
     # Plot right uncertainty weight frequency response
@@ -1292,7 +1294,9 @@ def plot_magnitude_response_uncertainty_weight(
             label="Response",
         )
         ax[idx_right, 1].set_ylabel(
-            "$|W_{R, (1, 1)}|$ (dB)" if db else "$|W_{R, (1, 1)}|$ (-)"
+            f"$|W_{{R, ({idx_right + 1}, {idx_right + 1})}}|$ (dB)"
+            if db
+            else f"$|W_{{R, ({idx_right + 1}, {idx_right + 1})}}|$ (-)"
         )
         ax[idx_right, 1].grid()
 

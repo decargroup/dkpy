@@ -177,3 +177,74 @@ particular, the response of the system states and actuator inputs are shown.
 .. image:: _static/example_6/6_plot_states.png
 
 .. image:: _static/example_6/6_plot_inputs.png
+
+Multi-Model Uncertainty Characterization
+----------------------------------------
+
+In this example, an unstructured uncertainty set is characterized from a set
+of nominal and off-nominal frequency responses. The off-nominal models are
+generated from a nominal model by randomly perturbing the parameters within a
+known bound.
+
+.. literalinclude:: ../examples/7_uncertainty_characterization.py
+   :language: python
+
+`dkpy` provides plotting functionality for the nominal and off-nominal systems.
+The frequency response of the magnitude, phase, and singular values are
+as follows. These plots show the variation in the frequency response caused
+by the variation in parameters.
+
+.. image:: _static/example_7/7_magnitude_nom_offnom.png
+
+.. image:: _static/example_7/7_phase_nom_offnom.png
+
+.. image:: _static/example_7/7_sval_nom_offnom.png
+
+Next, the uncertainty residual can be computed for each off-nominal system and
+uncertainty model. `dkpy` implements six unstructured uncertainty models:
+
+* Additive uncertainty ("A");
+    .. image:: _static/example_7/7_sval_residual_A.png
+* Multiplicative input uncertainty ("I");
+    .. image:: _static/example_7/7_sval_residual_I.png
+* Multiplicative output uncertainty ("O");
+    .. image:: _static/example_7/7_sval_residual_O.png
+* Inverse additive uncertainty ("iA");
+    .. image:: _static/example_7/7_sval_residual_iA.png
+* Inverse multiplicative input uncertainty ("iI");
+    .. image:: _static/example_7/7_sval_residual_iI.png
+* Inverse multiplicative output uncertainty ("iO").
+    .. image:: _static/example_7/7_sval_residual_iO.png
+
+See Chapter 8.2.3 of [SP06]_ for more information on these unstructured 
+uncertainty models. The maximum singular value responses of all uncertainty
+models are shown here.
+
+.. image:: _static/example_7/7_sval_max_residual.png
+
+As a rule of thumb, the uncertainty model that is selected should have the
+smallest maximum singular value over the control bandwidth and high uncertainty
+at large frequencies to account for unmodeled dynamics. In this case, the 
+inverse additive uncertainty ("iA") model seems to be the best option, which will be 
+used moving forward.
+
+The uncertainty set is parametrized as `E = WL Δ WR`. `E` is the uncertainty
+residual, `Δ` is the normalized perturbation, and `WL`, `WR` are the dynamic
+weights used to parametrize the uncertainty set. The frequency response of the
+optimal weights with minimal magnitude at each frequency can be solved for from
+the uncertainty residuals for different assumptions on their structure. It is
+assumed that both weights are diagonal moving forward. Then, an overbounding 
+stable and minimum phase linear time-invariant (LTI) system can be fit to the 
+frequency response of the weights to obtain a LTI description of the uncertainty
+set. The optimal weight frequency responses and fitted weights are shown below.
+
+.. image:: _static/example_7/7_uncertainty_weight.png
+
+
+
+
+
+
+
+
+

@@ -16,22 +16,25 @@ def example_uncertainty_characterization():
     omega = eg["omega"]
 
     # Plot: Magnitude response of nominal and off-nominal systems
-    dkpy.plot_magnitude_response_nom_offnom(
-        complex_response_nom, complex_response_offnom_list, omega, hz=True
+    fig, _ = dkpy.plot_magnitude_response_nom_offnom(
+        complex_response_nom,
+        complex_response_offnom_list,
+        omega,
     )
-    plt.show()
 
     # Plot: Phase response of nominal and off-nominal systems
-    dkpy.plot_phase_response_nom_offnom(
-        complex_response_nom, complex_response_offnom_list, omega, hz=True
+    fig, _ = dkpy.plot_phase_response_nom_offnom(
+        complex_response_nom,
+        complex_response_offnom_list,
+        omega,
     )
-    plt.show()
 
     # Plot: Singular value response of nominal and off-nominal systems
-    dkpy.plot_singular_value_response_nom_offnom(
-        complex_response_nom, complex_response_offnom_list, omega, hz=True, db=False
+    fig, ax = dkpy.plot_singular_value_response_nom_offnom(
+        complex_response_nom,
+        complex_response_offnom_list,
+        omega,
     )
-    plt.show()
 
     # Uncertainty models
     uncertainty_models = {"A", "I", "O", "iA", "iI", "iO"}
@@ -42,17 +45,16 @@ def example_uncertainty_characterization():
     )
 
     # Plot: Singular value response of uncerainty residuals
-    dkpy.plot_singular_value_response_uncertainty_residual(
+    figure_dict = dkpy.plot_singular_value_response_uncertainty_residual(
         complex_response_residuals_dict, omega
     )
-    plt.show()
 
     # Plot: Comparison of singular value response of uncerainty residuals for each
     # uncertainty model
-    dkpy.plot_singular_value_response_uncertainty_residual_comparison(
+    fig, _ = dkpy.plot_singular_value_response_uncertainty_residual_comparison(
         complex_response_residuals_dict, omega
     )
-    plt.show()
+    fig.savefig("doc/_static/example_7/7_sval_max_residual.png")
 
     # Compute uncertainty weight frequency response
     complex_response_weight_left, complex_response_weight_right = (
@@ -71,7 +73,7 @@ def example_uncertainty_characterization():
 
     # Plot: Magnitude response of uncertainty weight and overbounding uncertainty weight
     # fit
-    dkpy.plot_magnitude_response_uncertainty_weight(
+    fig, _ = dkpy.plot_magnitude_response_uncertainty_weight(
         complex_response_weight_left,
         complex_response_weight_right,
         omega,
