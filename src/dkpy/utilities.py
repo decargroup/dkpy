@@ -18,6 +18,7 @@ import control
 import cvxpy
 import numpy as np
 import scipy.linalg
+import warnings
 
 
 def example_scherer1997_p907() -> Dict[str, Any]:
@@ -626,7 +627,7 @@ def _fit_magnitude_log_chebyshev_siso(
     magnitude_upper_bound: Optional[np.ndarray] = None,
     magnitude_lower_bound: Optional[np.ndarray] = None,
     weight: Optional[np.ndarray] = None,
-    linear_solver_param: Dict[str, Any] = {},
+    linear_solver_params: Dict[str, Any] = {},
     tol_bisection: float = 1e-3,
     max_iter_bisection: int = 500,
     num_spec_constr: int = 500,
@@ -683,7 +684,7 @@ def _fit_magnitude_log_chebyshev_siso(
         magnitude_upper_bound,
         magnitude_lower_bound,
         weight,
-        linear_solver_param,
+        linear_solver_params,
         tol_bisection,
         max_iter_bisection,
         num_spec_constr,
@@ -737,7 +738,7 @@ def _fit_autocorrelation(
     magnitude_upper_bound: Optional[np.ndarray],
     magnitude_lower_bound: Optional[np.ndarray],
     weight: np.ndarray,
-    linear_solver_param: Dict[str, Any],
+    linear_solver_params: Dict[str, Any],
     tol_bisection: float,
     max_iter_bisection: int,
     num_spec_constr: int,
@@ -750,7 +751,7 @@ def _fit_autocorrelation(
     ----------
     theta : np.ndarray
         Discrete-time frequency.
-    agnitude_fit : np.ndarray
+    magnitude_fit : np.ndarray
         Magnitude response to fit the LTI system.
     order : int
         Order of the LTI system.
@@ -763,7 +764,7 @@ def _fit_autocorrelation(
     weight : np.ndarray
         Frequency-dependent weight to encode bandwidths over which to prioritize the
         accuracy of the LTI system fit.
-    linear_solver_param : Dict[str, Any]
+    linear_solver_params : Dict[str, Any]
         Keyword arguments for the linear feasibility problem solver.
     tol_bisection : float
         Numerical tolerance for the bisection algorithm.
@@ -860,7 +861,11 @@ def _fit_autocorrelation(
         constraint = [A_tot @ tf_auto_coef <= B_tot]
         problem = cvxpy.Problem(objective, constraint)
         try:
-            problem.solve(**linear_solver_param, ignore_dpp=True)
+            # Ignore warnings as some solvers issue warnings that are not applicable
+            # as we are expecting infeasible solutions in some cases due to the nature
+            # of the bisection algorithm
+            with warnings.catch_warnings(action="ignore"):
+                problem.solve(**linear_solver_params, ignore_dpp=True)
             feasibility_status = problem.status
         except cvxpy.SolverError:
             t_lower = t.value

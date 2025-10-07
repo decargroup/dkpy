@@ -63,6 +63,7 @@ def example_uncertainty_characterization():
         )
     )
 
+    print("fit weight")
     # Fit overbounding stable and minimum-phase uncertainty weight system
     weight_left = dkpy.fit_overbounding_uncertainty_weight(
         complex_response_weight_left, omega, [4, 5]

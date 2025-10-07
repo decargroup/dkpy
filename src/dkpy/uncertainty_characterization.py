@@ -558,6 +558,7 @@ def compute_optimal_uncertainty_weight_response(
     complex_response_residual_list: np.ndarray,
     weight_left_structure: str,
     weight_right_structure: str,
+    solver_params: Optional[Dict[str, Any]] = None,
 ) -> Tuple[np.ndarray, np.ndarray]:
     """Compute the optimal uncertainty weight frequency response.
 
@@ -572,6 +573,9 @@ def compute_optimal_uncertainty_weight_response(
     weight_right_structure : str
         Structure of the right uncertainty weight. Valid structures include: "diagonal",
         "scalar", and "identity".
+    solver_param : Dict[str, Any]
+        Keyword arguments for the convex optimization solver. See [#cvxpy_solver]_ for
+        more information.
 
     Returns
     -------
@@ -610,7 +614,10 @@ def compute_optimal_uncertainty_weight_response(
     for idx_freq in range(num_frequency):
         complex_residual_freq = complex_response_residual_list[:, idx_freq, :, :]
         weight_left_freq, weight_right_freq = _compute_optimal_weight_freq(
-            complex_residual_freq, weight_left_structure, weight_right_structure
+            complex_residual_freq,
+            weight_left_structure,
+            weight_right_structure,
+            solver_params,
         )
         complex_response_weight_left.append(weight_left_freq)
         complex_response_weight_right.append(weight_right_freq)
@@ -659,11 +666,11 @@ def _compute_optimal_weight_freq(
     solver_params = (
         {
             "solver": cvxpy.CLARABEL,
-            "tol_gap_abs": 1e-9,
-            "tol_gap_rel": 1e-9,
-            "tol_feas": 1e-9,
-            "tol_infeas_abs": 1e-9,
-            "tol_infeas_rel": 1e-9,
+            "tol_gap_abs": 1e-6,
+            "tol_gap_rel": 1e-6,
+            "tol_feas": 1e-6,
+            "tol_infeas_abs": 1e-6,
+            "tol_infeas_rel": 1e-6,
         }
         if solver_params is None
         else solver_params
@@ -735,7 +742,7 @@ def _compute_optimal_weight_freq(
     # Semidefinite program
     objective = cvxpy.Minimize(cvxpy.trace(L) + cvxpy.trace(R))
     problem = cvxpy.Problem(objective, constraint_freq_list)
-    problem.solve(**solver_param)
+    problem.solve(**solver_params)
 
     # Extract left weight
     if weight_left_structure == "identity":
@@ -783,7 +790,7 @@ def fit_overbounding_uncertainty_weight(
         weight is a 2D array with the first dimension representing the number of
         elements in the weight and the second dimension representing the number of
         frequency points.
-    linear_solver_param : Dict[str, Any]
+    linear_solver_params : Dict[str, Any]
         Keyword arguments for the linear feasibility problem solver. See
         [#cvxpy_solver]_ for more information.
     tol_bisection : float
@@ -878,7 +885,7 @@ def fit_overbounding_uncertainty_weight(
             order=order_element,
             magnitude_lower_bound=magnitude_response_weight_element,
             weight=weight_element,
-            linear_solver_param=linear_solver_param,
+            linear_solver_params=linear_solver_params,
             tol_bisection=tol_bisection,
             max_iter_bisection=max_iter_bisection,
             num_spec_constr=num_spec_constr,
