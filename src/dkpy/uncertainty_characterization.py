@@ -626,6 +626,7 @@ def _compute_optimal_weight_freq(
     complex_residual_offnom_set_freq: np.ndarray,
     weight_left_structure: str,
     weight_right_structure: str,
+    solver_param: Dict[str, Any] = {},
 ) -> Tuple[np.ndarray, np.ndarray]:
     """Compute the optimal uncertainty weight at a given frequency.
 
@@ -639,12 +640,19 @@ def _compute_optimal_weight_freq(
     weight_right_structure : str
         Structure of the right uncertainty weight. Valid structures include: "diagonal",
         "scalar", and "identity".
+    solver_param : Dict[str, Any]
+        Keyword arguments for the convex optimization solver. See [#cvxpy_solver]_ for
+        more information.
 
     Returns
     -------
     Tuple[np.ndarray, np.ndarray]
         The left and right uncertainty weight frequency response matrices at a given
         frequency.
+
+    References
+    ----------
+    .. [#cxvpy_solver] https://www.cvxpy.org/tutorial/solvers/index.html
     """
 
     # System parameters
@@ -713,7 +721,7 @@ def _compute_optimal_weight_freq(
     # Semidefinite program
     objective = cvxpy.Minimize(cvxpy.trace(L) + cvxpy.trace(R))
     problem = cvxpy.Problem(objective, constraint_freq_list)
-    problem.solve(solver="MOSEK")
+    problem.solve(**solver_param)
 
     # Extract left weight
     if weight_left_structure == "identity":
