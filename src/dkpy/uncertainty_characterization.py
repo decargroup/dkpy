@@ -27,7 +27,14 @@ from . import utilities
 def compute_uncertainty_residual_response(
     complex_response_nom: np.ndarray,
     complex_response_offnom_list: np.ndarray,
-    uncertainty_model: Union[str, List[str], Set[str]],
+    uncertainty_model: Union[str, List[str], Set[str]] = {
+        "A",
+        "I",
+        "O",
+        "iA",
+        "iI",
+        "iO",
+    },
     tol_residual_existence: float = 1e-12,
 ) -> Dict[str, np.ndarray]:
     """Compute the residual response of unstructured uncertainty models.
@@ -218,7 +225,7 @@ def _compute_uncertainty_residual_additive_freq(
 def _compute_uncertainty_residual_multiplicative_input_freq(
     complex_response_nom_freq: np.ndarray,
     complex_response_offnom_freq: np.ndarray,
-    tol_residual_existence: float = 1e-12,
+    tol_residual_existence: float = 1e-8,
 ):
     """Compute the multiplicative input uncertainty residual at a frequency.
 
@@ -279,7 +286,7 @@ def _compute_uncertainty_residual_multiplicative_input_freq(
 def _compute_uncertainty_residual_multiplicative_output_freq(
     complex_response_nom_freq: np.ndarray,
     complex_response_offnom_freq: np.ndarray,
-    tol_residual_existence: float = 1e-12,
+    tol_residual_existence: float = 1e-8,
 ):
     """Compute the multiplicative output uncertainty residual at a frequency.
 
@@ -318,13 +325,13 @@ def _compute_uncertainty_residual_multiplicative_output_freq(
     A = complex_response_nom_freq.T
     B = complex_response_offnom_freq.T - complex_response_nom_freq.T
     X, residues_lstsq, _, _ = scipy.linalg.lstsq(A, B)
-    complex_response_residual_freqw = X.T
+    complex_response_residual_freq = X.T
 
     if num_inputs <= num_outputs:
-        return complex_response_residual_freqw
+        return complex_response_residual_freq
     else:
         if np.all(residues_lstsq <= tol_residual_existence):
-            return complex_response_residual_freqw
+            return complex_response_residual_freq
         else:
             raise ValueError(
                 "A multiplicative output uncertainty residual does not exist for the "
@@ -339,7 +346,7 @@ def _compute_uncertainty_residual_multiplicative_output_freq(
 def _compute_uncertainty_residual_inverse_additive_freq(
     complex_response_nom_freq: np.ndarray,
     complex_response_offnom_freq: np.ndarray,
-    tol_residual_existence: float = 1e-12,
+    tol_residual_existence: float = 1e-8,
 ):
     """Compute the inverse additive uncertainty residual at a frequency.
 
@@ -405,7 +412,7 @@ def _compute_uncertainty_residual_inverse_additive_freq(
 def _compute_uncertainty_residual_inverse_multiplicative_input_freq(
     complex_response_nom_freq: np.ndarray,
     complex_response_offnom_freq: np.ndarray,
-    tol_residual_existence: float = 1e-12,
+    tol_residual_existence: float = 1e-8,
 ):
     """Compute the inverse multiplicative input uncertainty residual at a frequency.
 
@@ -468,7 +475,7 @@ def _compute_uncertainty_residual_inverse_multiplicative_input_freq(
 def _compute_uncertainty_residual_inverse_multiplicative_output_freq(
     complex_response_nom_freq: np.ndarray,
     complex_response_offnom_freq: np.ndarray,
-    tol_residual_existence: float = 1e-12,
+    tol_residual_existence: float = 1e-8,
 ):
     """Compute the inverse multiplicative output uncertainty residual at a frequency.
 
@@ -739,7 +746,9 @@ def fit_overbounding_uncertainty_weight(
     # Parse arguments
     num_elements = complex_response_uncertainty_weight.shape[1]
     order_list = (
-        order * np.ones(num_elements) if isinstance(order, int) else np.array(order)
+        order * np.ones(num_elements, dtype=int)
+        if isinstance(order, int)
+        else np.array(order, dtype=int)
     )
 
     # NOTE: Is this a sensible default?
@@ -788,8 +797,7 @@ def plot_magnitude_response_nom_offnom(
     complex_response_offnom_list: np.ndarray,
     omega: np.ndarray,
 ):
-    """
-    Plot magnitude response of nominal model and set of off-nominal models.
+    """Plot magnitude response of nominal model and set of off-nominal models.
 
     Parameters
     ----------
@@ -861,8 +869,7 @@ def plot_phase_response_nom_offnom(
     complex_response_offnom_list: np.ndarray,
     omega: np.ndarray,
 ):
-    """
-    Plot phase response of nominal model and set of off-nominal models.
+    """Plot phase response of nominal model and set of off-nominal models.
 
     Parameters
     ----------
@@ -933,8 +940,7 @@ def plot_singular_value_response_nom_offnom(
     complex_response_offnom_list: np.ndarray,
     omega: np.ndarray,
 ):
-    """
-    Plot singular value response of nominal model and set of off-nominal models.
+    """Plot singular value response of nominal model and set of off-nominal models.
 
     Parameters
     ----------
@@ -997,8 +1003,7 @@ def plot_singular_value_response_uncertainty_residual(
     complex_response_residual_dict: Dict[str, np.ndarray],
     omega: np.ndarray,
 ):
-    """
-    Plot the singular value response of the uncertainty residuals for different
+    """Plot the singular value response of the uncertainty residuals for different
     unstructured uncertainty models on separate figures.
 
     Parameters
@@ -1062,10 +1067,9 @@ def plot_singular_value_response_uncertainty_residual_comparison(
     complex_response_residual_dict: Dict[str, np.ndarray],
     omega: np.ndarray,
 ):
-    """
-    Plot the maximum singular value response of the uncertainty residuals for different
-    unstructured uncertainty models on the same figure for comparision of the various
-    models.
+    """Plot the maximum singular value response of the uncertainty residuals for
+    different unstructured uncertainty models on the same figure for comparision of the
+    various uncertainty models.
 
     Parameters
     ----------
@@ -1123,8 +1127,7 @@ def plot_magnitude_response_uncertainty_weight(
     weight_left: Optional[control.StateSpace] = None,
     weight_right: Optional[control.StateSpace] = None,
 ):
-    """
-    Plot the diagonal elements of the optimal left and right uncertainty weight
+    """Plot the diagonal elements of the optimal left and right uncertainty weight
     frequency responses. Optionally, the fitted overbounding left and right uncertainty
     weights can also be displayed.
 
@@ -1188,7 +1191,6 @@ def plot_magnitude_response_uncertainty_weight(
         magnitude_response_fit_weight_left = np.array(
             response_fit_weight_left.magnitude
         )
-        print(magnitude_response_fit_weight_left.shape)
         for idx_left in range(num_left):
             ax[idx_left, 0].semilogx(
                 omega,
