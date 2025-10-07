@@ -25,18 +25,18 @@ from . import utilities
 
 
 def compute_uncertainty_residual_response(
-    frequency_response_nom: control.FrequencyResponseData,
-    frequency_response_offnom_list: control.FrequencyResponseList,
+    complex_response_nom: np.ndarray,
+    complex_response_offnom_list: np.ndarray,
     uncertainty_model: Union[str, List[str], Set[str]],
     tol_residual_existence: float = 1e-12,
-) -> Dict[str, control.FrequencyResponseList]:
+) -> Dict[str, np.ndarray]:
     """Compute the residual response of unstructured uncertainty models.
 
     Parameters
     ----------
-    frequency_response_nom : control.FrequencyResponseData
+    complex_response_nom : np.ndarray
         Frequency response of the nominal system.
-    frequency_response_offnom_list : control.FrequencyResponseList
+    complex_response_offnom_list : np.ndarray
         Frequency response of the off-nominal system.
     uncertainty_model : Union[str, List[str], Set[str]]
         Uncertainty model identifiers to compute the residual response.
@@ -77,8 +77,8 @@ def compute_uncertainty_residual_response(
     # Additive uncertainty residual response
     if "A" in uncertainty_model:
         frequency_response_residual_list = _compute_uncertainty_residual_response(
-            frequency_response_nom,
-            frequency_response_offnom_list,
+            complex_response_nom,
+            complex_response_offnom_list,
             _compute_uncertainty_residual_additive_freq,
             tol_residual_existence,
         )
@@ -87,8 +87,8 @@ def compute_uncertainty_residual_response(
     # Multiplicative input uncertainty residual response
     if "I" in uncertainty_model:
         frequency_response_residual_list = _compute_uncertainty_residual_response(
-            frequency_response_nom,
-            frequency_response_offnom_list,
+            complex_response_nom,
+            complex_response_offnom_list,
             _compute_uncertainty_residual_multiplicative_input_freq,
             tol_residual_existence,
         )
@@ -97,8 +97,8 @@ def compute_uncertainty_residual_response(
     # Multiplicative output uncertainty residual response
     if "O" in uncertainty_model:
         frequency_response_residual_list = _compute_uncertainty_residual_response(
-            frequency_response_nom,
-            frequency_response_offnom_list,
+            complex_response_nom,
+            complex_response_offnom_list,
             _compute_uncertainty_residual_multiplicative_output_freq,
             tol_residual_existence,
         )
@@ -107,8 +107,8 @@ def compute_uncertainty_residual_response(
     # Inverse additive uncertainty residual response
     if "iA" in uncertainty_model:
         frequency_response_residual_list = _compute_uncertainty_residual_response(
-            frequency_response_nom,
-            frequency_response_offnom_list,
+            complex_response_nom,
+            complex_response_offnom_list,
             _compute_uncertainty_residual_inverse_additive_freq,
             tol_residual_existence,
         )
@@ -117,8 +117,8 @@ def compute_uncertainty_residual_response(
     # Inverse multiplicative input uncertainty residual response
     if "iI" in uncertainty_model:
         frequency_response_residual_list = _compute_uncertainty_residual_response(
-            frequency_response_nom,
-            frequency_response_offnom_list,
+            complex_response_nom,
+            complex_response_offnom_list,
             _compute_uncertainty_residual_inverse_multiplicative_input_freq,
             tol_residual_existence,
         )
@@ -127,8 +127,8 @@ def compute_uncertainty_residual_response(
     # Inverse multiplicative output uncertainty residual response
     if "iO" in uncertainty_model:
         frequency_response_residual_list = _compute_uncertainty_residual_response(
-            frequency_response_nom,
-            frequency_response_offnom_list,
+            complex_response_nom,
+            complex_response_offnom_list,
             _compute_uncertainty_residual_inverse_multiplicative_output_freq,
             tol_residual_existence,
         )
@@ -138,18 +138,18 @@ def compute_uncertainty_residual_response(
 
 
 def _compute_uncertainty_residual_response(
-    frequency_response_nom: control.FrequencyResponseData,
-    frequency_response_offnom_list: control.FrequencyResponseList,
+    complex_response_nom: np.ndarray,
+    complex_response_offnom_list: np.ndarray,
     compute_uncertainty_residual_freq: Callable,
     tol_residual_existence: float,
-) -> control.FrequencyResponseList:
+) -> np.ndarray:
     """Compute the uncertainty residual response for a given uncertainty model.
 
     Parameters
     ----------
-    frequency_response_nom : control.FrequencyResponseData
+    complex_response_nom : np.ndarray
         Frequency response of the nominal system.
-    frequency_response_offnom_list : control.FrequencyResponseList
+    complex_response_offnom_list : np.ndarray
         Frequency response of the off-nominal system.
     compute_uncertainty_residual_freq : Callable,
         Uncertainty residual computation function at a given frequency.
@@ -161,30 +161,29 @@ def _compute_uncertainty_residual_response(
     control.FrequencyResponseList
         Uncertainty residual response of the given uncertainty model.
     """
-    frequency = frequency_response_nom.frequency
-    frequency_response_residual_list = control.FrequencyResponseList()
-    for frequency_response_offnom in frequency_response_offnom_list:
+
+    # Frequency response parameters
+    num_offnom = complex_response_offnom_list.shape[0]
+    num_frequency = complex_response_offnom_list.shape[1]
+
+    complex_response_residual_list = []
+    for idx_offnom in range(num_offnom):
         complex_response_residual = []
-        complex_response_nom = frequency_response_nom.complex
-        complex_response_offnom = frequency_response_offnom.complex
-        for idx_freq in range(frequency.size):
-            complex_response_nom_freq = complex_response_nom[:, :, idx_freq]
-            complex_response_offnom_freq = complex_response_offnom[:, :, idx_freq]
+        complex_response_offnom = complex_response_offnom_list[idx_offnom, :, :, :]
+        for idx_freq in range(num_frequency):
+            complex_response_nom_freq = complex_response_nom[idx_freq, :, :]
+            complex_response_offnom_freq = complex_response_offnom[idx_freq, :, :]
             complex_response_residual_freq = compute_uncertainty_residual_freq(
                 complex_response_nom_freq,
                 complex_response_offnom_freq,
                 tol_residual_existence,
             )
             complex_response_residual.append(complex_response_residual_freq)
-        complex_response_residual = np.array(
-            complex_response_residual, dtype=complex
-        ).transpose(1, 2, 0)
-        frequency_response_residual = control.FrequencyResponseData(
-            complex_response_residual, frequency
-        )
-        frequency_response_residual_list.append(frequency_response_residual)
+        complex_response_residual = np.array(complex_response_residual, dtype=complex)
+        complex_response_residual_list.append(complex_response_residual)
+    complex_response_residual_list = np.array(complex_response_residual_list)
 
-    return frequency_response_residual_list
+    return complex_response_residual_list
 
 
 def _compute_uncertainty_residual_additive_freq(
@@ -531,15 +530,15 @@ def _compute_uncertainty_residual_inverse_multiplicative_output_freq(
 # response of the weight. However given that the weights are always diagonal, I'm not
 # sure if it would be better to return a 1D array of just the diagonal elements.
 def compute_optimal_uncertainty_weight_response(
-    frequency_response_residual_list: control.FrequencyResponseList,
+    complex_response_residual_list: np.ndarray,
     weight_left_structure: str,
     weight_right_structure: str,
-) -> Tuple[control.FrequencyResponseData, control.FrequencyResponseData]:
+) -> Tuple[np.ndarray, np.ndarray]:
     """Compute the optimal uncertainty weight frequency response.
 
     Parameters
     ----------
-    frequency_response_residual_list : control.FrequencyResponseList
+    complex_response_residual_list : np.ndarray
         Frequency response of the residuals for which to compute the optimal uncertainty
         weights.
     weight_left_structure : str
@@ -555,44 +554,26 @@ def compute_optimal_uncertainty_weight_response(
         Frequency response of the diagonal elements of the left and right uncertainty
         weights.
     """
-    # Frequency grid
-    frequency = frequency_response_residual_list[0].frequency
 
-    # Parse residual response data
-    complex_response_residual_list = []
-    for residual_response in frequency_response_residual_list:
-        complex_response_residual = residual_response.complex
-        complex_response_residual_list.append(complex_response_residual)
-    complex_response_residual_array = np.array(complex_response_residual_list)
+    # Frequency response parameters
+    num_frequency = complex_response_residual_list.shape[1]
 
     # Compute optimal uncertainty weights
-    complex_response_weight_left_list = []
-    complex_response_weight_right_list = []
-    for idx_freq in range(frequency.size):
-        complex_residual_freq = complex_response_residual_array[:, :, :, idx_freq]
+    complex_response_weight_left = []
+    complex_response_weight_right = []
+    for idx_freq in range(num_frequency):
+        complex_residual_freq = complex_response_residual_list[:, idx_freq, :, :]
         weight_left_freq, weight_right_freq = _compute_optimal_weight_freq(
             complex_residual_freq, weight_left_structure, weight_right_structure
         )
-        complex_response_weight_left_list.append(weight_left_freq)
-        complex_response_weight_right_list.append(weight_right_freq)
+        complex_response_weight_left.append(weight_left_freq)
+        complex_response_weight_right.append(weight_right_freq)
 
-    # Generate left uncertainty weight frequency response
-    complex_response_weight_left_array = np.array(
-        complex_response_weight_left_list
-    ).transpose(1, 2, 0)
-    frequency_response_weight_left = control.FrequencyResponseData(
-        complex_response_weight_left_array, frequency
-    )
+    # Generate uncertainty weight complex frequency reponses
+    complex_response_weight_left = np.array(complex_response_weight_left)
+    complex_response_weight_right = np.array(complex_response_weight_right)
 
-    # Generate right uncertainty weight frequency response
-    complex_response_weight_right_array = np.array(
-        complex_response_weight_right_list
-    ).transpose(1, 2, 0)
-    frequency_response_weight_right = control.FrequencyResponseData(
-        complex_response_weight_right_array, frequency
-    )
-
-    return frequency_response_weight_left, frequency_response_weight_right
+    return complex_response_weight_left, complex_response_weight_right
 
 
 def _compute_optimal_weight_freq(
@@ -604,7 +585,7 @@ def _compute_optimal_weight_freq(
 
     Parameters
     ----------
-    complex_residual_offnom_set_freq : control.FrequencyResponseList
+    complex_residual_offnom_set_freq : np.ndarray
         Frequency response matrix of the off-nominal models at a given frequency.
     weight_left_structure : str
         Structure of the left uncertainty weight. Valid structures include: "diagonal",
@@ -708,7 +689,8 @@ def _compute_optimal_weight_freq(
 # is a 1D array for the diagonal elements of the uncertainty weight response, which
 # uses a 2D array for its description.
 def fit_overbounding_uncertainty_weight(
-    response_uncertainty_weight: control.FrequencyResponseData,
+    complex_response_uncertainty_weight: np.ndarray,
+    omega: np.ndarray,
     order: Union[int, List[int], np.ndarray],
     weight: Optional[np.ndarray] = None,
     linear_solver_param: Dict[str, Any] = {},
@@ -722,7 +704,7 @@ def fit_overbounding_uncertainty_weight(
 
     Parameters
     ----------
-    response_uncertainty_weight : control.FrequencyResponseData
+    complex_response_uncertainty_weight : np.ndarray
         Uncertainty weight frequency response used for the overbounding fit.
     order : Union[int, List[int], np.ndarray]
         Order of the LTI system fit. If `order` is an `int`, the order will be
@@ -755,8 +737,7 @@ def fit_overbounding_uncertainty_weight(
     """
 
     # Parse arguments
-    num_elements = response_uncertainty_weight.ninputs
-    omega = response_uncertainty_weight.frequency
+    num_elements = complex_response_uncertainty_weight.shape[1]
     order_list = (
         order * np.ones(num_elements) if isinstance(order, int) else np.array(order)
     )
@@ -766,24 +747,25 @@ def fit_overbounding_uncertainty_weight(
         # Take the default frequency-dependent weight as the normalized magnitude the
         # uncertainty weight magnitude in order to place greater importance on tightly
         # overbounding at the largest uncertainties
-        weight = np.diagonal(response_uncertainty_weight.magnitude, axis1=0, axis2=1)
+        weight = np.diagonal(
+            np.abs(complex_response_uncertainty_weight), axis1=1, axis2=2
+        )
         weight = weight / np.max(weight, axis=0)
-        weight = weight.transpose(1, 0)
 
     uncertainty_weight_list = []
     for idx_element in range(num_elements):
         # Extract the parameters relevant to each SISO uncertainty weight element
-        magnitude_response_weight_element = np.array(
-            response_uncertainty_weight.magnitude[idx_element, idx_element, :]
+        magnitude_response_weight_element = np.abs(
+            complex_response_uncertainty_weight[:, idx_element, idx_element]
         )
         order_element = order_list[idx_element]
-        weight_element = weight[idx_element, :]
+        weight_element = weight[:, idx_element]
 
         # Fit the uncertainty weight to each SISO element
         uncertainty_weight_element = utilities._fit_magnitude_log_chebyshev_siso(
-            omega,
-            magnitude_response_weight_element,
-            order_element,
+            omega=omega,
+            magnitude_fit=magnitude_response_weight_element,
+            order=order_element,
             magnitude_lower_bound=magnitude_response_weight_element,
             weight=weight_element,
             linear_solver_param=linear_solver_param,
@@ -802,12 +784,28 @@ def fit_overbounding_uncertainty_weight(
 # TODO: Increase customizability of plot
 # For example, include the ability for absolute or dB
 def plot_magnitude_response_nom_offnom(
-    frequency_response_nom: control.FrequencyResponseData,
-    frequency_response_offnom_list: control.FrequencyResponseList,
+    complex_response_nom: np.ndarray,
+    complex_response_offnom_list: np.ndarray,
+    omega: np.ndarray,
 ):
+    """
+    Plot magnitude response of nominal model and set of off-nominal models.
+
+    Parameters
+    ----------
+    complex_response_nom : np.ndarray
+        Frequency response matrices over a grid of frequencies of the nominal system.
+    complex_response_offnom_list : np.ndarray
+        Frequency response matrices over a grid of frequencies of the set of off-nominal
+        systems.
+    omega : np.ndarray
+        Angular frequency grid.
+    """
+
     # System paramters
-    num_inputs = frequency_response_nom.ninputs
-    num_outputs = frequency_response_nom.noutputs
+    num_offnom = complex_response_offnom_list.shape[0]
+    num_outputs = complex_response_offnom_list.shape[2]
+    num_inputs = complex_response_offnom_list.shape[3]
 
     # Initialize figure
     fig, ax = plt.subplots(
@@ -815,27 +813,25 @@ def plot_magnitude_response_nom_offnom(
     )
 
     # Off-nominal frequency response
-    for frequency_response_offnom in frequency_response_offnom_list:
-        frequency_offnom = frequency_response_offnom.frequency
-        magnitude_offnom = frequency_response_offnom.magnitude
+    for idx_offnom in range(num_offnom):
+        magnitude_offnom = np.abs(complex_response_offnom_list[idx_offnom, :, :, :])
         for idx_input in range(num_inputs):
             for idx_output in range(num_outputs):
                 ax[idx_output, idx_input].semilogx(
-                    frequency_offnom,
-                    control.mag2db(magnitude_offnom[idx_output, idx_input, :]),
+                    omega,
+                    control.mag2db(magnitude_offnom[:, idx_output, idx_input]),
                     color="tab:orange",
                     alpha=0.25,
                     label="Off-nominal",
                 )
 
     # Nominal frequency response
-    frequency_nom = frequency_response_nom.frequency
-    magnitude_nom = frequency_response_nom.magnitude
+    magnitude_nom = np.abs(complex_response_nom)
     for idx_input in range(num_inputs):
         for idx_output in range(num_outputs):
             ax[idx_output, idx_input].semilogx(
-                frequency_nom,
-                control.mag2db(magnitude_nom[idx_output, idx_input, :]),
+                omega,
+                control.mag2db(magnitude_nom[:, idx_output, idx_input]),
                 color="tab:blue",
                 alpha=1.0,
                 label="Nominal",
@@ -861,12 +857,28 @@ def plot_magnitude_response_nom_offnom(
 # TODO: Increase customizability of plot
 # For example, include the ability for deg or rad
 def plot_phase_response_nom_offnom(
-    frequency_response_nom: control.FrequencyResponseData,
-    frequency_response_offnom_list: control.FrequencyResponseList,
+    complex_response_nom: np.ndarray,
+    complex_response_offnom_list: np.ndarray,
+    omega: np.ndarray,
 ):
+    """
+    Plot phase response of nominal model and set of off-nominal models.
+
+    Parameters
+    ----------
+    complex_response_nom : np.ndarray
+        Frequency response matrices over a grid of frequencies of the nominal system.
+    complex_response_offnom_list : np.ndarray
+        Frequency response matrices over a grid of frequencies of the set of off-nominal
+        systems.
+    omega : np.ndarray
+        Angular frequency grid.
+    """
+
     # System paramters
-    num_inputs = frequency_response_nom.ninputs
-    num_outputs = frequency_response_nom.noutputs
+    num_offnom = complex_response_offnom_list.shape[0]
+    num_outputs = complex_response_offnom_list.shape[2]
+    num_inputs = complex_response_offnom_list.shape[3]
 
     # Initialize figure
     fig, ax = plt.subplots(
@@ -874,27 +886,25 @@ def plot_phase_response_nom_offnom(
     )
 
     # Off-nominal frequency response
-    for frequency_response_offnom in frequency_response_offnom_list:
-        frequency_offnom = frequency_response_offnom.frequency
-        phase_offnom = frequency_response_offnom.phase
+    for idx_offnom in range(num_offnom):
+        phase_offnom = np.angle(complex_response_offnom_list[idx_offnom, :, :, :])
         for idx_input in range(num_inputs):
             for idx_output in range(num_outputs):
                 ax[idx_output, idx_input].semilogx(
-                    frequency_offnom,
-                    180 / np.pi * phase_offnom[idx_output, idx_input, :],
+                    omega,
+                    180 / np.pi * phase_offnom[:, idx_output, idx_input],
                     color="tab:orange",
                     alpha=0.25,
                     label="Off-nominal",
                 )
 
     # Nominal frequency response
-    frequency_nom = frequency_response_nom.frequency
-    phase_nom = frequency_response_nom.phase
+    phase_nom = np.angle(complex_response_nom)
     for idx_input in range(num_inputs):
         for idx_output in range(num_outputs):
             ax[idx_output, idx_input].semilogx(
-                frequency_nom,
-                180 / np.pi * phase_nom[idx_output, idx_input, :],
+                omega,
+                180 / np.pi * phase_nom[:, idx_output, idx_input],
                 color="tab:blue",
                 alpha=1.0,
                 label="Nominal",
@@ -919,21 +929,38 @@ def plot_phase_response_nom_offnom(
 
 # TODO: Increase customizability of plot
 def plot_singular_value_response_nom_offnom(
-    frequency_response_nom: control.FrequencyResponseData,
-    frequency_response_offnom_list: control.FrequencyResponseList,
+    complex_response_nom: np.ndarray,
+    complex_response_offnom_list: np.ndarray,
+    omega: np.ndarray,
 ):
+    """
+    Plot singular value response of nominal model and set of off-nominal models.
+
+    Parameters
+    ----------
+    complex_response_nom : np.ndarray
+        Frequency response matrices over a grid of frequencies of the nominal system.
+    complex_response_offnom_list : np.ndarray
+        Frequency response matrices over a grid of frequencies of the set of off-nominal
+        systems.
+    omega : np.ndarray
+        Angular frequency grid.
+    """
+
+    # System paramters
+    num_offnom = complex_response_offnom_list.shape[0]
+
     # Initialize figure
     fig, ax = plt.subplots(layout="constrained")
 
     # Off-nominal frequency response
-    for frequency_response_offnom in frequency_response_offnom_list:
-        frequency_offnom = frequency_response_offnom.frequency
+    for idx_offnom in range(num_offnom):
         sval_offnom = np.linalg.svdvals(
-            frequency_response_offnom.complex.transpose(2, 0, 1)
+            complex_response_offnom_list[idx_offnom, :, :, :]
         )
         for idx_sval in range(sval_offnom.shape[1]):
             ax.semilogx(
-                frequency_offnom,
+                omega,
                 control.mag2db(sval_offnom[:, idx_sval]),
                 color="tab:orange",
                 alpha=0.5,
@@ -941,11 +968,10 @@ def plot_singular_value_response_nom_offnom(
             )
 
     # Nominal frequency response
-    frequency_offnom = frequency_response_nom.frequency
-    sval_nom = np.linalg.svdvals(frequency_response_nom.complex.transpose(2, 0, 1))
-    for idx_sval in range(sval_offnom.shape[1]):
+    sval_nom = np.linalg.svdvals(complex_response_nom)
+    for idx_sval in range(sval_nom.shape[1]):
         ax.semilogx(
-            frequency_offnom,
+            omega,
             control.mag2db(sval_nom[:, idx_sval]),
             color="tab:blue",
             alpha=1.0,
@@ -968,34 +994,50 @@ def plot_singular_value_response_nom_offnom(
 
 # TODO: Increase customizability of plot
 def plot_singular_value_response_uncertainty_residual(
-    uncertainty_residual_response_dict: Dict[str, control.FrequencyResponseList],
+    complex_response_residual_dict: Dict[str, np.ndarray],
+    omega: np.ndarray,
 ):
+    """
+    Plot the singular value response of the uncertainty residuals for different
+    unstructured uncertainty models on separate figures.
+
+    Parameters
+    ----------
+    complex_response_residual_dict : Dict[str, np.ndarray]
+        Dictionary of the uncertainty residual frequency response matrices over a grid
+        of frequencies for different uncertainty models.
+    omega : np.narray
+        Angular frequency grid.
+    """
+
+    # Iterate over each uncertainty model
     for (
         uncertainty_model_id,
-        uncertainty_residual_response_list,
-    ) in uncertainty_residual_response_dict.items():
-        frequency = uncertainty_residual_response_list[0].frequency
+        complex_response_residual,
+    ) in complex_response_residual_dict.items():
+        # Off-nominal frequency response parameters
+        num_offnom = complex_response_residual.shape[0]
+
+        # Compute the singular value and maximum singlar value response of the residuals
+        sval_response_residual = np.linalg.svdvals(complex_response_residual)
+        sval_max_response_residual = np.max(sval_response_residual, axis=(0, 2))
+
+        # Intialize the plot
         fig, ax = plt.subplots()
-        sval_response_residual_list = []
-        for uncertainty_residual_response in uncertainty_residual_response_list:
-            residual_response_matrix = uncertainty_residual_response.complex
-            residual_response_sval = np.linalg.svdvals(
-                residual_response_matrix.transpose(2, 0, 1)
-            )
-            sval_response_residual_list.append(residual_response_sval)
-            for idx_sval in range(residual_response_sval.shape[1]):
+
+        # Singular value response of the residuals
+        for idx_offnom in range(num_offnom):
+            for idx_sval in range(sval_response_residual.shape[2]):
                 ax.semilogx(
-                    frequency,
-                    control.mag2db(residual_response_sval[:, idx_sval]),
+                    omega,
+                    control.mag2db(sval_response_residual[idx_offnom, :, idx_sval]),
                     color="grey",
                     alpha=0.5,
                     label=f"$\\sigma(E_{{{uncertainty_model_id}}})$",
                 )
-        sval_max_response_residual = np.max(
-            np.array(sval_response_residual_list), axis=(0, 2)
-        )
+        # Maximum singular value response of the residuals
         ax.semilogx(
-            frequency,
+            omega,
             control.mag2db(sval_max_response_residual),
             color="black",
             label=f"$\\max \\; \\sigma(E_{{{uncertainty_model_id}}})$",
@@ -1017,27 +1059,33 @@ def plot_singular_value_response_uncertainty_residual(
 
 # TODO: Increase customizability of plot
 def plot_singular_value_response_uncertainty_residual_comparison(
-    uncertainty_residual_response_dict: Dict[str, control.FrequencyResponseList],
+    complex_response_residual_dict: Dict[str, np.ndarray],
+    omega: np.ndarray,
 ):
+    """
+    Plot the maximum singular value response of the uncertainty residuals for different
+    unstructured uncertainty models on the same figure for comparision of the various
+    models.
+
+    Parameters
+    ----------
+    complex_response_residual_dict : Dict[str, np.ndarray]
+        Dictionary of the uncertainty residual frequency response matrices over a grid
+        of frequencies for different uncertainty models.
+    omega : np.narray
+        Angular frequency grid.
+    """
+
     # Maximum singular value response of uncertainty residuals
     sval_max_response_residual_dict = {}
     for (
         uncertainty_model_id,
-        uncertainty_residual_response_list,
-    ) in uncertainty_residual_response_dict.items():
-        frequency = uncertainty_residual_response_list[0].frequency
-        sval_response_residual_list = []
-        for uncertainty_residual_response in uncertainty_residual_response_list:
-            residual_response_matrix = uncertainty_residual_response.complex
-            residual_response_sval = np.linalg.svdvals(
-                residual_response_matrix.transpose(2, 0, 1)
-            )
-            sval_response_residual_list.append(residual_response_sval)
-        sval_max_response_residual = np.max(
-            np.array(sval_response_residual_list), axis=(0, 2)
-        )
+        complex_response_residual_list,
+    ) in complex_response_residual_dict.items():
+        sval_response_residual_list = np.linalg.svdvals(complex_response_residual_list)
+        sval_max_response_residual = np.max(sval_response_residual_list, axis=(0, 2))
         sval_max_response_residual_dict[uncertainty_model_id] = (
-            control.FrequencyResponseData(sval_max_response_residual, frequency)
+            sval_max_response_residual
         )
 
     # Initialize figure
@@ -1048,11 +1096,9 @@ def plot_singular_value_response_uncertainty_residual_comparison(
         uncertainty_model_id,
         sval_max_response_residual,
     ) in sval_max_response_residual_dict.items():
-        frequency = sval_max_response_residual.frequency
-        sval_max_response = sval_max_response_residual.magnitude
         ax.semilogx(
-            frequency,
-            control.mag2db(sval_max_response),
+            omega,
+            control.mag2db(sval_max_response_residual),
             label=f"$\\max \\; {{\\sigma}}(E_{{{uncertainty_model_id}}})$",
         )
 
@@ -1071,21 +1117,40 @@ def plot_singular_value_response_uncertainty_residual_comparison(
 
 
 def plot_magnitude_response_uncertainty_weight(
-    response_weight_left: control.FrequencyResponseData,
-    response_weight_right: control.FrequencyResponseData,
+    complex_response_weight_left: np.ndarray,
+    complex_response_weight_right: np.ndarray,
+    omega: np.ndarray,
     weight_left: Optional[control.StateSpace] = None,
     weight_right: Optional[control.StateSpace] = None,
 ):
+    """
+    Plot the diagonal elements of the optimal left and right uncertainty weight
+    frequency responses. Optionally, the fitted overbounding left and right uncertainty
+    weights can also be displayed.
+
+    Parameters
+    ----------
+    complex_response_weight_left : np.ndarray,
+        Frequency response matrices of the left uncertainty weight over a grid of
+        frequencies.
+    complex_response_weight_right : np.ndarray,
+        Frequency response matrices of the right uncertainty weight over a grid of
+        frequencies.
+    omega : np.ndarray
+        Angular frequency grid.
+    weight_left: Optional[control.StateSpace] = None,
+        State-space model if the fitted overbounding left uncertainty weight.
+    weight_right: Optional[control.StateSpace] = None,
+        State-space model if the fitted overbounding right uncertainty weight.
+    """
+
     # Uncertainty weight parameters
-    num_left = response_weight_left.ninputs
-    num_right = response_weight_right.ninputs
+    num_left = complex_response_weight_left.shape[1]
+    num_right = complex_response_weight_right.shape[1]
 
     # Magnitude response of the uncertainty weights
-    magnitude_response_weight_left = response_weight_left.magnitude
-    magnitude_response_weight_right = response_weight_right.magnitude
-
-    # Frequency grid
-    frequency = response_weight_left.frequency
+    magnitude_response_weight_left = np.abs(complex_response_weight_left)
+    magnitude_response_weight_right = np.abs(complex_response_weight_right)
 
     # Initialize figure
     fig, ax = plt.subplots(
@@ -1095,8 +1160,8 @@ def plot_magnitude_response_uncertainty_weight(
     # Plot left uncertainty weight frequency response
     for idx_left in range(num_left):
         ax[idx_left, 0].semilogx(
-            frequency,
-            control.mag2db(magnitude_response_weight_left[idx_left, idx_left, :]),
+            omega,
+            control.mag2db(magnitude_response_weight_left[:, idx_left, idx_left]),
             linestyle="",
             marker="*",
             color="tab:blue",
@@ -1107,8 +1172,8 @@ def plot_magnitude_response_uncertainty_weight(
     # Plot right uncertainty weight frequency response
     for idx_right in range(num_left):
         ax[idx_right, 1].semilogx(
-            frequency,
-            control.mag2db(magnitude_response_weight_right[idx_right, idx_right, :]),
+            omega,
+            control.mag2db(magnitude_response_weight_right[:, idx_right, idx_right]),
             linestyle="",
             marker="*",
             color="tab:blue",
@@ -1119,11 +1184,14 @@ def plot_magnitude_response_uncertainty_weight(
 
     # Plot left uncertainty weight fit frequency response
     if weight_left is not None:
-        response_fit_weight_left = control.frequency_response(weight_left, frequency)
-        magnitude_response_fit_weight_left = response_fit_weight_left.magnitude
+        response_fit_weight_left = control.frequency_response(weight_left, omega)
+        magnitude_response_fit_weight_left = np.array(
+            response_fit_weight_left.magnitude
+        )
+        print(magnitude_response_fit_weight_left.shape)
         for idx_left in range(num_left):
             ax[idx_left, 0].semilogx(
-                frequency,
+                omega,
                 control.mag2db(
                     magnitude_response_fit_weight_left[idx_left, idx_left, :]
                 ),
@@ -1132,11 +1200,13 @@ def plot_magnitude_response_uncertainty_weight(
             )
     # Plot right uncertainty weight fit frequency response
     if weight_right is not None:
-        response_fit_weight_right = control.frequency_response(weight_right, frequency)
-        magnitude_response_fit_weight_right = response_fit_weight_right.magnitude
+        response_fit_weight_right = control.frequency_response(weight_right, omega)
+        magnitude_response_fit_weight_right = np.array(
+            response_fit_weight_right.magnitude
+        )
         for idx_right in range(num_right):
             ax[idx_right, 1].semilogx(
-                frequency,
+                omega,
                 control.mag2db(
                     magnitude_response_fit_weight_right[idx_right, idx_right, :]
                 ),

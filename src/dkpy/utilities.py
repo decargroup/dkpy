@@ -418,15 +418,24 @@ def example_multimodel_uncertainty():
     num_omega = 100
     omega = np.logspace(np.log10(omega_min), np.log10(omega_max), num_omega)
 
-    # Nominal and off-nominal frequency response
+    # Frequency response data of nominal and off-nominal systems
     frequency_response_nom = control.frequency_response(sys_nom, omega)
     frequency_response_offnom_list = control.frequency_response(sys_offnom_list, omega)
+
+    # Complex response of nominal and off-nominal systems
+    complex_response_nom = frequency_response_nom.complex.transpose(2, 0, 1)
+    complex_response_offnom_list = []
+    for frequency_response_offnom in frequency_response_offnom_list:
+        complex_response_offnom = frequency_response_offnom.complex.transpose(2, 0, 1)
+        complex_response_offnom_list.append(complex_response_offnom)
+    complex_response_offnom_list = np.array(complex_response_offnom_list)
 
     return {
         "system_nominal": sys_nom,
         "system_offnominal_list": sys_offnom_list,
-        "frequency_response_nominal": frequency_response_nom,
-        "frequency_response_offnominal_list": frequency_response_offnom_list,
+        "omega": omega,
+        "complex_response_nominal": complex_response_nom,
+        "complex_response_offnominal_list": complex_response_offnom_list,
     }
 
 
