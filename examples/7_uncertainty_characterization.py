@@ -17,19 +17,19 @@ def example_uncertainty_characterization():
 
     # Plot: Magnitude response of nominal and off-nominal systems
     dkpy.plot_magnitude_response_nom_offnom(
-        complex_response_nom, complex_response_offnom_list, omega
+        complex_response_nom, complex_response_offnom_list, omega, hz=True
     )
     plt.show()
 
     # Plot: Phase response of nominal and off-nominal systems
     dkpy.plot_phase_response_nom_offnom(
-        complex_response_nom, complex_response_offnom_list, omega
+        complex_response_nom, complex_response_offnom_list, omega, hz=True
     )
     plt.show()
 
     # Plot: Singular value response of nominal and off-nominal systems
     dkpy.plot_singular_value_response_nom_offnom(
-        complex_response_nom, complex_response_offnom_list, omega
+        complex_response_nom, complex_response_offnom_list, omega, hz=True, db=False
     )
     plt.show()
 

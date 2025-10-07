@@ -17,9 +17,12 @@ import warnings
 import control
 import numpy as np
 import cvxpy
-from matplotlib import pyplot as plt
-from typing import List, Optional, Union, Tuple, Dict, Callable, Set, Any
 import scipy
+from matplotlib import pyplot as plt
+
+from typing import List, Optional, Union, Tuple, Dict, Callable, Set, Any
+from matplotlib.figure import Figure
+from matplotlib.axes import Axes
 
 from . import utilities
 
@@ -852,13 +855,16 @@ def fit_overbounding_uncertainty_weight(
     return uncertainty_weight
 
 
-# TODO: Increase customizability of plot
-# For example, include the ability for absolute or dB
+# NOTE: Are there more options that should be provided to customize the plot?
+
+
 def plot_magnitude_response_nom_offnom(
     complex_response_nom: np.ndarray,
     complex_response_offnom_list: np.ndarray,
     omega: np.ndarray,
-):
+    db: bool = True,
+    hz: bool = False,
+) -> Tuple[Figure, Union[Axes, np.ndarray]]:
     """Plot magnitude response of nominal model and set of off-nominal models.
 
     Parameters
@@ -888,8 +894,10 @@ def plot_magnitude_response_nom_offnom(
         for idx_input in range(num_inputs):
             for idx_output in range(num_outputs):
                 ax[idx_output, idx_input].semilogx(
-                    omega,
-                    control.mag2db(magnitude_offnom[:, idx_output, idx_input]),
+                    omega / (2 * np.pi) if hz else omega,
+                    control.mag2db(magnitude_offnom[:, idx_output, idx_input])
+                    if db
+                    else magnitude_offnom[:, idx_output, idx_input],
                     color="tab:orange",
                     alpha=0.25,
                     label="Off-nominal",
@@ -900,8 +908,10 @@ def plot_magnitude_response_nom_offnom(
     for idx_input in range(num_inputs):
         for idx_output in range(num_outputs):
             ax[idx_output, idx_input].semilogx(
-                omega,
-                control.mag2db(magnitude_nom[:, idx_output, idx_input]),
+                omega / (2 * np.pi) if hz else omega,
+                control.mag2db(magnitude_nom[:, idx_output, idx_input])
+                if db
+                else magnitude_nom[:, idx_output, idx_input],
                 color="tab:blue",
                 alpha=1.0,
                 label="Nominal",
@@ -910,10 +920,10 @@ def plot_magnitude_response_nom_offnom(
     # Plot settings
     for ax_output in ax:
         for ax_output_input in ax_output:
-            ax_output_input.set_ylabel("Magnitude (dB)")
+            ax_output_input.set_ylabel("Magnitude (dB)" if db else "Magnitude (-)")
             ax_output_input.grid()
     for idx_input in range(num_inputs):
-        ax[-1, idx_input].set_xlabel("$\\omega$ (rad/s)")
+        ax[-1, idx_input].set_xlabel("$f$ (Hz)" if hz else "$\\omega$ (rad/s)")
     handles, labels = ax[0, 0].get_legend_handles_labels()
     legend_dict = dict(zip(labels, handles))
     fig.legend(
@@ -923,14 +933,16 @@ def plot_magnitude_response_nom_offnom(
         ncol=2,
     )
 
+    return fig, ax
 
-# TODO: Increase customizability of plot
-# For example, include the ability for deg or rad
+
 def plot_phase_response_nom_offnom(
     complex_response_nom: np.ndarray,
     complex_response_offnom_list: np.ndarray,
     omega: np.ndarray,
-):
+    deg: bool = True,
+    hz: bool = False,
+) -> Tuple[Figure, Union[Axes, np.ndarray]]:
     """Plot phase response of nominal model and set of off-nominal models.
 
     Parameters
@@ -960,8 +972,10 @@ def plot_phase_response_nom_offnom(
         for idx_input in range(num_inputs):
             for idx_output in range(num_outputs):
                 ax[idx_output, idx_input].semilogx(
-                    omega,
-                    180 / np.pi * phase_offnom[:, idx_output, idx_input],
+                    omega / (2 * np.pi) if hz else omega,
+                    180 / np.pi * phase_offnom[:, idx_output, idx_input]
+                    if deg
+                    else phase_offnom[:, idx_output, idx_input],
                     color="tab:orange",
                     alpha=0.25,
                     label="Off-nominal",
@@ -972,8 +986,10 @@ def plot_phase_response_nom_offnom(
     for idx_input in range(num_inputs):
         for idx_output in range(num_outputs):
             ax[idx_output, idx_input].semilogx(
-                omega,
-                180 / np.pi * phase_nom[:, idx_output, idx_input],
+                omega / (2 * np.pi) if hz else omega,
+                180 / np.pi * phase_nom[:, idx_output, idx_input]
+                if deg
+                else phase_nom[:, idx_output, idx_input],
                 color="tab:blue",
                 alpha=1.0,
                 label="Nominal",
@@ -982,10 +998,10 @@ def plot_phase_response_nom_offnom(
     # Plot settings
     for ax_output in ax:
         for ax_output_input in ax_output:
-            ax_output_input.set_ylabel("Phase (deg)")
+            ax_output_input.set_ylabel("Phase (deg)" if deg else "Phase (rad)")
             ax_output_input.grid()
     for idx_input in range(num_inputs):
-        ax[-1, idx_input].set_xlabel("$\\omega$ (rad/s)")
+        ax[-1, idx_input].set_xlabel("$f$ (Hz)" if hz else "$\\omega$ (rad/s)")
     handles, labels = ax[0, 0].get_legend_handles_labels()
     legend_dict = dict(zip(labels, handles))
     fig.legend(
@@ -995,13 +1011,16 @@ def plot_phase_response_nom_offnom(
         ncol=2,
     )
 
+    return fig, ax
 
-# TODO: Increase customizability of plot
+
 def plot_singular_value_response_nom_offnom(
     complex_response_nom: np.ndarray,
     complex_response_offnom_list: np.ndarray,
     omega: np.ndarray,
-):
+    db: bool = True,
+    hz: bool = False,
+) -> Tuple[Figure, Union[Axes, np.ndarray]]:
     """Plot singular value response of nominal model and set of off-nominal models.
 
     Parameters
@@ -1028,8 +1047,10 @@ def plot_singular_value_response_nom_offnom(
         )
         for idx_sval in range(sval_offnom.shape[1]):
             ax.semilogx(
-                omega,
-                control.mag2db(sval_offnom[:, idx_sval]),
+                omega / (2 * np.pi) if hz else omega,
+                control.mag2db(sval_offnom[:, idx_sval])
+                if db
+                else sval_offnom[:, idx_sval],
                 color="tab:orange",
                 alpha=0.5,
                 label="Off-nominal",
@@ -1039,17 +1060,17 @@ def plot_singular_value_response_nom_offnom(
     sval_nom = np.linalg.svdvals(complex_response_nom)
     for idx_sval in range(sval_nom.shape[1]):
         ax.semilogx(
-            omega,
-            control.mag2db(sval_nom[:, idx_sval]),
+            omega / (2 * np.pi) if hz else omega,
+            control.mag2db(sval_nom[:, idx_sval]) if db else sval_nom[:, idx_sval],
             color="tab:blue",
             alpha=1.0,
             label="Nominal",
         )
 
     # Plot settings
-    ax.set_ylabel("Magnitude (dB)")
+    ax.set_ylabel("Magnitude (dB)" if db else "Magnitude (-)")
     ax.grid()
-    ax.set_xlabel("$\\omega$ (rad/s)")
+    ax.set_xlabel("$f$ (Hz)" if hz else "$\\omega$ (rad/s)")
     handles, labels = ax.get_legend_handles_labels()
     legend_dict = dict(zip(labels, handles))
     fig.legend(
@@ -1059,12 +1080,15 @@ def plot_singular_value_response_nom_offnom(
         ncol=2,
     )
 
+    return fig, ax
 
-# TODO: Increase customizability of plot
+
 def plot_singular_value_response_uncertainty_residual(
     complex_response_residual_dict: Dict[str, np.ndarray],
     omega: np.ndarray,
-):
+    db: bool = True,
+    hz: bool = False,
+) -> Dict[str, Tuple[Figure, Union[Axes, np.ndarray]]]:
     """Plot the singular value response of the uncertainty residuals for different
     unstructured uncertainty models on separate figures.
 
@@ -1076,6 +1100,8 @@ def plot_singular_value_response_uncertainty_residual(
     omega : np.narray
         Angular frequency grid.
     """
+
+    figure_dict = {}
 
     # Iterate over each uncertainty model
     for (
@@ -1090,30 +1116,34 @@ def plot_singular_value_response_uncertainty_residual(
         sval_max_response_residual = np.max(sval_response_residual, axis=(0, 2))
 
         # Intialize the plot
-        fig, ax = plt.subplots()
+        fig, ax = plt.subplots(layout="constrained")
 
         # Singular value response of the residuals
         for idx_offnom in range(num_offnom):
             for idx_sval in range(sval_response_residual.shape[2]):
                 ax.semilogx(
-                    omega,
-                    control.mag2db(sval_response_residual[idx_offnom, :, idx_sval]),
+                    omega / (2 * np.pi) if hz else omega,
+                    control.mag2db(sval_response_residual[idx_offnom, :, idx_sval])
+                    if db
+                    else sval_response_residual[idx_offnom, :, idx_sval],
                     color="grey",
                     alpha=0.5,
                     label=f"$\\sigma(E_{{{uncertainty_model_id}}})$",
                 )
         # Maximum singular value response of the residuals
         ax.semilogx(
-            omega,
-            control.mag2db(sval_max_response_residual),
+            omega / (2 * np.pi) if hz else omega,
+            control.mag2db(sval_max_response_residual)
+            if db
+            else sval_max_response_residual,
             color="black",
             label=f"$\\max \\; \\sigma(E_{{{uncertainty_model_id}}})$",
         )
 
         # Plot settings
-        ax.set_ylabel("Magnitude (dB)")
+        ax.set_ylabel("Magnitude (dB)" if db else "Magnitude (-)")
         ax.grid()
-        ax.set_xlabel("$\\omega$ (rad/s)")
+        ax.set_xlabel("$f$ (Hz)" if hz else "$\\omega$ (rad/s)")
         handles, labels = ax.get_legend_handles_labels()
         legend_dict = dict(zip(labels, handles))
         fig.legend(
@@ -1123,12 +1153,17 @@ def plot_singular_value_response_uncertainty_residual(
             ncol=2,
         )
 
+        figure_dict[uncertainty_model_id] = (fig, ax)
 
-# TODO: Increase customizability of plot
+    return figure_dict
+
+
 def plot_singular_value_response_uncertainty_residual_comparison(
     complex_response_residual_dict: Dict[str, np.ndarray],
     omega: np.ndarray,
-):
+    db: bool = True,
+    hz: bool = False,
+) -> Tuple[Figure, Union[Axes, np.ndarray]]:
     """Plot the maximum singular value response of the uncertainty residuals for
     different unstructured uncertainty models on the same figure for comparision of the
     various uncertainty models.
@@ -1155,7 +1190,7 @@ def plot_singular_value_response_uncertainty_residual_comparison(
         )
 
     # Initialize figure
-    fig, ax = plt.subplots()
+    fig, ax = plt.subplots(layout="constrained")
 
     # Maximum singular value reponse of uncertainty residuals
     for (
@@ -1163,15 +1198,17 @@ def plot_singular_value_response_uncertainty_residual_comparison(
         sval_max_response_residual,
     ) in sval_max_response_residual_dict.items():
         ax.semilogx(
-            omega,
-            control.mag2db(sval_max_response_residual),
+            omega / (2 * np.pi) if hz else omega,
+            control.mag2db(sval_max_response_residual)
+            if db
+            else sval_max_response_residual,
             label=f"$\\max \\; {{\\sigma}}(E_{{{uncertainty_model_id}}})$",
         )
 
     # Plot settings
-    ax.set_ylabel("Magnitude (dB)")
+    ax.set_ylabel("Magnitude (dB)" if db else "Magnitude (-)")
     ax.grid()
-    ax.set_xlabel("$\\omega$ (rad/s)")
+    ax.set_xlabel("$f$ (Hz)" if hz else "$\\omega$ (rad/s)")
     handles, labels = ax.get_legend_handles_labels()
     legend_dict = dict(zip(labels, handles))
     fig.legend(
@@ -1181,6 +1218,8 @@ def plot_singular_value_response_uncertainty_residual_comparison(
         ncol=6,
     )
 
+    return fig, ax
+
 
 def plot_magnitude_response_uncertainty_weight(
     complex_response_weight_left: np.ndarray,
@@ -1188,7 +1227,9 @@ def plot_magnitude_response_uncertainty_weight(
     omega: np.ndarray,
     weight_left: Optional[control.StateSpace] = None,
     weight_right: Optional[control.StateSpace] = None,
-):
+    db: bool = True,
+    hz: bool = False,
+) -> Tuple[Figure, Union[Axes, np.ndarray]]:
     """Plot the diagonal elements of the optimal left and right uncertainty weight
     frequency responses. Optionally, the fitted overbounding left and right uncertainty
     weights can also be displayed.
@@ -1225,26 +1266,34 @@ def plot_magnitude_response_uncertainty_weight(
     # Plot left uncertainty weight frequency response
     for idx_left in range(num_left):
         ax[idx_left, 0].semilogx(
-            omega,
-            control.mag2db(magnitude_response_weight_left[:, idx_left, idx_left]),
+            omega / (2 * np.pi) if hz else omega,
+            control.mag2db(magnitude_response_weight_left[:, idx_left, idx_left])
+            if db
+            else magnitude_response_weight_left[:, idx_left, idx_left],
             linestyle="",
             marker="*",
             color="tab:blue",
             label="Response",
         )
-        ax[idx_left, 0].set_ylabel("$|W_{L, (1, 1)}|$ (dB)")
+        ax[idx_left, 0].set_ylabel(
+            "$|W_{L, (1, 1)}|$ (dB)" if db else "$|W_{L, (1, 1)}|$ (-)"
+        )
         ax[idx_left, 0].grid()
     # Plot right uncertainty weight frequency response
     for idx_right in range(num_left):
         ax[idx_right, 1].semilogx(
-            omega,
-            control.mag2db(magnitude_response_weight_right[:, idx_right, idx_right]),
+            omega / (2 * np.pi) if hz else omega,
+            control.mag2db(magnitude_response_weight_right[:, idx_right, idx_right])
+            if db
+            else magnitude_response_weight_right[:, idx_right, idx_right],
             linestyle="",
             marker="*",
             color="tab:blue",
             label="Response",
         )
-        ax[idx_right, 1].set_ylabel("$|W_{R, (1, 1)}|$ (dB)")
+        ax[idx_right, 1].set_ylabel(
+            "$|W_{R, (1, 1)}|$ (dB)" if db else "$|W_{R, (1, 1)}|$ (-)"
+        )
         ax[idx_right, 1].grid()
 
     # Plot left uncertainty weight fit frequency response
@@ -1255,10 +1304,12 @@ def plot_magnitude_response_uncertainty_weight(
         )
         for idx_left in range(num_left):
             ax[idx_left, 0].semilogx(
-                omega,
+                omega / (2 * np.pi) if hz else omega,
                 control.mag2db(
                     magnitude_response_fit_weight_left[idx_left, idx_left, :]
-                ),
+                )
+                if db
+                else magnitude_response_fit_weight_left[idx_left, idx_left, :],
                 color="tab:orange",
                 label="Fit",
             )
@@ -1270,17 +1321,19 @@ def plot_magnitude_response_uncertainty_weight(
         )
         for idx_right in range(num_right):
             ax[idx_right, 1].semilogx(
-                omega,
+                omega / (2 * np.pi) if hz else omega,
                 control.mag2db(
                     magnitude_response_fit_weight_right[idx_right, idx_right, :]
-                ),
+                )
+                if db
+                else magnitude_response_fit_weight_right[idx_right, idx_right, :],
                 color="tab:orange",
                 label="Fit",
             )
 
     # Plot settings
     for idx_col in range(2):
-        ax[-1, idx_col].set_xlabel("$\\omega$ (rad/s)")
+        ax[-1, idx_col].set_xlabel("$f$ (Hz)" if hz else "$\\omega$ (rad/s)")
     for ax_row in ax:
         for ax_row_col in ax_row:
             if not ax_row_col.has_data():
@@ -1293,3 +1346,5 @@ def plot_magnitude_response_uncertainty_weight(
         loc="outside lower center",
         ncol=2,
     )
+
+    return fig, ax
