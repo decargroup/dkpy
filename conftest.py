@@ -32,3 +32,14 @@ def add_example_skogestad2006_p325(doctest_namespace):
         eg["n_u"],
         eg["K"],
     )
+
+
+@pytest.fixture(autouse=True)
+def add_example_multimodel_uncertainty(doctest_namespace):
+    """Generate uncertain models using parameter variation."""
+    eg = dkpy.example_multimodel_uncertainty()
+    doctest_namespace["example_multimodel_uncertainty"] = (
+        eg["complex_response_nominal"],
+        eg["complex_response_offnominal_list"],
+        eg["omega"],
+    )

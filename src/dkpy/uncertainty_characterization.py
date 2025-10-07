@@ -59,6 +59,21 @@ def compute_uncertainty_residual_response(
     ------
     ValueError
         An invalid uncertainty model identifier was found in `uncertainty_model`.
+
+    Examples
+    --------
+    Compute the residuals for the six unstructured uncertainty models from the nominal
+    and off-nominal frequency responses.
+
+    >>> complex_response_nom, complex_response_offnom_list, omega = (
+    ...     example_multimodel_uncertainty
+    ... )
+    >>> uncertainty_model = {"A", "I", "O", "iA", "iI", "iO"}
+    >>> complex_response_residual_dict = compute_uncertainty_residual_response(
+    ...     complex_response_nom,
+    ...     complex_response_offnom_list,
+    ...     uncertainty_model
+    ... )
     """
 
     # Uncertainty residual response dictionary
@@ -560,6 +575,27 @@ def compute_optimal_uncertainty_weight_response(
     Tuple[control.FrequencyResponseData, control.FrequencyResponse]
         Frequency response of the diagonal elements of the left and right uncertainty
         weights.
+
+    Examples
+    --------
+    Compute the optimal left and right uncertainty weights for the multiplicative input
+    residual frequency response where the left and right uncertainty weights are assumed
+    to be diagonal.
+
+    >>> complex_response_nom, complex_response_offnom_list, omega = (
+    ...     example_multimodel_uncertainty
+    ... )
+    >>> uncertainty_model = {"A", "I", "O", "iA", "iI", "iO"}
+    >>> complex_response_residual_dict = compute_uncertainty_residual_response(
+    ...     complex_response_nom,
+    ...     complex_response_offnom_list,
+    ...     uncertainty_model
+    ... )
+    >>> complex_response_weight_left, complex_response_weight_right = (
+    ...     dkpy.compute_optimal_uncertainty_weight_response(
+    ...         complex_response_residual_dict["I"], "diagonal", "diagonal"
+    ...     )
+    ... )
     """
 
     # Frequency response parameters
@@ -737,6 +773,32 @@ def fit_overbounding_uncertainty_weight(
     -------
     control.StateSpace
         Fitted overbounding uncertainty weight state-space systems.
+
+    Examples
+    --------
+    Fit an overbounding stable and minimum phase system to the left and right
+    uncertainty weights for the multiplicative input uncertainty model.
+
+    >>> complex_response_nom, complex_response_offnom_list, omega = (
+    ...     example_multimodel_uncertainty
+    ... )
+    >>> uncertainty_model = {"A", "I", "O", "iA", "iI", "iO"}
+    >>> complex_response_residual_dict = compute_uncertainty_residual_response(
+    ...     complex_response_nom,
+    ...     complex_response_offnom_list,
+    ...     uncertainty_model
+    ... )
+    >>> complex_response_weight_left, complex_response_weight_right = (
+    ...     dkpy.compute_optimal_uncertainty_weight_response(
+    ...         complex_response_residual_dict["I"], "diagonal", "diagonal"
+    ...     )
+    ... )
+    >>> weight_left = dkpy.fit_overbounding_uncertainty_weight(
+    ...     complex_response_weight_left, omega, [4, 5]
+    ... )
+    >>> weight_right = dkpy.fit_overbounding_uncertainty_weight(
+    ...     complex_response_weight_right, omega, [3, 5]
+    ... )
 
     References
     ----------
