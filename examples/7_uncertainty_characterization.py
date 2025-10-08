@@ -1,6 +1,5 @@
 """Multi-model uncertainty characterization from frequency response data."""
 
-import numpy as np
 from matplotlib import pyplot as plt
 
 import dkpy
@@ -16,28 +15,35 @@ def example_uncertainty_characterization():
     omega = eg["omega"]
 
     # Plot: Magnitude response of nominal and off-nominal systems
-    fig, _ = dkpy.plot_magnitude_response_nom_offnom(
+    fig, _ = dkpy.plot_magnitude_response_uncertain_model_set(
         complex_response_nom,
         complex_response_offnom_list,
         omega,
     )
 
     # Plot: Phase response of nominal and off-nominal systems
-    fig, _ = dkpy.plot_phase_response_nom_offnom(
+    fig, _ = dkpy.plot_phase_response_uncertain_model_set(
         complex_response_nom,
         complex_response_offnom_list,
         omega,
     )
 
     # Plot: Singular value response of nominal and off-nominal systems
-    fig, ax = dkpy.plot_singular_value_response_nom_offnom(
+    fig, ax = dkpy.plot_singular_value_response_uncertain_model_set(
         complex_response_nom,
         complex_response_offnom_list,
         omega,
     )
 
     # Uncertainty models
-    uncertainty_models = {"A", "I", "O", "iA", "iI", "iO"}
+    uncertainty_models = {
+        "additive",
+        "multiplicative_input",
+        "multiplicative_output",
+        "inverse_additive",
+        "inverse_multiplicative_input",
+        "inverse_multiplicative_output",
+    }
     complex_response_residuals_dict = dkpy.compute_uncertainty_residual_response(
         complex_response_nom,
         complex_response_offnom_list,
@@ -45,25 +51,23 @@ def example_uncertainty_characterization():
     )
 
     # Plot: Singular value response of uncerainty residuals
-    figure_dict = dkpy.plot_singular_value_response_uncertainty_residual(
+    figure_dict = dkpy.plot_singular_value_response_residual(
         complex_response_residuals_dict, omega
     )
 
     # Plot: Comparison of singular value response of uncerainty residuals for each
     # uncertainty model
-    fig, _ = dkpy.plot_singular_value_response_uncertainty_residual_comparison(
+    fig, _ = dkpy.plot_singular_value_response_residual_comparison(
         complex_response_residuals_dict, omega
     )
-    fig.savefig("doc/_static/example_7/7_sval_max_residual.png")
 
     # Compute uncertainty weight frequency response
-    complex_response_weight_left, complex_response_weight_right = (
-        dkpy.compute_optimal_uncertainty_weight_response(
-            complex_response_residuals_dict["iA"], "diagonal", "diagonal"
-        )
+    complex_response_weight = dkpy.compute_optimal_uncertainty_weight_response(
+        complex_response_residuals_dict["inverse_additive"], "diagonal", "diagonal"
     )
+    complex_response_weight_left = complex_response_weight[0]
+    complex_response_weight_right = complex_response_weight[1]
 
-    print("fit weight")
     # Fit overbounding stable and minimum-phase uncertainty weight system
     weight_left = dkpy.fit_overbounding_uncertainty_weight(
         complex_response_weight_left, omega, [4, 5]
@@ -72,7 +76,7 @@ def example_uncertainty_characterization():
         complex_response_weight_right, omega, [3, 5]
     )
 
-    # Plot: Magnitude response of uncertainty weight and overbounding uncertainty weight
+    # Plot: Magnitude response of uncertainty weight frequency response and overbounding
     # fit
     fig, _ = dkpy.plot_magnitude_response_uncertainty_weight(
         complex_response_weight_left,

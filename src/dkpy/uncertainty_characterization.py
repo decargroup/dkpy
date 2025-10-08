@@ -4,11 +4,11 @@ __all__ = [
     "compute_uncertainty_residual_response",
     "compute_optimal_uncertainty_weight_response",
     "fit_overbounding_uncertainty_weight",
-    "plot_magnitude_response_nom_offnom",
-    "plot_phase_response_nom_offnom",
-    "plot_singular_value_response_nom_offnom",
-    "plot_singular_value_response_uncertainty_residual",
-    "plot_singular_value_response_uncertainty_residual_comparison",
+    "plot_magnitude_response_uncertain_model_set",
+    "plot_phase_response_uncertain_model_set",
+    "plot_singular_value_response_uncertain_model_set",
+    "plot_singular_value_response_residual",
+    "plot_singular_value_response_residual_comparison",
     "plot_magnitude_response_uncertainty_weight",
 ]
 
@@ -31,12 +31,12 @@ def compute_uncertainty_residual_response(
     complex_response_nom: np.ndarray,
     complex_response_offnom_list: np.ndarray,
     uncertainty_model: Union[str, List[str], Set[str]] = {
-        "A",
-        "I",
-        "O",
-        "iA",
-        "iI",
-        "iO",
+        "additive",
+        "multiplicative_input",
+        "multiplicative_output",
+        "inverse_additive",
+        "inverse_multiplicative_input",
+        "inverse_multiplicative_output",
     },
     tol_residual_existence: float = 1e-12,
 ) -> Dict[str, np.ndarray]:
@@ -71,7 +71,14 @@ def compute_uncertainty_residual_response(
     >>> complex_response_nom, complex_response_offnom_list, omega = (
     ...     example_multimodel_uncertainty
     ... )
-    >>> uncertainty_model = {"A", "I", "O", "iA", "iI", "iO"}
+    >>> uncertainty_models = {
+    ...     "additive",
+    ...     "multiplicative_input",
+    ...     "multiplicative_output",
+    ...     "inverse_additive",
+    ...     "inverse_multiplicative_input",
+    ...     "inverse_multiplicative_output",
+    ... }
     >>> complex_response_residual_dict = compute_uncertainty_residual_response(
     ...     complex_response_nom,
     ...     complex_response_offnom_list,
@@ -80,86 +87,103 @@ def compute_uncertainty_residual_response(
     """
 
     # Uncertainty residual response dictionary
-    frequency_response_residual_dict = {}
+    complex_response_residual_dict = {}
 
     # Check uncertainty model identifiers
     uncertainty_model = set(uncertainty_model)
-    valid_uncertainty_model = {"A", "I", "O", "iA", "iI", "iO"}
+    valid_uncertainty_model = {
+        "additive",
+        "multiplicative_input",
+        "multiplicative_output",
+        "inverse_additive",
+        "inverse_multiplicative_input",
+        "inverse_multiplicative_output",
+    }
     if not uncertainty_model.issubset(valid_uncertainty_model):
         raise ValueError(
             "The uncertainty model identifiers provided in `uncertainty_model` do not "
             "all correspond to valid uncertainty models. In particular, "
             f"{uncertainty_model.difference(valid_uncertainty_model)} are not valid "
-            "uncertainty model identifiers. The identifiers are:\n"
-            '\t"A": Additive uncertainty\n'
-            '\t"I": Multiplicative input uncertainty\n'
-            '\t"O": Multiplicative output uncertainty\n'
-            '\t"iA": Inverse additive uncertainty\n'
-            '\t"iI": Inverse multiplicative input uncertainty\n'
-            '\t"iO": Inverse multiplicative output uncertainty'
+            "uncertainty model identifiers. The identifiers are: "
+            '"additive": Additive uncertainty, '
+            '"multiplicative_input": Multiplicative input uncertainty, '
+            '"multiplicative_output": Multiplicative output uncertainty, '
+            '"inverse_additive": Inverse additive uncertainty, '
+            '"inverse_multiplicative_input": Inverse multiplicative input uncertainty, '
+            '"inverse_multiplicative_output": Inverse multiplicative output uncertainty.'
         )
 
     # Additive uncertainty residual response
-    if "A" in uncertainty_model:
-        frequency_response_residual_list = _compute_uncertainty_residual_response(
+    if "additive" in uncertainty_model:
+        complex_response_residual_list = _compute_uncertainty_residual_response(
             complex_response_nom,
             complex_response_offnom_list,
             _compute_uncertainty_residual_additive_freq,
             tol_residual_existence,
         )
-        frequency_response_residual_dict["A"] = frequency_response_residual_list
+        complex_response_residual_dict["additive"] = complex_response_residual_list
 
     # Multiplicative input uncertainty residual response
-    if "I" in uncertainty_model:
-        frequency_response_residual_list = _compute_uncertainty_residual_response(
+    if "multiplicative_input" in uncertainty_model:
+        complex_response_residual_list = _compute_uncertainty_residual_response(
             complex_response_nom,
             complex_response_offnom_list,
             _compute_uncertainty_residual_multiplicative_input_freq,
             tol_residual_existence,
         )
-        frequency_response_residual_dict["I"] = frequency_response_residual_list
+        complex_response_residual_dict["multiplicative_input"] = (
+            complex_response_residual_list
+        )
 
     # Multiplicative output uncertainty residual response
-    if "O" in uncertainty_model:
-        frequency_response_residual_list = _compute_uncertainty_residual_response(
+    if "multiplicative_output" in uncertainty_model:
+        complex_response_residual_list = _compute_uncertainty_residual_response(
             complex_response_nom,
             complex_response_offnom_list,
             _compute_uncertainty_residual_multiplicative_output_freq,
             tol_residual_existence,
         )
-        frequency_response_residual_dict["O"] = frequency_response_residual_list
+        complex_response_residual_dict["multiplicative_output"] = (
+            complex_response_residual_list
+        )
 
     # Inverse additive uncertainty residual response
-    if "iA" in uncertainty_model:
-        frequency_response_residual_list = _compute_uncertainty_residual_response(
+    if "inverse_additive" in uncertainty_model:
+        complex_response_residual_list = _compute_uncertainty_residual_response(
             complex_response_nom,
             complex_response_offnom_list,
             _compute_uncertainty_residual_inverse_additive_freq,
             tol_residual_existence,
         )
-        frequency_response_residual_dict["iA"] = frequency_response_residual_list
+        complex_response_residual_dict["inverse_additive"] = (
+            complex_response_residual_list
+        )
 
     # Inverse multiplicative input uncertainty residual response
-    if "iI" in uncertainty_model:
-        frequency_response_residual_list = _compute_uncertainty_residual_response(
+    if "inverse_multiplicative_input" in uncertainty_model:
+        complex_response_residual_list = _compute_uncertainty_residual_response(
             complex_response_nom,
             complex_response_offnom_list,
             _compute_uncertainty_residual_inverse_multiplicative_input_freq,
             tol_residual_existence,
         )
-        frequency_response_residual_dict["iI"] = frequency_response_residual_list
+        complex_response_residual_dict["inverse_multiplicative_input"] = (
+            complex_response_residual_list
+        )
 
     # Inverse multiplicative output uncertainty residual response
-    if "iO" in uncertainty_model:
-        frequency_response_residual_list = _compute_uncertainty_residual_response(
+    if "inverse_multiplicative_output" in uncertainty_model:
+        complex_response_residual_list = _compute_uncertainty_residual_response(
             complex_response_nom,
             complex_response_offnom_list,
             _compute_uncertainty_residual_inverse_multiplicative_output_freq,
             tol_residual_existence,
         )
-        frequency_response_residual_dict["iO"] = frequency_response_residual_list
+        complex_response_residual_dict["inverse_multiplicative_output"] = (
+            complex_response_residual_list
+        )
 
-    return frequency_response_residual_dict
+    return complex_response_residual_dict
 
 
 def _compute_uncertainty_residual_response(
@@ -551,9 +575,6 @@ def _compute_uncertainty_residual_inverse_multiplicative_output_freq(
             )
 
 
-# NOTE: At the moment, the function returns a 2D array representing the frequency
-# response of the weight. However given that the weights are always diagonal, I'm not
-# sure if it would be better to return a 1D array of just the diagonal elements.
 def compute_optimal_uncertainty_weight_response(
     complex_response_residual_list: np.ndarray,
     weight_left_structure: str,
@@ -592,7 +613,14 @@ def compute_optimal_uncertainty_weight_response(
     >>> complex_response_nom, complex_response_offnom_list, omega = (
     ...     example_multimodel_uncertainty
     ... )
-    >>> uncertainty_model = {"A", "I", "O", "iA", "iI", "iO"}
+    >>> uncertainty_models = {
+    ...     "additive",
+    ...     "multiplicative_input",
+    ...     "multiplicative_output",
+    ...     "inverse_additive",
+    ...     "inverse_multiplicative_input",
+    ...     "inverse_multiplicative_output",
+    ... }
     >>> complex_response_residual_dict = compute_uncertainty_residual_response(
     ...     complex_response_nom,
     ...     complex_response_offnom_list,
@@ -681,9 +709,6 @@ def _compute_optimal_weight_freq(
     num_right = complex_residual_offnom_set_freq.shape[2]
     num_offnom = complex_residual_offnom_set_freq.shape[0]
 
-    # HACK: Find a better way to parse the structure assumptions of the weights instead
-    # of using strings
-
     # Generate left weight variable
     if weight_left_structure == "diagonal":
         L = cvxpy.Variable((num_left, num_left), diag=True)
@@ -760,9 +785,6 @@ def _compute_optimal_weight_freq(
     return complex_response_weight_left_freq, complex_response_weight_right_freq
 
 
-# NOTE: I'm not sure if the representation of the `weight` variable is intuitive as it
-# is a 1D array for the diagonal elements of the uncertainty weight response, which
-# uses a 2D array for its description.
 def fit_overbounding_uncertainty_weight(
     complex_response_uncertainty_weight: np.ndarray,
     omega: np.ndarray,
@@ -814,7 +836,14 @@ def fit_overbounding_uncertainty_weight(
     >>> complex_response_nom, complex_response_offnom_list, omega = (
     ...     example_multimodel_uncertainty
     ... )
-    >>> uncertainty_model = {"A", "I", "O", "iA", "iI", "iO"}
+    >>> uncertainty_models = {
+    ...     "additive",
+    ...     "multiplicative_input",
+    ...     "multiplicative_output",
+    ...     "inverse_additive",
+    ...     "inverse_multiplicative_input",
+    ...     "inverse_multiplicative_output",
+    ... }
     >>> complex_response_residual_dict = compute_uncertainty_residual_response(
     ...     complex_response_nom,
     ...     complex_response_offnom_list,
@@ -859,7 +888,6 @@ def fit_overbounding_uncertainty_weight(
         else np.array(order, dtype=int)
     )
 
-    # NOTE: Is this a sensible default?
     if weight is None:
         # Take the default frequency-dependent weight as the normalized magnitude the
         # uncertainty weight magnitude in order to place greater importance on tightly
@@ -901,12 +929,13 @@ def fit_overbounding_uncertainty_weight(
 # NOTE: Are there more options that should be provided to customize the plot?
 
 
-def plot_magnitude_response_nom_offnom(
+def plot_magnitude_response_uncertain_model_set(
     complex_response_nom: np.ndarray,
     complex_response_offnom_list: np.ndarray,
     omega: np.ndarray,
     db: bool = True,
     hz: bool = False,
+    frequency_log_scale: bool = True,
 ) -> Tuple[Figure, Union[Axes, np.ndarray]]:
     """Plot magnitude response of nominal model and set of off-nominal models.
 
@@ -936,7 +965,7 @@ def plot_magnitude_response_nom_offnom(
         magnitude_offnom = np.abs(complex_response_offnom_list[idx_offnom, :, :, :])
         for idx_input in range(num_inputs):
             for idx_output in range(num_outputs):
-                ax[idx_output, idx_input].semilogx(
+                ax[idx_output, idx_input].plot(
                     omega / (2 * np.pi) if hz else omega,
                     control.mag2db(magnitude_offnom[:, idx_output, idx_input])
                     if db
@@ -950,7 +979,7 @@ def plot_magnitude_response_nom_offnom(
     magnitude_nom = np.abs(complex_response_nom)
     for idx_input in range(num_inputs):
         for idx_output in range(num_outputs):
-            ax[idx_output, idx_input].semilogx(
+            ax[idx_output, idx_input].plot(
                 omega / (2 * np.pi) if hz else omega,
                 control.mag2db(magnitude_nom[:, idx_output, idx_input])
                 if db
@@ -965,8 +994,10 @@ def plot_magnitude_response_nom_offnom(
         for ax_output_input in ax_output:
             ax_output_input.set_ylabel("Magnitude (dB)" if db else "Magnitude (-)")
             ax_output_input.grid()
+            if frequency_log_scale:
+                ax_output_input.set_xscale("log")
     for idx_input in range(num_inputs):
-        ax[-1, idx_input].set_xlabel("$f$ (Hz)" if hz else "$\\omega$ (rad/s)")
+        ax[-1, idx_input].set_xlabel("$f$ (Hz)" if hz else r"$\omega$ (rad/s)")
     handles, labels = ax[0, 0].get_legend_handles_labels()
     legend_dict = dict(zip(labels, handles))
     fig.legend(
@@ -979,7 +1010,7 @@ def plot_magnitude_response_nom_offnom(
     return fig, ax
 
 
-def plot_phase_response_nom_offnom(
+def plot_phase_response_uncertain_model_set(
     complex_response_nom: np.ndarray,
     complex_response_offnom_list: np.ndarray,
     omega: np.ndarray,
@@ -1044,7 +1075,7 @@ def plot_phase_response_nom_offnom(
             ax_output_input.set_ylabel("Phase (deg)" if deg else "Phase (rad)")
             ax_output_input.grid()
     for idx_input in range(num_inputs):
-        ax[-1, idx_input].set_xlabel("$f$ (Hz)" if hz else "$\\omega$ (rad/s)")
+        ax[-1, idx_input].set_xlabel("$f$ (Hz)" if hz else r"$\omega$ (rad/s)")
     handles, labels = ax[0, 0].get_legend_handles_labels()
     legend_dict = dict(zip(labels, handles))
     fig.legend(
@@ -1057,7 +1088,7 @@ def plot_phase_response_nom_offnom(
     return fig, ax
 
 
-def plot_singular_value_response_nom_offnom(
+def plot_singular_value_response_uncertain_model_set(
     complex_response_nom: np.ndarray,
     complex_response_offnom_list: np.ndarray,
     omega: np.ndarray,
@@ -1111,9 +1142,11 @@ def plot_singular_value_response_nom_offnom(
         )
 
     # Plot settings
-    ax.set_ylabel("Magnitude (dB)" if db else "Magnitude (-)")
+    ax.set_ylabel(
+        "Singular Value Magnitude (dB)" if db else " Singular Value Magnitude (-)"
+    )
     ax.grid()
-    ax.set_xlabel("$f$ (Hz)" if hz else "$\\omega$ (rad/s)")
+    ax.set_xlabel("$f$ (Hz)" if hz else r"$\omega$ (rad/s)")
     handles, labels = ax.get_legend_handles_labels()
     legend_dict = dict(zip(labels, handles))
     fig.legend(
@@ -1126,7 +1159,7 @@ def plot_singular_value_response_nom_offnom(
     return fig, ax
 
 
-def plot_singular_value_response_uncertainty_residual(
+def plot_singular_value_response_residual(
     complex_response_residual_dict: Dict[str, np.ndarray],
     omega: np.ndarray,
     db: bool = True,
@@ -1146,6 +1179,15 @@ def plot_singular_value_response_uncertainty_residual(
 
     figure_dict = {}
 
+    residual_suffix_dict = {
+        "additive": "A",
+        "multiplicative_input": "I",
+        "multiplicative_output": "O",
+        "inverse_additive": "iA",
+        "inverse_multiplicative_input": "iI",
+        "inverse_multiplicative_output": "iO",
+    }
+
     # Iterate over each uncertainty model
     for (
         uncertainty_model_id,
@@ -1153,6 +1195,9 @@ def plot_singular_value_response_uncertainty_residual(
     ) in complex_response_residual_dict.items():
         # Off-nominal frequency response parameters
         num_offnom = complex_response_residual.shape[0]
+
+        # Uncertainty model suffix
+        residual_suffix = residual_suffix_dict[uncertainty_model_id]
 
         # Compute the singular value and maximum singlar value response of the residuals
         sval_response_residual = np.linalg.svdvals(complex_response_residual)
@@ -1171,7 +1216,7 @@ def plot_singular_value_response_uncertainty_residual(
                     else sval_response_residual[idx_offnom, :, idx_sval],
                     color="grey",
                     alpha=0.5,
-                    label=f"$\\sigma(E_{{{uncertainty_model_id}}})$",
+                    label=rf"$\sigma(E_{{{residual_suffix}}})$",
                 )
         # Maximum singular value response of the residuals
         ax.semilogx(
@@ -1180,13 +1225,15 @@ def plot_singular_value_response_uncertainty_residual(
             if db
             else sval_max_response_residual,
             color="black",
-            label=f"$\\max \\; \\sigma(E_{{{uncertainty_model_id}}})$",
+            label=rf"$\max \; \sigma(E_{{{residual_suffix}}})$",
         )
 
         # Plot settings
-        ax.set_ylabel("Magnitude (dB)" if db else "Magnitude (-)")
+        ax.set_ylabel(
+            "Singular Value Magnitude (dB)" if db else "Singular Value Magnitude (-)"
+        )
         ax.grid()
-        ax.set_xlabel("$f$ (Hz)" if hz else "$\\omega$ (rad/s)")
+        ax.set_xlabel("$f$ (Hz)" if hz else r"$\omega$ (rad/s)")
         handles, labels = ax.get_legend_handles_labels()
         legend_dict = dict(zip(labels, handles))
         fig.legend(
@@ -1201,7 +1248,7 @@ def plot_singular_value_response_uncertainty_residual(
     return figure_dict
 
 
-def plot_singular_value_response_uncertainty_residual_comparison(
+def plot_singular_value_response_residual_comparison(
     complex_response_residual_dict: Dict[str, np.ndarray],
     omega: np.ndarray,
     db: bool = True,
@@ -1219,6 +1266,15 @@ def plot_singular_value_response_uncertainty_residual_comparison(
     omega : np.narray
         Angular frequency grid.
     """
+
+    residual_suffix_dict = {
+        "additive": "A",
+        "multiplicative_input": "I",
+        "multiplicative_output": "O",
+        "inverse_additive": "iA",
+        "inverse_multiplicative_input": "iI",
+        "inverse_multiplicative_output": "iO",
+    }
 
     # Maximum singular value response of uncertainty residuals
     sval_max_response_residual_dict = {}
@@ -1240,18 +1296,21 @@ def plot_singular_value_response_uncertainty_residual_comparison(
         uncertainty_model_id,
         sval_max_response_residual,
     ) in sval_max_response_residual_dict.items():
+        residual_suffix = residual_suffix_dict[uncertainty_model_id]
         ax.semilogx(
             omega / (2 * np.pi) if hz else omega,
             control.mag2db(sval_max_response_residual)
             if db
             else sval_max_response_residual,
-            label=f"$\\max \\; {{\\sigma}}(E_{{{uncertainty_model_id}}})$",
+            label=rf"$\max \; {{\sigma}}(E_{{{residual_suffix}}})$",
         )
 
     # Plot settings
-    ax.set_ylabel("Magnitude (dB)" if db else "Magnitude (-)")
+    ax.set_ylabel(
+        "Singular Value Magnitude (dB)" if db else "Singular Value Magnitude (-)"
+    )
     ax.grid()
-    ax.set_xlabel("$f$ (Hz)" if hz else "$\\omega$ (rad/s)")
+    ax.set_xlabel("$f$ (Hz)" if hz else r"$\omega$ (rad/s)")
     handles, labels = ax.get_legend_handles_labels()
     legend_dict = dict(zip(labels, handles))
     fig.legend(
@@ -1380,7 +1439,7 @@ def plot_magnitude_response_uncertainty_weight(
 
     # Plot settings
     for idx_col in range(2):
-        ax[-1, idx_col].set_xlabel("$f$ (Hz)" if hz else "$\\omega$ (rad/s)")
+        ax[-1, idx_col].set_xlabel("$f$ (Hz)" if hz else r"$\omega$ (rad/s)")
     for ax_row in ax:
         for ax_row_col in ax_row:
             if not ax_row_col.has_data():
