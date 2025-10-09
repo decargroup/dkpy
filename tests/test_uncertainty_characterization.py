@@ -102,7 +102,14 @@ class TestComputeUncertaintyResidualResponse:
         )
 
         # Uncertainty residual computation
-        uncertainty_model_list = ["A", "I", "O", "iA", "iI", "iO"]
+        uncertainty_model_list = [
+            "additive",
+            "multiplicative_input",
+            "multiplicative_output",
+            "inverse_additive",
+            "inverse_multiplicative_input",
+            "inverse_multiplicative_output",
+        ]
         frequency_response_residual_dict = dkpy.compute_uncertainty_residual_response(
             complex_response_nom,
             complex_response_offnom_list,
@@ -611,7 +618,7 @@ class TestComputeOptimalUncertaintyWeightResponse:
         )
 
         # Uncertainty residual computation
-        uncertainty_model_list = ["I"]
+        uncertainty_model_list = ["multiplicative_input"]
         complex_response_residual_dict = dkpy.compute_uncertainty_residual_response(
             complex_response_nom,
             complex_response_offnom_list,
@@ -621,7 +628,7 @@ class TestComputeOptimalUncertaintyWeightResponse:
         # Optimal uncertainty weight
         complex_response_weight_left, complex_response_weight_right = (
             dkpy.compute_optimal_uncertainty_weight_response(
-                complex_response_residual_dict["I"],
+                complex_response_residual_dict["multiplicative_input"],
                 weight_left_structure,
                 weight_right_structure,
             )
@@ -846,7 +853,7 @@ class TestFitOverboundingUncertaintyWeight:
         )
 
         # Uncertainty residual computation
-        uncertainty_model_list = ["I"]
+        uncertainty_model_list = ["multiplicative_input"]
         complex_response_residual_dict = dkpy.compute_uncertainty_residual_response(
             complex_response_nom,
             complex_response_offnom_list,
@@ -856,7 +863,7 @@ class TestFitOverboundingUncertaintyWeight:
         # Optimal uncertainty weight
         complex_response_weight_left, complex_response_weight_right = (
             dkpy.compute_optimal_uncertainty_weight_response(
-                complex_response_residual_dict["I"],
+                complex_response_residual_dict["multiplicative_input"],
                 weight_left_structure,
                 weight_right_structure,
             )
@@ -893,3 +900,187 @@ class TestFitOverboundingUncertaintyWeight:
             complex_response_weight_fit_dict,
             default_tolerance=dict(atol=1e-5, rtol=0),
         )
+
+
+class TestConvertFrequencyResponseDataToArray:
+    @pytest.mark.parametrize(
+        "sys, omega",
+        [
+            (
+                control.TransferFunction([1], [0.5, 1]),
+                np.logspace(-2, 2, 100),
+            ),
+            (
+                control.TransferFunction([1], [1, 2 * 0.5 * 1, 1**2]),
+                np.logspace(-1, 1, 100),
+            ),
+            (
+                control.TransferFunction(
+                    [
+                        [[1], [3]],
+                        [[2], [1]],
+                    ],
+                    [
+                        [[1, 2 * 0.5 * 1, 1**2], [0.5, 1]],
+                        [[1, 1], [1, 2 * 0.3 * 5, 5**2]],
+                    ],
+                ),
+                np.logspace(-1, 1.5, 100),
+            ),
+        ],
+    )
+    def test_convert_frequency_response_data_to_array(self, sys, omega):
+        # Desired frequency response array shape
+        complex_response_shape_true = (omega.size, sys.noutputs, sys.ninputs)
+
+        # Evaluate frequency response
+        frequency_response = control.frequency_response(sys, omega)
+
+        # Convert frequency response data
+        complex_response = (
+            dkpy.uncertainty_characterization._convert_frequency_response_data_to_array(
+                frequency_response
+            )
+        )
+
+        # Verify type
+        assert isinstance(complex_response, np.ndarray)
+        # Verify dimensions
+        assert complex_response.shape == complex_response_shape_true
+        # Verify complex datatype
+        assert np.all(np.iscomplex(complex_response))
+        # Verify that the function does not affect responses in the correct format
+        assert np.all(
+            np.isclose(
+                complex_response,
+                dkpy.uncertainty_characterization._convert_frequency_response_data_to_array(
+                    complex_response
+                ),
+            ),
+        )
+
+    @pytest.mark.parametrize(
+        "complex_response",
+        [
+            np.ones(100, dtype=complex),
+            np.ones((100, 5), dtype=complex),
+            np.ones((100, 5, 5, 5), dtype=complex),
+        ],
+    )
+    def test_convert_frequency_response_data_to_array_error(self, complex_response):
+        with pytest.raises(ValueError):
+            complex_response = dkpy.uncertainty_characterization._convert_frequency_response_data_to_array(
+                complex_response
+            )
+
+
+class TestConvertFrequencyResponseListToArray:
+    @pytest.mark.parametrize(
+        "sys_list, omega",
+        [
+            (
+                [
+                    control.TransferFunction([1], [0.3, 1]),
+                    control.TransferFunction([1], [0.4, 1]),
+                    control.TransferFunction([1], [0.6, 1]),
+                    control.TransferFunction([1], [0.7, 1]),
+                ],
+                np.logspace(-2, 2, 100),
+            ),
+            (
+                [
+                    control.TransferFunction([1], [1, 2 * 0.3 * 1.5, 1.5**2]),
+                    control.TransferFunction([1], [1, 2 * 0.7 * 1.3, 1.3**2]),
+                    control.TransferFunction([1], [1, 2 * 0.2 * 0.9, 0.9**2]),
+                    control.TransferFunction([1], [1, 2 * 0.9 * 0.7, 0.7**2]),
+                ],
+                np.logspace(-1, 1, 100),
+            ),
+            (
+                [
+                    control.TransferFunction(
+                        [
+                            [[1], [3.25]],
+                            [[1.9], [1]],
+                        ],
+                        [
+                            [[1, 2 * 0.4 * 1.1, 1.1**2], [0.6, 1]],
+                            [[0.8, 1], [1, 2 * 0.4 * 4.2, 4.2**2]],
+                        ],
+                    ),
+                    control.TransferFunction(
+                        [
+                            [[1.1], [2.85]],
+                            [[1.7], [0.9]],
+                        ],
+                        [
+                            [[1, 2 * 0.45 * 0.9, 0.9**2], [0.55, 1]],
+                            [[0.95, 1], [1, 2 * 0.8 * 5.5, 5.5**2]],
+                        ],
+                    ),
+                    control.TransferFunction(
+                        [
+                            [[1], [3.05]],
+                            [[1.7], [1.0]],
+                        ],
+                        [
+                            [[1, 2 * 0.5 * 1.3, 1.3**2], [0.42, 1]],
+                            [[1, 1], [1, 2 * 0.9 * 5.25, 5.25**2]],
+                        ],
+                    ),
+                ],
+                np.logspace(-1, 1.5, 100),
+            ),
+        ],
+    )
+    def test_convert_frequency_response_list_to_array(self, sys_list, omega):
+        # Desired frequency response array shape
+        complex_response_list_shape_true = (
+            len(sys_list),
+            omega.size,
+            sys_list[0].noutputs,
+            sys_list[0].ninputs,
+        )
+
+        # Evaluate frequency response
+        frequency_response_list = control.frequency_response(sys_list, omega)
+
+        # Convert frequency response data
+        complex_response_list = (
+            dkpy.uncertainty_characterization._convert_frequency_response_list_to_array(
+                frequency_response_list
+            )
+        )
+
+        # Verify type
+        assert isinstance(complex_response_list, np.ndarray)
+        # Verify dimensions
+        assert complex_response_list.shape == complex_response_list_shape_true
+        # Verify complex datatype
+        assert np.all(np.iscomplex(complex_response_list))
+        # Verify that the function does not affect responses in the correct format
+        assert np.all(
+            np.isclose(
+                complex_response_list,
+                dkpy.uncertainty_characterization._convert_frequency_response_list_to_array(
+                    complex_response_list
+                ),
+            ),
+        )
+
+    @pytest.mark.parametrize(
+        "complex_response_list",
+        [
+            np.ones(100, dtype=complex),
+            np.ones((100, 5), dtype=complex),
+            np.ones((100, 5, 5), dtype=complex),
+            np.ones((100, 5, 5, 5, 5), dtype=complex),
+        ],
+    )
+    def test_convert_frequency_response_list_to_array_error(
+        self, complex_response_list
+    ):
+        with pytest.raises(ValueError):
+            complex_response_list = dkpy.uncertainty_characterization._convert_frequency_response_list_to_array(
+                complex_response_list
+            )

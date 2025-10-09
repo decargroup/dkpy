@@ -28,8 +28,8 @@ from . import utilities
 
 
 def compute_uncertainty_residual_response(
-    complex_response_nom: np.ndarray,
-    complex_response_offnom_list: np.ndarray,
+    complex_response_nom: Union[np.ndarray, control.FrequencyResponseData],
+    complex_response_offnom_list: Union[np.ndarray, control.FrequencyResponseList],
     uncertainty_model: Union[str, List[str], Set[str]] = {
         "additive",
         "multiplicative_input",
@@ -44,9 +44,9 @@ def compute_uncertainty_residual_response(
 
     Parameters
     ----------
-    complex_response_nom : np.ndarray
+    complex_response_nom : Union[np.ndarray, control.FrequencyResponseData]
         Frequency response of the nominal system.
-    complex_response_offnom_list : np.ndarray
+    complex_response_offnom_list : Union[np.ndarray, control.FrequencyResponseList]
         Frequency response of the off-nominal system.
     uncertainty_model : Union[str, List[str], Set[str]]
         Uncertainty model identifiers to compute the residual response.
@@ -55,7 +55,7 @@ def compute_uncertainty_residual_response(
 
     Returns
     -------
-    Union[control.FrequencyResponseList, Dict[str, control.FrequencyResponseList]]
+    Dict[str, np.ndarray]
         Frequency response of the uncertainty residuals.
 
     Raises
@@ -79,12 +79,20 @@ def compute_uncertainty_residual_response(
     ...     "inverse_multiplicative_input",
     ...     "inverse_multiplicative_output",
     ... }
-    >>> complex_response_residual_dict = compute_uncertainty_residual_response(
+    >>> complex_response_residuals_dict = dkpy.compute_uncertainty_residual_response(
     ...     complex_response_nom,
     ...     complex_response_offnom_list,
-    ...     uncertainty_model
+    ...     uncertainty_models,
     ... )
     """
+
+    # Convert frequency response data to expected type
+    complex_response_nom = _convert_frequency_response_data_to_array(
+        complex_response_nom
+    )
+    complex_response_offnom_list = _convert_frequency_response_list_to_array(
+        complex_response_offnom_list
+    )
 
     # Uncertainty residual response dictionary
     complex_response_residual_dict = {}
@@ -207,7 +215,7 @@ def _compute_uncertainty_residual_response(
 
     Returns
     -------
-    control.FrequencyResponseList
+    np.ndarray
         Uncertainty residual response of the given uncertainty model.
     """
 
@@ -268,7 +276,7 @@ def _compute_uncertainty_residual_multiplicative_input_freq(
     complex_response_nom_freq: np.ndarray,
     complex_response_offnom_freq: np.ndarray,
     tol_residual_existence: float = 1e-8,
-):
+) -> np.ndarray:
     """Compute the multiplicative input uncertainty residual at a frequency.
 
     Parameters
@@ -329,7 +337,7 @@ def _compute_uncertainty_residual_multiplicative_output_freq(
     complex_response_nom_freq: np.ndarray,
     complex_response_offnom_freq: np.ndarray,
     tol_residual_existence: float = 1e-8,
-):
+) -> np.ndarray:
     """Compute the multiplicative output uncertainty residual at a frequency.
 
     Parameters
@@ -389,7 +397,7 @@ def _compute_uncertainty_residual_inverse_additive_freq(
     complex_response_nom_freq: np.ndarray,
     complex_response_offnom_freq: np.ndarray,
     tol_residual_existence: float = 1e-8,
-):
+) -> np.ndarray:
     """Compute the inverse additive uncertainty residual at a frequency.
 
     Parameters
@@ -455,7 +463,7 @@ def _compute_uncertainty_residual_inverse_multiplicative_input_freq(
     complex_response_nom_freq: np.ndarray,
     complex_response_offnom_freq: np.ndarray,
     tol_residual_existence: float = 1e-8,
-):
+) -> np.ndarray:
     """Compute the inverse multiplicative input uncertainty residual at a frequency.
 
     Parameters
@@ -518,7 +526,7 @@ def _compute_uncertainty_residual_inverse_multiplicative_output_freq(
     complex_response_nom_freq: np.ndarray,
     complex_response_offnom_freq: np.ndarray,
     tol_residual_existence: float = 1e-8,
-):
+) -> np.ndarray:
     """Compute the inverse multiplicative output uncertainty residual at a frequency.
 
     Parameters
@@ -576,7 +584,7 @@ def _compute_uncertainty_residual_inverse_multiplicative_output_freq(
 
 
 def compute_optimal_uncertainty_weight_response(
-    complex_response_residual_list: np.ndarray,
+    complex_response_residual_list: Union[np.ndarray, control.FrequencyResponseList],
     weight_left_structure: str,
     weight_right_structure: str,
     solver_params: Optional[Dict[str, Any]] = None,
@@ -585,7 +593,7 @@ def compute_optimal_uncertainty_weight_response(
 
     Parameters
     ----------
-    complex_response_residual_list : np.ndarray
+    complex_response_residual_list : Union[np.ndarray, control.FrequencyResponseList]
         Frequency response of the residuals for which to compute the optimal uncertainty
         weights.
     weight_left_structure : str
@@ -600,7 +608,7 @@ def compute_optimal_uncertainty_weight_response(
 
     Returns
     -------
-    Tuple[control.FrequencyResponseData, control.FrequencyResponse]
+    Tuple[np.ndarray, np.ndarray]
         Frequency response of the diagonal elements of the left and right uncertainty
         weights.
 
@@ -624,14 +632,21 @@ def compute_optimal_uncertainty_weight_response(
     >>> complex_response_residual_dict = compute_uncertainty_residual_response(
     ...     complex_response_nom,
     ...     complex_response_offnom_list,
-    ...     uncertainty_model
+    ...     uncertainty_models,
     ... )
     >>> complex_response_weight_left, complex_response_weight_right = (
     ...     dkpy.compute_optimal_uncertainty_weight_response(
-    ...         complex_response_residual_dict["I"], "diagonal", "diagonal"
+    ...         complex_response_residual_dict["multiplicative_input"],
+    ...         "diagonal",
+    ...         "diagonal",
     ...     )
     ... )
     """
+
+    # Convert frequency response data to expected type
+    complex_response_residual_list = _convert_frequency_response_list_to_array(
+        complex_response_residual_list
+    )
 
     # Frequency response parameters
     num_frequency = complex_response_residual_list.shape[1]
@@ -786,7 +801,9 @@ def _compute_optimal_weight_freq(
 
 
 def fit_overbounding_uncertainty_weight(
-    complex_response_uncertainty_weight: np.ndarray,
+    complex_response_uncertainty_weight: Union[
+        np.ndarray, control.FrequencyResponseData
+    ],
     omega: np.ndarray,
     order: Union[int, List[int], np.ndarray],
     weight: Optional[np.ndarray] = None,
@@ -801,7 +818,7 @@ def fit_overbounding_uncertainty_weight(
 
     Parameters
     ----------
-    complex_response_uncertainty_weight : np.ndarray
+    complex_response_uncertainty_weight : Union[np.ndarray, control.FrequencyResponseData]
         Uncertainty weight frequency response used for the overbounding fit.
     order : Union[int, List[int], np.ndarray]
         Order of the LTI system fit. If `order` is an `int`, the order will be
@@ -847,11 +864,13 @@ def fit_overbounding_uncertainty_weight(
     >>> complex_response_residual_dict = compute_uncertainty_residual_response(
     ...     complex_response_nom,
     ...     complex_response_offnom_list,
-    ...     uncertainty_model
+    ...     uncertainty_models,
     ... )
     >>> complex_response_weight_left, complex_response_weight_right = (
     ...     dkpy.compute_optimal_uncertainty_weight_response(
-    ...         complex_response_residual_dict["I"], "diagonal", "diagonal"
+    ...         complex_response_residual_dict["multiplicative_input"],
+    ...         "diagonal",
+    ...         "diagonal",
     ...     )
     ... )
     >>> weight_left = dkpy.fit_overbounding_uncertainty_weight(
@@ -865,6 +884,11 @@ def fit_overbounding_uncertainty_weight(
     ----------
     .. [#cxvpy_solver] https://www.cvxpy.org/tutorial/solvers/index.html
     """
+
+    # Convert frequency response data to expected type
+    complex_response_uncertainty_weight = _convert_frequency_response_data_to_array(
+        complex_response_uncertainty_weight
+    )
 
     # Solver settings
     linear_solver_params = (
@@ -926,7 +950,67 @@ def fit_overbounding_uncertainty_weight(
     return uncertainty_weight
 
 
-# NOTE: Are there more options that should be provided to customize the plot?
+def _convert_frequency_response_data_to_array(
+    frequency_response: Union[
+        np.ndarray, np.typing.ArrayLike, control.FrequencyResponseData
+    ],
+) -> np.ndarray:
+    if isinstance(frequency_response, control.FrequencyResponseData):
+        complex_response = np.array(frequency_response.complex, dtype=complex)
+
+        # SISO `FrequencyResponseData` objects return 1D arrays for frequency response
+        # data and 3D arrays for MIMO systems. `dkpy` uses a 3D array in all cases, so
+        # the 1D array is converted into a 3D array.
+        if complex_response.ndim == 1:
+            complex_response = complex_response[None, None, :]
+
+        # The `control.FrequencyResponseData.complex` uses an array with shape
+        # (output, input, frequency) whereas the format used in `dkpy` is
+        # (frequency, output, input). Therefore, a transpose to switch the axes is
+        # required.
+        complex_response = complex_response.transpose(2, 0, 1)
+    else:
+        complex_response = np.array(frequency_response, dtype=complex)
+        if complex_response.ndim != 3:
+            raise ValueError(
+                f"The dimension of `complex_response` is {complex_response.ndim}, "
+                "whereas it should be 3 (frequency, output, input)."
+            )
+    return complex_response
+
+
+def _convert_frequency_response_list_to_array(
+    frequency_response_list: Union[
+        np.ndarray, np.typing.ArrayLike, control.FrequencyResponseList
+    ],
+) -> np.ndarray:
+    if isinstance(frequency_response_list, control.FrequencyResponseList):
+        complex_response_list = []
+        for frequency_response in frequency_response_list:
+            complex_response = np.array(frequency_response.complex, dtype=complex)
+
+            # SISO `FrequencyResponseData` objects return 1D arrays for frequency response
+            # data and 3D arrays for MIMO systems. `dkpy` uses a 3D array in all cases, so
+            # the 1D array is converted into a 3D array.
+            if complex_response.ndim == 1:
+                complex_response = complex_response[None, None, :]
+
+            # The `control.FrequencyResponseData.complex` uses an array with shape
+            # (output, input, frequency) whereas the format used in `dkpy` is
+            # (frequency, output, input). Therefore, a transpose to switch the axes is
+            # required.
+            complex_response = complex_response.transpose(2, 0, 1)
+            complex_response_list.append(complex_response)
+        complex_response_list = np.array(complex_response_list, dtype=complex)
+    else:
+        complex_response_list = np.array(frequency_response_list, dtype=complex)
+        if complex_response_list.ndim != 4:
+            raise ValueError(
+                "The dimension of `complex_response_list` is "
+                f"{complex_response_list.ndim}, whereas it should be 4 (off-nominals, "
+                "frequency, output, input)."
+            )
+    return complex_response_list
 
 
 def plot_magnitude_response_uncertain_model_set(
@@ -936,6 +1020,9 @@ def plot_magnitude_response_uncertain_model_set(
     db: bool = True,
     hz: bool = False,
     frequency_log_scale: bool = True,
+    plot_nom_kw: Dict[str, Any] = {},
+    plot_offnom_kw: Dict[str, Any] = {},
+    subplot_kw: Dict[str, Any] = {},
 ) -> Tuple[Figure, Union[Axes, np.ndarray]]:
     """Plot magnitude response of nominal model and set of off-nominal models.
 
@@ -948,6 +1035,29 @@ def plot_magnitude_response_uncertain_model_set(
         systems.
     omega : np.ndarray
         Angular frequency grid.
+    db : bool
+        If True, plot the magnitude in units of dB. Otherwise, plot the magnitude in
+        absolute units.
+    hz : bool
+        If True, plot the frequency in units of Hz. Otherwise, plot the frequency in
+        units of rad/s.
+    frequency_log_scale : bool
+        If True, plot the frequency using a logarithmic axis. Otherwise, plot the
+        the frequency using a linear axis.
+    plot_nom_kw : Dict[str, Any]
+        Keyword arguments for the nominal model plot. See [#plot_kw]_ for more
+        information on plotting keywords.
+    plot_offnom_kw : Dict[str, Any]
+        Keyword arguments for the off-nominal model plot. See [#plot_kw]_ for more
+        information on plotting keywords.
+    subplot_kw : Dict[str, Any]
+        Keyword arguments for the subplot. See [#subplot_kw]_ for more information on
+        the subplot keywords.
+
+    References
+    ----------
+    .. [#plot_kw] https://matplotlib.org/stable/api/_as_gen/matplotlib.pyplot.plot.html
+    .. [#subplot_kw] https://matplotlib.org/stable/api/_as_gen/matplotlib.pyplot.subplots.html
     """
 
     # System paramters
@@ -955,10 +1065,20 @@ def plot_magnitude_response_uncertain_model_set(
     num_outputs = complex_response_offnom_list.shape[2]
     num_inputs = complex_response_offnom_list.shape[3]
 
+    # Nominal model plot keyword arguments
+    plot_nom_kwargs = {"color": "C0", "label": "Nominal"}
+    plot_nom_kwargs.update(plot_nom_kw)
+
+    # Off-nominal model plot keyword arguments
+    plot_offnom_kwargs = {"color": "C1", "alpha": 0.25, "label": "Off-Nominal"}
+    plot_offnom_kwargs.update(plot_offnom_kw)
+
+    # Subplot keyword arguments
+    subplot_kwargs = {"sharex": True, "layout": "constrained"}
+    subplot_kwargs.update(subplot_kw)
+
     # Initialize figure
-    fig, ax = plt.subplots(
-        num_outputs, num_inputs, sharex=True, layout="constrained", squeeze=False
-    )
+    fig, ax = plt.subplots(num_outputs, num_inputs, squeeze=False, **subplot_kwargs)
 
     # Off-nominal frequency response
     for idx_offnom in range(num_offnom):
@@ -970,9 +1090,7 @@ def plot_magnitude_response_uncertain_model_set(
                     control.mag2db(magnitude_offnom[:, idx_output, idx_input])
                     if db
                     else magnitude_offnom[:, idx_output, idx_input],
-                    color="tab:orange",
-                    alpha=0.25,
-                    label="Off-nominal",
+                    **plot_offnom_kwargs,
                 )
 
     # Nominal frequency response
@@ -984,9 +1102,7 @@ def plot_magnitude_response_uncertain_model_set(
                 control.mag2db(magnitude_nom[:, idx_output, idx_input])
                 if db
                 else magnitude_nom[:, idx_output, idx_input],
-                color="tab:blue",
-                alpha=1.0,
-                label="Nominal",
+                **plot_nom_kwargs,
             )
 
     # Plot settings
@@ -1016,6 +1132,10 @@ def plot_phase_response_uncertain_model_set(
     omega: np.ndarray,
     deg: bool = True,
     hz: bool = False,
+    frequency_log_scale: bool = True,
+    plot_nom_kw: Dict[str, Any] = {},
+    plot_offnom_kw: Dict[str, Any] = {},
+    subplot_kw: Dict[str, Any] = {},
 ) -> Tuple[Figure, Union[Axes, np.ndarray]]:
     """Plot phase response of nominal model and set of off-nominal models.
 
@@ -1028,6 +1148,29 @@ def plot_phase_response_uncertain_model_set(
         systems.
     omega : np.ndarray
         Angular frequency grid.
+    db : bool
+        If True, plot the magnitude in units of dB. Otherwise, plot the magnitude in
+        absolute units.
+    hz : bool
+        If True, plot the frequency in units of Hz. Otherwise, plot the frequency in
+        units of rad/s.
+    frequency_log_scale : bool
+        If True, plot the frequency using a logarithmic axis. Otherwise, plot the
+        the frequency using a linear axis.
+    plot_nom_kw : Dict[str, Any]
+        Keyword arguments for the nominal model plot. See [#plot_kw]_ for more
+        information on plotting keywords.
+    plot_offnom_kw : Dict[str, Any]
+        Keyword arguments for the off-nominal model plot. See [#plot_kw]_ for more
+        information on plotting keywords.
+    subplot_kw : Dict[str, Any]
+        Keyword arguments for the subplot. See [#subplot_kw]_ for more information on
+        the subplot keywords.
+
+    References
+    ----------
+    .. [#plot_kw] https://matplotlib.org/stable/api/_as_gen/matplotlib.pyplot.plot.html
+    .. [#subplot_kw] https://matplotlib.org/stable/api/_as_gen/matplotlib.pyplot.subplots.html
     """
 
     # System paramters
@@ -1035,38 +1178,44 @@ def plot_phase_response_uncertain_model_set(
     num_outputs = complex_response_offnom_list.shape[2]
     num_inputs = complex_response_offnom_list.shape[3]
 
+    # Nominal model plot keyword arguments
+    plot_nom_kwargs = {"color": "C0", "label": "Nominal"}
+    plot_nom_kwargs.update(plot_nom_kw)
+
+    # Off-nominal model plot keyword arguments
+    plot_offnom_kwargs = {"color": "C1", "alpha": 0.25, "label": "Off-Nominal"}
+    plot_offnom_kwargs.update(plot_offnom_kw)
+
+    # Subplot keyword arguments
+    subplot_kwargs = {"sharex": True, "layout": "constrained"}
+    subplot_kwargs.update(subplot_kw)
+
     # Initialize figure
-    fig, ax = plt.subplots(
-        num_outputs, num_inputs, sharex=True, layout="constrained", squeeze=False
-    )
+    fig, ax = plt.subplots(num_outputs, num_inputs, squeeze=False, **subplot_kwargs)
 
     # Off-nominal frequency response
     for idx_offnom in range(num_offnom):
         phase_offnom = np.angle(complex_response_offnom_list[idx_offnom, :, :, :])
         for idx_input in range(num_inputs):
             for idx_output in range(num_outputs):
-                ax[idx_output, idx_input].semilogx(
+                ax[idx_output, idx_input].plot(
                     omega / (2 * np.pi) if hz else omega,
                     180 / np.pi * phase_offnom[:, idx_output, idx_input]
                     if deg
                     else phase_offnom[:, idx_output, idx_input],
-                    color="tab:orange",
-                    alpha=0.25,
-                    label="Off-nominal",
+                    **plot_offnom_kwargs,
                 )
 
     # Nominal frequency response
     phase_nom = np.angle(complex_response_nom)
     for idx_input in range(num_inputs):
         for idx_output in range(num_outputs):
-            ax[idx_output, idx_input].semilogx(
+            ax[idx_output, idx_input].plot(
                 omega / (2 * np.pi) if hz else omega,
                 180 / np.pi * phase_nom[:, idx_output, idx_input]
                 if deg
                 else phase_nom[:, idx_output, idx_input],
-                color="tab:blue",
-                alpha=1.0,
-                label="Nominal",
+                **plot_nom_kwargs,
             )
 
     # Plot settings
@@ -1074,6 +1223,8 @@ def plot_phase_response_uncertain_model_set(
         for ax_output_input in ax_output:
             ax_output_input.set_ylabel("Phase (deg)" if deg else "Phase (rad)")
             ax_output_input.grid()
+            if frequency_log_scale:
+                ax_output_input.set_xscale("log")
     for idx_input in range(num_inputs):
         ax[-1, idx_input].set_xlabel("$f$ (Hz)" if hz else r"$\omega$ (rad/s)")
     handles, labels = ax[0, 0].get_legend_handles_labels()
@@ -1094,6 +1245,10 @@ def plot_singular_value_response_uncertain_model_set(
     omega: np.ndarray,
     db: bool = True,
     hz: bool = False,
+    frequency_log_scale: bool = True,
+    plot_nom_kw: Dict[str, Any] = {},
+    plot_offnom_kw: Dict[str, Any] = {},
+    subplot_kw: Dict[str, Any] = {},
 ) -> Tuple[Figure, Union[Axes, np.ndarray]]:
     """Plot singular value response of nominal model and set of off-nominal models.
 
@@ -1106,13 +1261,48 @@ def plot_singular_value_response_uncertain_model_set(
         systems.
     omega : np.ndarray
         Angular frequency grid.
+    db : bool
+        If True, plot the magnitude in units of dB. Otherwise, plot the magnitude in
+        absolute units.
+    hz : bool
+        If True, plot the frequency in units of Hz. Otherwise, plot the frequency in
+        units of rad/s.
+    frequency_log_scale : bool
+        If True, plot the frequency using a logarithmic axis. Otherwise, plot the
+        the frequency using a linear axis.
+    plot_nom_kw : Dict[str, Any]
+        Keyword arguments for the nominal model plot. See [#plot_kw]_ for more
+        information on plotting keywords.
+    plot_offnom_kw : Dict[str, Any]
+        Keyword arguments for the off-nominal model plot. See [#plot_kw]_ for more
+        information on plotting keywords.
+    subplot_kw : Dict[str, Any]
+        Keyword arguments for the subplot. See [#subplot_kw]_ for more information on
+        the subplot keywords.
+
+    References
+    ----------
+    .. [#plot_kw] https://matplotlib.org/stable/api/_as_gen/matplotlib.pyplot.plot.html
+    .. [#subplot_kw] https://matplotlib.org/stable/api/_as_gen/matplotlib.pyplot.subplots.html
     """
 
     # System paramters
     num_offnom = complex_response_offnom_list.shape[0]
 
+    # Nominal model plot keyword arguments
+    plot_nom_kwargs = {"color": "C0", "label": "Nominal"}
+    plot_nom_kwargs.update(plot_nom_kw)
+
+    # Off-nominal model plot keyword arguments
+    plot_offnom_kwargs = {"color": "C1", "alpha": 0.25, "label": "Off-Nominal"}
+    plot_offnom_kwargs.update(plot_offnom_kw)
+
+    # Subplot keyword arguments
+    subplot_kwargs = {"ncols": 1, "nrows": 1, "layout": "constrained"}
+    subplot_kwargs.update(subplot_kw)
+
     # Initialize figure
-    fig, ax = plt.subplots(layout="constrained")
+    fig, ax = plt.subplots(**subplot_kwargs)
 
     # Off-nominal frequency response
     for idx_offnom in range(num_offnom):
@@ -1125,23 +1315,21 @@ def plot_singular_value_response_uncertain_model_set(
                 control.mag2db(sval_offnom[:, idx_sval])
                 if db
                 else sval_offnom[:, idx_sval],
-                color="tab:orange",
-                alpha=0.5,
-                label="Off-nominal",
+                **plot_offnom_kwargs,
             )
 
     # Nominal frequency response
     sval_nom = np.linalg.svdvals(complex_response_nom)
     for idx_sval in range(sval_nom.shape[1]):
-        ax.semilogx(
+        ax.plot(
             omega / (2 * np.pi) if hz else omega,
             control.mag2db(sval_nom[:, idx_sval]) if db else sval_nom[:, idx_sval],
-            color="tab:blue",
-            alpha=1.0,
-            label="Nominal",
+            **plot_nom_kwargs,
         )
 
     # Plot settings
+    if frequency_log_scale:
+        ax.set_xscale("log")
     ax.set_ylabel(
         "Singular Value Magnitude (dB)" if db else " Singular Value Magnitude (-)"
     )
@@ -1164,6 +1352,10 @@ def plot_singular_value_response_residual(
     omega: np.ndarray,
     db: bool = True,
     hz: bool = False,
+    frequency_log_scale: bool = True,
+    plot_sval_max_kw: Dict[str, Any] = {},
+    plot_sval_kw: Dict[str, Any] = {},
+    subplot_kw: Dict[str, Any] = {},
 ) -> Dict[str, Tuple[Figure, Union[Axes, np.ndarray]]]:
     """Plot the singular value response of the uncertainty residuals for different
     unstructured uncertainty models on separate figures.
@@ -1175,10 +1367,47 @@ def plot_singular_value_response_residual(
         of frequencies for different uncertainty models.
     omega : np.narray
         Angular frequency grid.
+    db : bool
+        If True, plot the magnitude in units of dB. Otherwise, plot the magnitude in
+        absolute units.
+    hz : bool
+        If True, plot the frequency in units of Hz. Otherwise, plot the frequency in
+        units of rad/s.
+    frequency_log_scale : bool
+        If True, plot the frequency using a logarithmic axis. Otherwise, plot the
+        the frequency using a linear axis.
+    plot_sval_max_kw : Dict[str, Any]
+        Keyword arguments for the maximum singular value plot. See [#plot_kw]_ for more
+        information on plotting keywords.
+    plot_sval_kw : Dict[str, Any]
+        Keyword arguments for the singular value plots. See [#plot_kw]_ for more
+        information on plotting keywords.
+    subplot_kw : Dict[str, Any]
+        Keyword arguments for the subplot. See [#subplot_kw]_ for more information on
+        the subplot keywords.
+
+    References
+    ----------
+    .. [#plot_kw] https://matplotlib.org/stable/api/_as_gen/matplotlib.pyplot.plot.html
+    .. [#subplot_kw] https://matplotlib.org/stable/api/_as_gen/matplotlib.pyplot.subplots.html
     """
 
+    # Residual singular value plot keyword arguments
+    plot_sval_max_kwargs = {"color": "black"}
+    plot_sval_max_kwargs.update(plot_sval_max_kw)
+
+    # Residual maximum singular value plot keyword arguments
+    plot_sval_kwargs = {"color": "grey", "alpha": 0.25}
+    plot_sval_kwargs.update(plot_sval_kw)
+
+    # Subplot keyword arguments
+    subplot_kwargs = {"ncols": 1, "nrows": 1, "layout": "constrained"}
+    subplot_kwargs.update(subplot_kw)
+
+    # Initialize dictionary for storing figure and axes
     figure_dict = {}
 
+    # Uncertainty model residual suffixes
     residual_suffix_dict = {
         "additive": "A",
         "multiplicative_input": "I",
@@ -1204,31 +1433,32 @@ def plot_singular_value_response_residual(
         sval_max_response_residual = np.max(sval_response_residual, axis=(0, 2))
 
         # Intialize the plot
-        fig, ax = plt.subplots(layout="constrained")
+        fig, ax = plt.subplots(**subplot_kwargs)
 
         # Singular value response of the residuals
         for idx_offnom in range(num_offnom):
             for idx_sval in range(sval_response_residual.shape[2]):
-                ax.semilogx(
+                ax.plot(
                     omega / (2 * np.pi) if hz else omega,
                     control.mag2db(sval_response_residual[idx_offnom, :, idx_sval])
                     if db
                     else sval_response_residual[idx_offnom, :, idx_sval],
-                    color="grey",
-                    alpha=0.5,
                     label=rf"$\sigma(E_{{{residual_suffix}}})$",
+                    **plot_sval_kwargs,
                 )
         # Maximum singular value response of the residuals
-        ax.semilogx(
+        ax.plot(
             omega / (2 * np.pi) if hz else omega,
             control.mag2db(sval_max_response_residual)
             if db
             else sval_max_response_residual,
-            color="black",
             label=rf"$\max \; \sigma(E_{{{residual_suffix}}})$",
+            **plot_sval_max_kwargs,
         )
 
         # Plot settings
+        if frequency_log_scale:
+            ax.set_xscale("log")
         ax.set_ylabel(
             "Singular Value Magnitude (dB)" if db else "Singular Value Magnitude (-)"
         )
@@ -1253,6 +1483,9 @@ def plot_singular_value_response_residual_comparison(
     omega: np.ndarray,
     db: bool = True,
     hz: bool = False,
+    frequency_log_scale: bool = True,
+    plot_sval_max_kw: Dict[str, Any] = {},
+    subplot_kw: Dict[str, Any] = {},
 ) -> Tuple[Figure, Union[Axes, np.ndarray]]:
     """Plot the maximum singular value response of the uncertainty residuals for
     different unstructured uncertainty models on the same figure for comparision of the
@@ -1265,8 +1498,37 @@ def plot_singular_value_response_residual_comparison(
         of frequencies for different uncertainty models.
     omega : np.narray
         Angular frequency grid.
+    db : bool
+        If True, plot the magnitude in units of dB. Otherwise, plot the magnitude in
+        absolute units.
+    hz : bool
+        If True, plot the frequency in units of Hz. Otherwise, plot the frequency in
+        units of rad/s.
+    frequency_log_scale : bool
+        If True, plot the frequency using a logarithmic axis. Otherwise, plot the
+        the frequency using a linear axis.
+    plot_sval_max_kw : Dict[str, Any]
+        Keyword arguments for the maximum singular value plot. See [#plot_kw]_ for more
+        information on plotting keywords.
+    subplot_kw : Dict[str, Any]
+        Keyword arguments for the subplot. See [#subplot_kw]_ for more information on
+        the subplot keywords.
+
+    References
+    ----------
+    .. [#plot_kw] https://matplotlib.org/stable/api/_as_gen/matplotlib.pyplot.plot.html
+    .. [#subplot_kw] https://matplotlib.org/stable/api/_as_gen/matplotlib.pyplot.subplots.html
     """
 
+    # Residual singular value plot keyword arguments
+    plot_sval_max_kwargs = {}
+    plot_sval_max_kwargs.update(plot_sval_max_kw)
+
+    # Subplot keyword arguments
+    subplot_kwargs = {"ncols": 1, "nrows": 1, "layout": "constrained"}
+    subplot_kwargs.update(subplot_kw)
+
+    # Uncertainty model suffixes
     residual_suffix_dict = {
         "additive": "A",
         "multiplicative_input": "I",
@@ -1289,7 +1551,7 @@ def plot_singular_value_response_residual_comparison(
         )
 
     # Initialize figure
-    fig, ax = plt.subplots(layout="constrained")
+    fig, ax = plt.subplots(**subplot_kwargs)
 
     # Maximum singular value reponse of uncertainty residuals
     for (
@@ -1303,9 +1565,12 @@ def plot_singular_value_response_residual_comparison(
             if db
             else sval_max_response_residual,
             label=rf"$\max \; {{\sigma}}(E_{{{residual_suffix}}})$",
+            **plot_sval_max_kwargs,
         )
 
     # Plot settings
+    if frequency_log_scale:
+        ax.set_xscale("log")
     ax.set_ylabel(
         "Singular Value Magnitude (dB)" if db else "Singular Value Magnitude (-)"
     )
@@ -1331,6 +1596,10 @@ def plot_magnitude_response_uncertainty_weight(
     weight_right: Optional[control.StateSpace] = None,
     db: bool = True,
     hz: bool = False,
+    frequency_log_scale: bool = True,
+    plot_response_kw: Dict[str, Any] = {},
+    plot_response_fit_kw: Dict[str, Any] = {},
+    subplot_kw: Dict[str, Any] = {},
 ) -> Tuple[Figure, Union[Axes, np.ndarray]]:
     """Plot the diagonal elements of the optimal left and right uncertainty weight
     frequency responses. Optionally, the fitted overbounding left and right uncertainty
@@ -1350,7 +1619,52 @@ def plot_magnitude_response_uncertainty_weight(
         State-space model if the fitted overbounding left uncertainty weight.
     weight_right: Optional[control.StateSpace] = None,
         State-space model if the fitted overbounding right uncertainty weight.
+    db : bool
+        If True, plot the magnitude in units of dB. Otherwise, plot the magnitude in
+        absolute units.
+    hz : bool
+        If True, plot the frequency in units of Hz. Otherwise, plot the frequency in
+        units of rad/s.
+    frequency_log_scale : bool
+        If True, plot the frequency using a logarithmic axis. Otherwise, plot the
+        the frequency using a linear axis.
+    plot_response_kw : Dict[str, Any]
+        Keyword arguments for the frequency response of the uncertainty weight plot.
+        See [#plot_kw]_ for more information on plotting keywords.
+    plot_response_fit_kw : Dict[str, Any]
+        Keyword arguments for the frequency response of the fitted uncertainty weight
+        plot. See [#plot_kw]_ for more information on plotting keywords.
+    subplot_kw : Dict[str, Any]
+        Keyword arguments for the subplot. See [#subplot_kw]_ for more information on
+        the subplot keywords.
+
+    References
+    ----------
+    .. [#plot_kw] https://matplotlib.org/stable/api/_as_gen/matplotlib.pyplot.plot.html
+    .. [#subplot_kw] https://matplotlib.org/stable/api/_as_gen/matplotlib.pyplot.subplots.html
     """
+
+    # Uncertainty weight response plot keyword arguments
+    plot_response_kwargs = {
+        "color": "C0",
+        "marker": "*",
+        "linestyle": " ",
+        "label": "Response",
+    }
+    plot_response_kwargs.update(plot_response_kw)
+
+    # Uncertainty weight fit response plot keyword arguments
+    plot_response_fit_kwargs = {
+        "color": "C1",
+        "linestyle": "-",
+        "label": "Fit",
+    }
+    plot_response_fit_kwargs.update(plot_response_fit_kw)
+
+    # Subplot keyword arguments
+    subplot_kwargs = {"sharex": True, "layout": "constrained"}
+    subplot_kw = {} if subplot_kw is None else subplot_kw
+    subplot_kwargs.update(subplot_kw)
 
     # Uncertainty weight parameters
     num_left = complex_response_weight_left.shape[1]
@@ -1367,15 +1681,12 @@ def plot_magnitude_response_uncertainty_weight(
 
     # Plot left uncertainty weight frequency response
     for idx_left in range(num_left):
-        ax[idx_left, 0].semilogx(
+        ax[idx_left, 0].plot(
             omega / (2 * np.pi) if hz else omega,
             control.mag2db(magnitude_response_weight_left[:, idx_left, idx_left])
             if db
             else magnitude_response_weight_left[:, idx_left, idx_left],
-            linestyle="",
-            marker="*",
-            color="tab:blue",
-            label="Response",
+            **plot_response_kwargs,
         )
         ax[idx_left, 0].set_ylabel(
             f"$|W_{{L, ({idx_left + 1}, {idx_left + 1})}}|$ (dB)"
@@ -1385,15 +1696,12 @@ def plot_magnitude_response_uncertainty_weight(
         ax[idx_left, 0].grid()
     # Plot right uncertainty weight frequency response
     for idx_right in range(num_left):
-        ax[idx_right, 1].semilogx(
+        ax[idx_right, 1].plot(
             omega / (2 * np.pi) if hz else omega,
             control.mag2db(magnitude_response_weight_right[:, idx_right, idx_right])
             if db
             else magnitude_response_weight_right[:, idx_right, idx_right],
-            linestyle="",
-            marker="*",
-            color="tab:blue",
-            label="Response",
+            **plot_response_kwargs,
         )
         ax[idx_right, 1].set_ylabel(
             f"$|W_{{R, ({idx_right + 1}, {idx_right + 1})}}|$ (dB)"
@@ -1409,15 +1717,14 @@ def plot_magnitude_response_uncertainty_weight(
             response_fit_weight_left.magnitude
         )
         for idx_left in range(num_left):
-            ax[idx_left, 0].semilogx(
+            ax[idx_left, 0].plot(
                 omega / (2 * np.pi) if hz else omega,
                 control.mag2db(
                     magnitude_response_fit_weight_left[idx_left, idx_left, :]
                 )
                 if db
                 else magnitude_response_fit_weight_left[idx_left, idx_left, :],
-                color="tab:orange",
-                label="Fit",
+                **plot_response_fit_kwargs,
             )
     # Plot right uncertainty weight fit frequency response
     if weight_right is not None:
@@ -1426,15 +1733,14 @@ def plot_magnitude_response_uncertainty_weight(
             response_fit_weight_right.magnitude
         )
         for idx_right in range(num_right):
-            ax[idx_right, 1].semilogx(
+            ax[idx_right, 1].plot(
                 omega / (2 * np.pi) if hz else omega,
                 control.mag2db(
                     magnitude_response_fit_weight_right[idx_right, idx_right, :]
                 )
                 if db
                 else magnitude_response_fit_weight_right[idx_right, idx_right, :],
-                color="tab:orange",
-                label="Fit",
+                **plot_response_fit_kwargs,
             )
 
     # Plot settings
@@ -1442,6 +1748,8 @@ def plot_magnitude_response_uncertainty_weight(
         ax[-1, idx_col].set_xlabel("$f$ (Hz)" if hz else r"$\omega$ (rad/s)")
     for ax_row in ax:
         for ax_row_col in ax_row:
+            if frequency_log_scale:
+                ax_row_col.set_xscale("log")
             if not ax_row_col.has_data():
                 fig.delaxes(ax_row_col)
     handles, labels = ax[0, 0].get_legend_handles_labels()
