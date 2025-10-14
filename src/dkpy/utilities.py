@@ -3,18 +3,22 @@
 __all__ = [
     "example_scherer1997_p907",
     "example_skogestad2006_p325",
+    "example_mackenroth2004_p430",
+    "example_multimodel_uncertainty",
     "_ensure_tf",
     "_tf_close_coeff",
     "_auto_lmi_strictness",
+    "_fit_magnitude_log_chebyshev_siso",
 ]
 
-from typing import Any, Dict, Union
+from typing import Any, Dict, Union, Optional, Tuple
+from numpy.typing import ArrayLike
 
 import control
 import cvxpy
 import numpy as np
 import scipy.linalg
-from numpy.typing import ArrayLike
+import warnings
 
 
 def example_scherer1997_p907() -> Dict[str, Any]:
@@ -318,6 +322,124 @@ def example_mackenroth2004_p430():
     return out
 
 
+def example_multimodel_uncertainty():
+    """Generate uncertain models using parameter variation."""
+
+    def generate_sys(
+        omega_n_11, omega_n_22, gamma_11, gamma_22, gain_12, gain_21, tau_12, tau_21
+    ):
+        """Generate example transfer function system from parameters."""
+        tf_11 = control.TransferFunction(
+            [omega_n_11**2],
+            [1, 2 * gamma_11 * omega_n_11, omega_n_11**2],
+        )
+        tf_12 = control.TransferFunction([gain_12], [tau_12, 1])
+        tf_21 = control.TransferFunction([gain_21], [tau_21, 1])
+        tf_22 = control.TransferFunction(
+            [omega_n_22**2],
+            [1, 2 * gamma_22 * omega_n_22, omega_n_22**2],
+        )
+        tf = control.combine_tf([[tf_11, tf_12], [tf_21, tf_22]])
+
+        return tf
+
+    # Nominal model paramters
+    omega_n_11_nom = 5
+    omega_n_22_nom = 1
+    gamma_11_nom = 0.4
+    gamma_22_nom = 0.6
+    gain_12_nom = 3
+    gain_21_nom = 10
+    tau_12_nom = 0.1
+    tau_21_nom = 0.5
+    # Generate nominal model
+    sys_nom = generate_sys(
+        omega_n_11_nom,
+        omega_n_22_nom,
+        gamma_11_nom,
+        gamma_22_nom,
+        gain_12_nom,
+        gain_21_nom,
+        tau_12_nom,
+        tau_21_nom,
+    )
+
+    # Off-nominal system relative parameter variation
+    rel_variation_omega_n = 0.20
+    rel_variation_gamma = 0.20
+    rel_variation_gain = 0.05
+    rel_variation_tau = 0.25
+    num_offnom = 50
+
+    # Generate off-nominal models
+    np.random.seed(0)
+    sys_offnom_list = []
+    for _ in range(num_offnom):
+        # Off-nominal system paramters
+        omega_n_11_offnom = omega_n_11_nom * (
+            1 + rel_variation_omega_n * (2 * np.random.rand() - 1)
+        )
+        omega_n_22_offnom = omega_n_22_nom * (
+            1 + rel_variation_omega_n * (2 * np.random.rand() - 1)
+        )
+        gamma_11_offnom = gamma_11_nom * (
+            1 + rel_variation_gamma * (2 * np.random.rand() - 1)
+        )
+        gamma_22_offnom = gamma_22_nom * (
+            1 + rel_variation_gamma * (2 * np.random.rand() - 1)
+        )
+        gain_12_offnom = gain_12_nom * (
+            1 + rel_variation_gain * (2 * np.random.rand() - 1)
+        )
+        gain_21_offnom = gain_21_nom * (
+            1 + rel_variation_gain * (2 * np.random.rand() - 1)
+        )
+        tau_12_offnom = tau_12_nom * (
+            1 + rel_variation_tau * (2 * np.random.rand() - 1)
+        )
+        tau_21_offnom = tau_21_nom * (
+            1 + rel_variation_tau * (2 * np.random.rand() - 1)
+        )
+        # Generate off-nominal system
+        sys_offnom = generate_sys(
+            omega_n_11_offnom,
+            omega_n_22_offnom,
+            gamma_11_offnom,
+            gamma_22_offnom,
+            gain_12_offnom,
+            gain_21_offnom,
+            tau_12_offnom,
+            tau_21_offnom,
+        )
+        sys_offnom_list.append(sys_offnom)
+
+    # Frequency grid
+    omega_min = 0.05
+    omega_max = 100
+    num_omega = 100
+    omega = np.logspace(np.log10(omega_min), np.log10(omega_max), num_omega)
+
+    # Frequency response data of nominal and off-nominal systems
+    frequency_response_nom = control.frequency_response(sys_nom, omega)
+    frequency_response_offnom_list = control.frequency_response(sys_offnom_list, omega)
+
+    # Complex response of nominal and off-nominal systems
+    complex_response_nom = frequency_response_nom.complex.transpose(2, 0, 1)
+    complex_response_offnom_list = []
+    for frequency_response_offnom in frequency_response_offnom_list:
+        complex_response_offnom = frequency_response_offnom.complex.transpose(2, 0, 1)
+        complex_response_offnom_list.append(complex_response_offnom)
+    complex_response_offnom_list = np.array(complex_response_offnom_list)
+
+    return {
+        "system_nominal": sys_nom,
+        "system_offnominal_list": sys_offnom_list,
+        "omega": omega,
+        "complex_response_nominal": complex_response_nom,
+        "complex_response_offnominal_list": complex_response_offnom_list,
+    }
+
+
 def _tf_close_coeff(
     tf_a: control.TransferFunction,
     tf_b: control.TransferFunction,
@@ -495,3 +617,412 @@ def _auto_lmi_strictness(
         )
     strictness = scale * tol
     return strictness
+
+
+# TODO: Change variable names to be more descriptive and add more comments
+def _fit_magnitude_log_chebyshev_siso(
+    omega: np.ndarray,
+    magnitude_fit: np.ndarray,
+    order: int,
+    magnitude_upper_bound: Optional[np.ndarray] = None,
+    magnitude_lower_bound: Optional[np.ndarray] = None,
+    weight: Optional[np.ndarray] = None,
+    linear_solver_params: Dict[str, Any] = {},
+    tol_bisection: float = 1e-3,
+    max_iter_bisection: int = 500,
+    num_spec_constr: int = 500,
+) -> control.StateSpace:
+    """
+    Fit a stable and minimum-phase SISO LTI system to magnitude data using a
+    log-Chebyshev approach.
+
+    Parameters
+    ----------
+    omega : np.ndarray
+        Angular frequencies (rad/s).
+    magnitude_fit : np.ndarray
+        Magnitude response to fit the LTI system.
+    order : int
+        Order of the LTI system.
+    magnitude_upper_bound : Optional[np.ndarray]
+        Magnitude response for the upper bound constraint on the fitted LTI system
+        magnitude response.
+    magnitude_lower_bound : Optional[np.ndarray]
+        Magnitude response for the lower bound constraint on the fitted LTI system
+        magnitude response.
+    weight : np.ndarray
+        Frequency-dependent weight to encode bandwidths over which to prioritize the
+        accuracy of the LTI system fit.
+    linear_solver_param : Dict[str, Any]
+        Keyword arguments for the linear feasibility problem solver.
+    tol_bisection : float
+        Numerical tolerance for the bisection algorithm.
+    max_iter_bisection : int
+        Maximum allowable number of iterations in the bisection algorithm.
+    num_spec_constr : int
+        Number of constraints used to enforce the spectral factorizability of the
+        fitted autocorrelation.
+
+    Returns
+    -------
+    control.StateSpace
+        State-space system fitted to the magnitude data.
+    """
+
+    # Discrete-time frequency
+    theta, alpha = _convert_freq_halfplane_to_disk(omega)
+
+    # Parse frequency-dependent weight
+    if weight is None:
+        weight = np.ones_like(omega)
+
+    # Discrete-time autocorrelation
+    num_auto, den_auto = _fit_autocorrelation(
+        theta,
+        magnitude_fit,
+        order,
+        magnitude_upper_bound,
+        magnitude_lower_bound,
+        weight,
+        linear_solver_params,
+        tol_bisection,
+        max_iter_bisection,
+        num_spec_constr,
+    )
+
+    # Discrete-time transfer function
+    tf_dt = _compute_spectral_factorization(num_auto, den_auto)
+
+    # Continous-time state-space
+    ss_ct = _convert_discrete_to_continuous_bilinear(tf_dt, alpha)
+
+    return ss_ct
+
+
+def _convert_freq_halfplane_to_disk(omega: np.ndarray) -> Tuple[np.ndarray, float]:
+    """
+    Convert continous-time angular frequency data on the jw-axis in the s-domain into
+    discrete-time frequency data on the unit-circle of the z-domain via a bilinear
+    transformation.
+
+    Parameters
+    ----------
+    omega : np.ndarray
+        Continuous-time angular frequency data [rad/s].
+
+    Returns
+    -------
+    Tuple[np.ndarray, float]
+        - Discrete-time frequency data,
+        - Equivalent sampling period [s].
+    """
+
+    # Angular frequency bounds
+    omega_min = omega[0]
+    omega_max = omega[-1]
+
+    # Bilinear transformation constant
+    alpha = np.sqrt(omega_min * omega_max)
+
+    # Discrete-time frequency
+    theta = np.angle((-1j * omega - alpha) / (1j * omega - alpha))
+
+    return theta, alpha
+
+
+# TODO: Update docstring
+def _fit_autocorrelation(
+    theta: np.ndarray,
+    magnitude_fit: np.ndarray,
+    order: int,
+    magnitude_upper_bound: Optional[np.ndarray],
+    magnitude_lower_bound: Optional[np.ndarray],
+    weight: np.ndarray,
+    linear_solver_params: Dict[str, Any],
+    tol_bisection: float,
+    max_iter_bisection: int,
+    num_spec_constr: int,
+) -> Tuple[np.ndarray, np.ndarray]:
+    """
+    Fit a discrete-time biproper autocorrelation overbounding transfer function to
+    magnitude data.
+
+    Parameters
+    ----------
+    theta : np.ndarray
+        Discrete-time frequency.
+    magnitude_fit : np.ndarray
+        Magnitude response to fit the LTI system.
+    order : int
+        Order of the LTI system.
+    magnitude_upper_bound : Optional[np.ndarray]
+        Magnitude response for the upper bound constraint on the fitted LTI system
+        magnitude response.
+    magnitude_lower_bound : Optional[np.ndarray]
+        Magnitude response for the lower bound constraint on the fitted LTI system
+        magnitude response.
+    weight : np.ndarray
+        Frequency-dependent weight to encode bandwidths over which to prioritize the
+        accuracy of the LTI system fit.
+    linear_solver_params : Dict[str, Any]
+        Keyword arguments for the linear feasibility problem solver.
+    tol_bisection : float
+        Numerical tolerance for the bisection algorithm.
+    max_iter_bisection : int
+        Maximum allowable number of iterations in the bisection algorithm.
+    num_spec_constr : int
+        Number of constraints used to enforce the spectral factorizability of the
+        fitted autocorrelation.
+
+    Returns
+    -------
+    Tuple[np.ndarray, np.ndarray]
+        - Discrete-time autocorrelation transfer function denominator polynomial
+          coefficients.
+        - Discrete-time autocorrelation transfer function numerator polynomial
+          coefficients.
+    """
+
+    # Optimization problem parameters
+    psi_num = np.array(
+        [[np.cos(i * theta_idx) for i in range(order, -1, -1)] for theta_idx in theta]
+    )
+    psi_den = np.array(
+        [[np.cos(i * theta_idx) for i in range(order, 0, -1)] for theta_idx in theta]
+    )
+    magnitude_fit_sq_inv = np.diag(1 / magnitude_fit**2)
+    num_theta = theta.size
+
+    # Spectral factorization constraint
+    A_spec, B_spec = _compute_spec_fac_constr_mat(num_spec_constr, order)
+
+    # Lower bound constraint
+    if magnitude_lower_bound is not None:
+        magnitude_lower_bound_sq_inv = np.diag(1 / magnitude_lower_bound**2)
+        A_lower_bound = np.block([[-magnitude_lower_bound_sq_inv @ psi_num, psi_den]])
+        B_lower_bound = -np.ones((num_theta, 1))
+
+    # Upper bound constraint
+    if magnitude_upper_bound is not None:
+        magnitude_upper_bound_sq_inv = np.diag(1 / magnitude_upper_bound**2)
+        A_upper_bound = np.block([[magnitude_upper_bound_sq_inv @ psi_num, -psi_den]])
+        B_upper_bound = np.ones((num_theta, 1))
+
+    # Autocorrelation transfer function coefficient variables
+    num_auto_coef = cvxpy.Variable(shape=(order + 1, 1))
+    den_auto_coef = cvxpy.Variable(shape=(order, 1))
+    tf_auto_coef = cvxpy.bmat([[num_auto_coef], [den_auto_coef]])
+
+    # Error bounds for bisection algorithm
+    t_max = np.max(magnitude_fit) ** 2 / np.min(magnitude_fit) ** 2 - 1
+    t_upper = t_max
+    t_lower = 0
+
+    # Initialize bisection algorithm
+    iter_bisection = 0
+    feasibility_status = "infeasible"
+
+    t = cvxpy.Parameter()
+
+    # Bisection minimization of error upper bound
+    while np.abs(t_upper - t_lower) >= tol_bisection or feasibility_status != "optimal":
+        # Increment bisection iteration and stop if max number of iterations is reached.
+        iter_bisection += 1
+        if iter_bisection >= max_iter_bisection:
+            break
+
+        # Update weighted error bounds
+        t.value = 0.5 * (t_upper + t_lower)
+        gamma = cvxpy.diag(np.ones_like(weight) + t * 1 / weight)
+        gamma_inv = cvxpy.diag(1 / (np.ones_like(weight) + t * 1 / weight))
+
+        # Log-Chebyshev constraint
+        A_log_cheby_lower = cvxpy.bmat(
+            [[-magnitude_fit_sq_inv @ psi_num, gamma_inv @ psi_den]]
+        )
+        B_log_cheby_lower = -gamma_inv @ np.ones((num_theta, 1))
+        A_log_cheby_upper = cvxpy.bmat(
+            [[magnitude_fit_sq_inv @ psi_num, -gamma @ psi_den]]
+        )
+        B_log_cheby_upper = gamma @ np.ones((num_theta, 1))
+
+        # Total constraint matrix
+        A_tot = cvxpy.bmat([[A_log_cheby_upper], [A_log_cheby_lower], [A_spec]])
+        B_tot = cvxpy.bmat([[B_log_cheby_upper], [B_log_cheby_lower], [B_spec]])
+        if magnitude_lower_bound is not None:
+            A_tot = cvxpy.bmat([[A_tot], [A_lower_bound]])
+            B_tot = cvxpy.bmat([[B_tot], [B_lower_bound]])
+        if magnitude_upper_bound is not None:
+            A_tot = cvxpy.bmat([[A_tot], [A_upper_bound]])
+            B_tot = cvxpy.bmat([[B_tot], [B_upper_bound]])
+
+        # Linear feasibility problem
+        objective = cvxpy.Minimize(0)
+        constraint = [A_tot @ tf_auto_coef <= B_tot]
+        problem = cvxpy.Problem(objective, constraint)
+        try:
+            # Ignore warnings as some solvers issue warnings that are not applicable
+            # as we are expecting infeasible solutions in some cases due to the nature
+            # of the bisection algorithm
+            with warnings.catch_warnings(action="ignore"):
+                problem.solve(**linear_solver_params, ignore_dpp=True)
+            feasibility_status = problem.status
+        except cvxpy.SolverError:
+            t_lower = t.value
+        if feasibility_status == "optimal":
+            t_upper = t.value
+        else:
+            t_lower = t.value
+
+    if num_auto_coef.value is None or den_auto_coef.value is None:
+        raise cvxpy.SolverError("The linear feasibility problem is infeasible.")
+
+    # Autocorrelation polynomial coefficients
+    num_auto_coef_opt = num_auto_coef.value.reshape(-1)
+    den_auto_coef_opt = np.append(den_auto_coef.value.reshape(-1), 1)
+
+    # Autocorrelation numerator and denominator polynominals
+    num_auto = np.concatenate(
+        (
+            0.5 * num_auto_coef_opt[:-1],
+            num_auto_coef_opt[[-1]],
+            np.flip(0.5 * num_auto_coef_opt[:-1]),
+        )
+    )
+    den_auto = np.concatenate(
+        (
+            0.5 * den_auto_coef_opt[:-1],
+            den_auto_coef_opt[[-1]],
+            np.flip(0.5 * den_auto_coef_opt[:-1]),
+        )
+    )
+
+    return num_auto, den_auto
+
+
+def _compute_spec_fac_constr_mat(
+    num_spec_constr: int, order: int
+) -> Tuple[np.ndarray, np.ndarray]:
+    """
+    Compute the matrices for the approximate linear spectral factorization constraint of
+    the form Ax <= B. This ensures that the autocorrelation transfer function can be
+    factored into the fitted transfer function.
+
+    Parameters
+    ----------
+    num_spec_constr : int
+        Number of discretization points for spectral factorization constraint
+        approximation.
+    order : int
+        Biproper transfer function order.
+
+    Returns
+    -------
+    Tuple[np.ndarray, np.ndarray]
+        - Spectral factorization constraint A matrix
+        - Spectral factorization constraint B matrix
+    """
+
+    # Discrete-time frequency grid approximation
+    theta_spec = np.linspace(0, np.pi, num_spec_constr)
+
+    # Numerator and denominator regression matrices
+    psi_num_spec = np.array(
+        [
+            [np.cos(i * theta_idx) for i in range(order, -1, -1)]
+            for theta_idx in theta_spec
+        ]
+    )
+    psi_den_spec = np.array(
+        [
+            [np.cos(i * theta_idx) for i in range(order, 0, -1)]
+            for theta_idx in theta_spec
+        ]
+    )
+
+    # Linear constraint matrices
+    A_spec = np.block(
+        [
+            [-psi_num_spec, np.zeros((num_spec_constr, order))],
+            [np.zeros((num_spec_constr, order + 1)), -psi_den_spec],
+        ]
+    )
+    B_spec = np.block(
+        [[np.zeros((num_spec_constr, 1))], [np.ones((num_spec_constr, 1))]]
+    )
+
+    return A_spec, B_spec
+
+
+def _compute_spectral_factorization(
+    num_auto: np.ndarray, den_auto: np.ndarray
+) -> control.TransferFunction:
+    # Autocorrelation numerator and denominator polynominal roots
+    roots_auto_num = np.roots(num_auto)
+    roots_auto_den = np.roots(den_auto)
+
+    # Stable autocorrelation numerator and denominator polynominal roots
+    roots_num_stable = roots_auto_num[np.abs(roots_auto_num) < 1]
+    roots_den_stable = roots_auto_den[np.abs(roots_auto_den) < 1]
+
+    # Spectral factorization
+    spectral_const_num = np.sqrt(num_auto[0] / np.prod(-roots_num_stable))
+    spectral_const_den = np.sqrt(den_auto[0] / np.prod(-roots_den_stable))
+    num = np.real(
+        spectral_const_num
+        * np.flip(np.polynomial.polynomial.polyfromroots(roots_num_stable))
+    )
+    den = np.real(
+        spectral_const_den
+        * np.flip(np.polynomial.polynomial.polyfromroots(roots_den_stable))
+    )
+
+    # Transfer function
+    tf = control.TransferFunction(num, den)
+
+    return tf
+
+
+def _convert_discrete_to_continuous_bilinear(
+    sys_dt: Union[control.TransferFunction, control.StateSpace],
+    alpha: float,
+) -> control.StateSpace:
+    """
+    Convert a discrete-time LTI system (transfer function or state-space) into a
+    continous-time state-space system using the bilinear transformation.
+
+    Parameters
+    ----------
+    sys_dt : Union[control.TransferFunction, control.StateSpace]
+        Discrete-time system to be converted to continuous time.
+    alpha : float
+        Bilinear transformation constant.
+
+    Returns
+    -------
+    control.StateSpace
+        Continuous-time system.
+    """
+    # Convert transfer function to state-space system
+    sys_dt = control.StateSpace(control.ss(sys_dt))
+
+    # Discrete-time state-space matrices
+    Ad = sys_dt.A
+    Bd = sys_dt.B
+    Cd = sys_dt.C
+    Dd = sys_dt.D
+
+    # Additional matrices
+    In = np.eye(Ad.shape[0])
+    iden_Ad_inv = np.linalg.solve(In + Ad, In)
+
+    # Continous-time matrices
+    Ac = alpha * (Ad - In) @ iden_Ad_inv
+    Bc = alpha * (In - (Ad - In) @ iden_Ad_inv) @ Bd
+    Cc = Cd @ iden_Ad_inv
+    Dc = Dd - Cd @ iden_Ad_inv @ Bd
+
+    # Continuous-time system
+    sys_dt = control.StateSpace(Ac, Bc, Cc, Dc)
+
+    return sys_dt
