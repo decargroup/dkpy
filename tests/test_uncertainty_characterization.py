@@ -133,7 +133,7 @@ class TestComputeUncertaintyResidualResponse:
         self, complex_response_nom_freq, complex_response_offnom_freq
     ):
         """Test ValueError of
-        :func:`_test_compute_uncertainty_residual_multiplicative_input_freq`.
+        :func:`_compute_uncertainty_residual_multiplicative_input_freq`.
         """
 
         with pytest.raises(ValueError):
@@ -154,7 +154,7 @@ class TestComputeUncertaintyResidualResponse:
         self, complex_response_nom_freq, complex_response_offnom_freq
     ):
         """Test ValueError of
-        :func:`_test_compute_uncertainty_residual_multiplicative_output_freq`.
+        :func:`_compute_uncertainty_residual_multiplicative_output_freq`.
         """
         with pytest.raises(ValueError):
             residual_freq = dkpy.uncertainty_characterization._compute_uncertainty_residual_multiplicative_output_freq(
@@ -178,7 +178,7 @@ class TestComputeUncertaintyResidualResponse:
         self, complex_response_nom_freq, complex_response_offnom_freq
     ):
         """Test ValueError of
-        :func:`_test_compute_uncertainty_residual_inverse_additive_freq`.
+        :func:`_compute_uncertainty_residual_inverse_additive_freq`.
         """
         with pytest.raises(ValueError):
             residual_freq = dkpy.uncertainty_characterization._compute_uncertainty_residual_inverse_additive_freq(
@@ -198,7 +198,7 @@ class TestComputeUncertaintyResidualResponse:
         self, complex_response_nom_freq, complex_response_offnom_freq
     ):
         """Test ValueError of
-        :func:`_test_compute_uncertainty_residual_inverse_multiplicative_input_freq`.
+        :func:`_compute_uncertainty_residual_inverse_multiplicative_input_freq`.
         """
         with pytest.raises(ValueError):
             residual_freq = dkpy.uncertainty_characterization._compute_uncertainty_residual_inverse_multiplicative_input_freq(
@@ -218,7 +218,7 @@ class TestComputeUncertaintyResidualResponse:
         self, complex_response_nom_freq, complex_response_offnom_freq
     ):
         """Test ValueError of
-        :func:`_test_compute_uncertainty_residual_inverse_multiplicative_output_freq`.
+        :func:`_compute_uncertainty_residual_inverse_multiplicative_output_freq`.
         """
         with pytest.raises(ValueError):
             residual_freq = dkpy.uncertainty_characterization._compute_uncertainty_residual_inverse_multiplicative_output_freq(
@@ -226,8 +226,8 @@ class TestComputeUncertaintyResidualResponse:
             )
 
 
-class TestComputeOptimalUncertaintyWeightResponse:
-    """Test :func:`compute_optimal_uncertainty_weight_response`."""
+class TestComputeUncertaintyWeightResponse:
+    """Test :func:`compute_uncertainty_weight_response`."""
 
     @pytest.mark.parametrize(
         "sys_nom, sys_offnom_list, omega, weight_left_structure, weight_right_structure",
@@ -589,7 +589,7 @@ class TestComputeOptimalUncertaintyWeightResponse:
             ),
         ],
     )
-    def test_compute_optimal_uncertainty_weight_response(
+    def test_compute_uncertainty_weight_response(
         self,
         ndarrays_regression,
         sys_nom,
@@ -598,7 +598,7 @@ class TestComputeOptimalUncertaintyWeightResponse:
         weight_left_structure,
         weight_right_structure,
     ):
-        """Regression test :func:`compute_optimal_uncertainty_weight_response`."""
+        """Regression test :func:`compute_uncertainty_weight_response`."""
         # Frequency response of systems
         frequency_response_nom = control.frequency_response(
             sys_nom, omega, squeeze=False
@@ -627,7 +627,7 @@ class TestComputeOptimalUncertaintyWeightResponse:
 
         # Optimal uncertainty weight
         complex_response_weight_left, complex_response_weight_right = (
-            dkpy.compute_optimal_uncertainty_weight_response(
+            dkpy.compute_uncertainty_weight_response(
                 complex_response_residual_dict["multiplicative_input"],
                 weight_left_structure,
                 weight_right_structure,
@@ -645,8 +645,8 @@ class TestComputeOptimalUncertaintyWeightResponse:
         )
 
 
-class TestFitOverboundingUncertaintyWeight:
-    """Test :func:`fit_overbounding_uncertainty_weight`."""
+class TestFitUncertaintyWeight:
+    """Test :func:`fit_uncertainty_weight`."""
 
     @pytest.mark.parametrize(
         "sys_nom, sys_offnom_list, omega, weight_left_structure, weight_right_structure, fit_order",
@@ -823,7 +823,7 @@ class TestFitOverboundingUncertaintyWeight:
             ),
         ],
     )
-    def test_fit_overbounding_uncertainty_weight(
+    def test_fit_uncertainty_weight(
         self,
         ndarrays_regression,
         sys_nom,
@@ -833,7 +833,7 @@ class TestFitOverboundingUncertaintyWeight:
         weight_right_structure,
         fit_order,
     ):
-        """Regression test :func:`test_fit_overbounding_uncertainty_weight`."""
+        """Regression test :func:`fit_uncertainty_weight`."""
         # Frequency response of systems
         frequency_response_nom = control.frequency_response(
             sys_nom, omega, squeeze=False
@@ -862,7 +862,7 @@ class TestFitOverboundingUncertaintyWeight:
 
         # Optimal uncertainty weight
         complex_response_weight_left, complex_response_weight_right = (
-            dkpy.compute_optimal_uncertainty_weight_response(
+            dkpy.compute_uncertainty_weight_response(
                 complex_response_residual_dict["multiplicative_input"],
                 weight_left_structure,
                 weight_right_structure,
@@ -870,10 +870,10 @@ class TestFitOverboundingUncertaintyWeight:
         )
 
         # Overbounding transfer function fit
-        weight_left_fit = dkpy.fit_overbounding_uncertainty_weight(
+        weight_left_fit = dkpy.fit_uncertainty_weight(
             complex_response_weight_left, omega, fit_order
         )
-        weight_right_fit = dkpy.fit_overbounding_uncertainty_weight(
+        weight_right_fit = dkpy.fit_uncertainty_weight(
             complex_response_weight_right, omega, fit_order
         )
 
