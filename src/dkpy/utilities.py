@@ -4,6 +4,7 @@ __all__ = [
     "example_scherer1997_p907",
     "example_skogestad2006_p325",
     "example_mackenroth2004_p430",
+    "example_aircraft_actuator_uncertainty",
     "example_multimodel_uncertainty",
     "_ensure_tf",
     "_tf_close_coeff",
@@ -320,6 +321,96 @@ def example_mackenroth2004_p430():
         "n_z": n_z,
     }
     return out
+
+
+def example_aircraft_actuator_uncertainty():
+    """Add uncertain frequency response of aircaft actuator from [M04]_, Section 14.1
+    (p. 430).
+    """
+    # Actuator model
+    A_act = np.array(
+        [[0, 1, 0, 0], [-1600, -56, 0, 0], [0, 0, 0, 1], [0, 0, -1600, -56]]
+    )
+    B_act = np.array([[0, 0], [1600, 0], [0, 0], [0, 1600]])
+    C_act = np.eye(4)
+    D_act = np.zeros((4, 2))
+    actuator = control.StateSpace(A_act, B_act, C_act, D_act, name="actuator")
+    actuator.set_inputs(["zeta_unc", "xi_unc"])
+    actuator.set_outputs(["zeta", "rate_zeta", "xi", "rate_xi"])
+
+    # Input multiplicative uncertainty weight
+    weight_unc_channel = control.TransferFunction([0.25, 0.05], [0.125, 1])
+    weight_unc = control.append(
+        weight_unc_channel,
+        weight_unc_channel,
+        name="weight_unc",
+    )
+    weight_unc.set_inputs(["zeta_c", "xi_c"])
+    weight_unc.set_outputs(weight_unc.noutputs, "y_del")
+
+    # Uncertainty summation junction
+    sum_uncertainty = control.StateSpace([], [], [], [[1, 0, 1, 0], [0, 1, 0, 1]])
+    sum_uncertainty.set_inputs(["zeta_c", "xi_c", "u_del[0]", "u_del[1]"])
+    sum_uncertainty.set_outputs(["zeta_unc", "xi_unc"])
+
+    # Generate off-nominal models with different perturbations
+    delta_block_list = []
+
+    # Constant gain perturbation
+    num_offnom_gain = 20
+    for gain_unc in np.linspace(-1, 1, num_offnom_gain):
+        delta = control.StateSpace([], [], [], [gain_unc])
+        delta_block = control.append(delta, delta)
+        delta_block.set_inputs(delta_block.ninputs, "y_del")
+        delta_block.set_outputs(delta_block.noutputs, "u_del")
+        delta_block_list.append(delta_block)
+
+    # Phase perturbation
+    a_min = 0.01
+    a_max = 10
+    num_offnom_phase = 20
+    for a in np.linspace(a_min, a_max, num_offnom_phase):
+        delta_block = control.append(
+            control.tf([1 / a, -1], [1 / a, 1]),
+            control.tf([1 / a, -1], [1 / a, 1]),
+            name="delta_block",
+        )
+        delta_block.set_inputs(delta_block.ninputs, "y_del")
+        delta_block.set_outputs(delta_block.noutputs, "u_del")
+        delta_block_list.append(delta_block)
+
+    # Off-nominal actuator list
+    actuator_offnom_list = []
+    for delta_block in delta_block_list:
+        actuator_offnom = control.interconnect(
+            syslist=[
+                actuator,
+                delta_block,
+                weight_unc,
+                sum_uncertainty,
+            ],
+            inplist=["zeta_c", "xi_c"],
+            outlist=["zeta", "rate_zeta", "xi", "rate_xi"],
+            name="closed_loop_sim",
+        )
+        actuator_offnom_list.append(actuator_offnom)
+
+    # Frequency response
+    omega_min = 0.01
+    omega_max = 100
+    num_omega = 100
+    omega = np.logspace(np.log10(omega_min), np.log10(omega_max), num_omega)
+
+    frequency_response_actuator = control.frequency_response(actuator, omega)
+    frequency_response_actuator_offnom_list = control.frequency_response(
+        actuator_offnom_list, omega
+    )
+
+    return {
+        "response_actuator_nominal": frequency_response_actuator,
+        "response_actuator_offnominal": frequency_response_actuator_offnom_list,
+        "omega": omega,
+    }
 
 
 def example_multimodel_uncertainty():

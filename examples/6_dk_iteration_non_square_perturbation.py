@@ -57,7 +57,7 @@ def example_dk_iter_list_order_aircraft():
     # DK-iteration controller synthesis
     dk_iter = dkpy.DkIterListOrder(
         controller_synthesis=dkpy.HinfSynLmi(
-            lmi_strictness=5e-7,  # Have to play with tolerances.
+            lmi_strictness=5e-7,
             solver_params=dict(
                 solver="MOSEK",
                 eps=5e-8,
@@ -74,7 +74,7 @@ def example_dk_iter_list_order_aircraft():
             ),
         ),
         d_scale_fit=dkpy.DScaleFitSlicot(),
-        fit_orders=[4, 4],
+        fit_orders=[4, 4, 4],
     )
     # Alternative MATLAB block structure description
     # block_structure = np.array([[n_u_delta, n_y_delta], [n_w, n_z]])
