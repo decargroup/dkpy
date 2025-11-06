@@ -807,7 +807,6 @@ def plot_mu(
     hide: Optional[Literal["mu_omega", "mu_fit_omega"]] = None,
     hz: bool = False,
     plot_kw: Optional[Dict[str, Any]] = None,
-    subplot_kw: Optional[Dict[str, Any]] = None,
     xlabel: Optional[str] = None,
     ylabel: Optional[str] = None,
     grid_kw: Optional[Dict[str, Any]] = None,
@@ -821,11 +820,21 @@ def plot_mu(
         Object containing information about the D-scale fit.
     ax : Optional[plt.Axes]
         Matplotlib axes to use.
-    plot_kw : Optional[Dict[str, Any]]
-        Keyword arguments for :func:`plt.Axes.semilogx`.
-    hide : Optional[str]
+    hide : Optional[Literal["mu_omega", "mu_fit_omega"]]
         Set to ``'mu_omega'`` or ``'mu_fit_omega'`` to hide either one of
         those lines.
+    hz: bool
+        If True, display the frequency in Hz. Otherwise, display the frequency in rad/s.
+    plot_kw : Optional[Dict[str, Any]]
+        Keyword arguments for :func:`plt.axes.Axes.semilogx`.
+    xlabel: Optional[str]
+        X-axis label.
+    ylabel: Optional[str]
+        Y-axis label.
+    grid_kw : Optional[Dict[str, Any]]
+        Keyword arguments for :meth:`plt.axes.Axes.grid`.
+    legend_kw : Optional[Dict[str, Any]]
+        Keyword arguments for :meth:`plt.axes.Axes.legend`.
 
     Returns
     -------
@@ -867,8 +876,6 @@ def plot_mu(
     # Parse plot settings
     if plot_kw is None:
         plot_kw = {}
-    if subplot_kw is None:
-        subplot_kw = {}
     if xlabel is None:
         xlabel = r"$f$ (Hz)" if hz else r"$\omega$ (rad/s)"
     if ylabel is None:
@@ -894,10 +901,7 @@ def plot_mu(
     _ = plot_kw.pop("linestyle", None)
 
     # Frequency
-    if hz:
-        freq = d_scale_info.omega / (2 * np.pi)  # Frequency [Hz]
-    else:
-        freq = d_scale_info.omega  # Angular frequency [rad/s]
+    freq = d_scale_info.omega / (2 * np.pi) if hz else d_scale_info.omega
 
     # Plot mu
     if hide != "mu_omega":
@@ -932,10 +936,16 @@ def plot_mu(
 def plot_D(
     d_scale_info: IterResult,
     ax: Optional[np.ndarray] = None,
-    plot_kw: Optional[Dict[str, Any]] = None,
     hide: Optional[str] = None,
     plot_inverse: Optional[bool] = False,
-) -> Tuple[plt.Figure, np.ndarray]:
+    hz: bool = False,
+    db: bool = True,
+    plot_kw: Optional[Dict[str, Any]] = None,
+    xlabel: Optional[str] = None,
+    ylabel: Optional[str] = None,
+    grid_kw: Optional[Dict[str, Any]] = None,
+    legend_kw: Optional[Dict[str, Any]] = None,
+) -> Tuple[Figure, np.ndarray]:
     """Plot D.
 
     Parameters
@@ -944,19 +954,32 @@ def plot_D(
         Object containing information about the D-scale fit.
     ax : Optional[np.ndarray]
         Array of Matplotlib axes to use.
-    plot_kw : Optional[Dict[str, Any]]
-        Keyword arguments for :func:`plt.Axes.semilogx`.
     hide : Optional[str]
         Set to ``'D_omega'`` or ``'D_fit_omega'`` to hide either one of
         those lines.
     plot_inverse: Optional[bool]
         Plot the inverse right D-scale.
+    hz: bool
+        If True, display the frequency in Hz. Otherwise, display the frequency in rad/s.
+    db: bool
+        If True, display the magnitude in dB. Otherwise, display the frequency in
+        absolute units.
+    plot_kw : Optional[Dict[str, Any]]
+        Keyword arguments for :func:`plt.axes.Axes.semilogx`.
+    xlabel: Optional[str]
+        X-axis label.
+    ylabel: Optional[str]
+        Y-axis label.
+    grid_kw : Optional[Dict[str, Any]]
+        Keyword arguments for :meth:`plt.axes.Axes.grid`.
+    legend_kw : Optional[Dict[str, Any]]
+        Keyword arguments for :meth:`plt.axes.Axes.legend`.
 
     Returns
     -------
-    Tuple[plt.Figure, np.ndarray]
-        Matplotlib :class:`plt.Figure` object and two-dimensional array of
-        :class:`plt.Axes` objects.
+    Tuple[plt.figure.Figure, np.ndarray]
+        Matplotlib :class:`plt.figure.Figure` object and two-dimensional array of
+        :class:`plt.axes.Axes` objects.
 
     Examples
     --------
@@ -989,6 +1012,19 @@ def plot_D(
     ... )
     >>> fig, ax = dkpy.plot_D(d_scale_fit_info)
     """
+
+    # Parse plot settings
+    if plot_kw is None:
+        plot_kw = {}
+    if xlabel is None:
+        xlabel = r"$f$ (Hz)" if hz else r"$\omega$ (rad/s)"
+    if ylabel is None:
+        ylabel = r"D"
+    if grid_kw is None:
+        grid_kw = {"linestyle": "--"}
+    if legend_kw is None:
+        legend_kw = {"loc": "lower left"}
+
     block_structure = d_scale_info.block_structure
     mask_l, mask_r = d_scale_fit._generate_d_scale_mask(block_structure)
     # Create figure if not provided
@@ -1000,81 +1036,69 @@ def plot_D(
         )
     else:
         fig = ax[0, 0].get_figure()
+
     # Set label
-    if plot_kw is None:
-        plot_kw = {}
     label = plot_kw.pop("label", "D")
     label_D_omega = label + ""
     label_D_fit_omega = label + "_fit"
+
     # Clear line styles
     _ = plot_kw.pop("ls", None)
     _ = plot_kw.pop("linestyle", None)
-    # Plot D
+
+    # Select plot of D-scale of D-scale inverse
     if not plot_inverse:
-        mag_D_omega = np.abs(d_scale_info.D_l_omega)
-        mag_D_fit_omega = np.abs(d_scale_info.D_l_fit_omega)
-        for i in range(ax.shape[0]):
-            for j in range(ax.shape[1]):
-                if mask_l[i, j] != 0:
-                    dB_omega = 20 * np.log10(mag_D_omega[i, j, :])
-                    dB_fit_omega = 20 * np.log10(mag_D_fit_omega[i, j, :])
-                    if hide != "D_omega":
-                        ax[i, j].semilogx(
-                            d_scale_info.omega,
-                            dB_omega,
-                            label=label_D_omega,
-                            ls="--",
-                            **plot_kw,
-                        )
-                    if hide != "D_fit_omega":
-                        ax[i, j].semilogx(
-                            d_scale_info.omega,
-                            dB_fit_omega,
-                            label=label_D_fit_omega,
-                            **plot_kw,
-                        )
-                    # Set axis labels
-                    ax[i, j].set_xlabel(r"$\omega$ (rad/s)")
-                    ax[i, j].set_ylabel(rf"$D_{{{i}{j}}}(\omega) (dB)$")
-                    ax[i, j].grid(linestyle="--")
-                else:
-                    ax[i, j].axis("off")
-        fig.legend(handles=ax[0, 0].get_lines(), loc="lower left")
-        # Return figure and axes
-        return fig, ax
-    # Plot D_inv
+        # Plot D-scale
+        magnitude = np.abs(d_scale_info.D_l_omega)
+        magnitude_fit = np.abs(d_scale_info.D_l_fit_omega)
     else:
-        mag_D_inv_omega = np.abs(d_scale_info.D_r_inv_omega)
-        mag_D_inv_fit_omega = np.abs(d_scale_info.D_r_inv_fit_omega)
-        for i in range(ax.shape[0]):
-            for j in range(ax.shape[1]):
-                if mask_l[i, j] != 0:
-                    dB_omega = 20 * np.log10(mag_D_inv_omega[i, j, :])
-                    dB_fit_omega = 20 * np.log10(mag_D_inv_fit_omega[i, j, :])
-                    if hide != "D_omega":
-                        ax[i, j].semilogx(
-                            d_scale_info.omega,
-                            dB_omega,
-                            label=label_D_omega,
-                            ls="--",
-                            **plot_kw,
-                        )
-                    if hide != "D_fit_omega":
-                        ax[i, j].semilogx(
-                            d_scale_info.omega,
-                            dB_fit_omega,
-                            label=label_D_fit_omega,
-                            **plot_kw,
-                        )
-                    # Set axis labels
-                    ax[i, j].set_xlabel(r"$\omega$ (rad/s)")
-                    ax[i, j].set_ylabel(rf"$D_{{{i}{j}}}(\omega)^{{-1}} (dB)$")
-                    ax[i, j].grid(linestyle="--")
+        # Plot D-scale inverse
+        magnitude = np.abs(d_scale_info.D_r_inv_omega)
+        magnitude_fit = np.abs(d_scale_info.D_r_inv_fit_omega)
+
+    # Select dB or absolute units for magnitude
+    if db:
+        magnitude = control.mag2db(magnitude)
+        magnitude_fit = control.mag2db(magnitude_fit)
+
+    # Frequency
+    freq = d_scale_info.omega / (2 * np.pi) if hz else d_scale_info.omega
+
+    # Plot D
+    for i in range(ax.shape[0]):
+        for j in range(ax.shape[1]):
+            if mask_l[i, j] != 0:
+                if hide != "D_omega":
+                    ax[i, j].semilogx(
+                        freq,
+                        magnitude[i, j],
+                        label=label_D_omega,
+                        ls="--",
+                        **plot_kw,
+                    )
+                if hide != "D_fit_omega":
+                    ax[i, j].semilogx(
+                        freq,
+                        magnitude_fit[i, j],
+                        label=label_D_fit_omega,
+                        **plot_kw,
+                    )
+                # Set axis labels
+                ax[i, j].set_xlabel(xlabel)
+                ylabel_ij = ylabel if not plot_inverse else ylabel + "$^{-1}$"
+                ylabel_ij += f"$_{{{i + 1}{j + 1}}}$"
+                if db:
+                    ylabel_ij += " (dB)"
                 else:
-                    ax[i, j].axis("off")
-        fig.legend(handles=ax[0, 0].get_lines(), loc="lower left")
-        # Return figure and axes
-        return fig, ax
+                    ylabel_ij += " (-)"
+                ax[i, j].set_ylabel(ylabel_ij)
+                ax[i, j].grid(**grid_kw)
+            else:
+                ax[i, j].axis("off")
+    fig.legend(handles=ax[0, 0].get_lines(), **legend_kw)
+
+    # Return figure and axes
+    return fig, ax
 
 
 def _augment_d_scales(
