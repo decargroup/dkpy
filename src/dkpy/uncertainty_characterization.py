@@ -1093,21 +1093,37 @@ def plot_magnitude_response_uncertain_model_set(
     num_outputs = complex_response_offnom_list.shape[2]
     num_inputs = complex_response_offnom_list.shape[3]
 
+    # Default plot settings
+    plot_nom_kw_default = {"color": "C0", "label": "Nominal"}
+    plot_offnom_kw_default = {"color": "C1", "alpha": 0.25, "label": "Off-Nominal"}
+    subplot_kw_default = {"sharex": True, "layout": "constrained"}
+    xlabel_default = r"$f$ (Hz)" if hz else r"$\omega$ (rad/s)"
+    ylabel_default = r"$\mu$"
+    grid_kw_default = {"linestyle": "--"}
+    legend_kw_default = {"loc": "outside lower center", "ncol": 2}
+
     # Parse plot settings
-    if plot_nom_kw is None:
-        plot_nom_kw = {"color": "C0", "label": "Nominal"}
-    if plot_offnom_kw is None:
-        plot_offnom_kw = {"color": "C1", "alpha": 0.25, "label": "Off-Nominal"}
-    if subplot_kw is None:
-        subplot_kw = {"sharex": True, "layout": "constrained"}
-    if xlabel is None:
-        xlabel = "$f$ (Hz)" if hz else r"$\omega$ (rad/s)"
-    if ylabel is None:
-        ylabel = "Magnitude (dB)" if db else "Magnitude (-)"
-    if grid_kw is None:
-        grid_kw = {"linestyle": "--"}
-    if legend_kw is None:
-        legend_kw = {"loc": "outside lower center", "ncol": 2}
+    plot_nom_kw = (
+        plot_nom_kw_default
+        if plot_nom_kw is None
+        else dict(plot_nom_kw_default, **plot_nom_kw)
+    )
+    plot_offnom_kw = (
+        plot_offnom_kw_default
+        if plot_offnom_kw is None
+        else dict(plot_offnom_kw_default, **plot_offnom_kw)
+    )
+    subplot_kw = (
+        subplot_kw_default
+        if subplot_kw is None
+        else dict(subplot_kw_default, **subplot_kw)
+    )
+    xlabel = xlabel_default if xlabel is None else xlabel
+    ylabel = ylabel_default if ylabel is None else ylabel
+    grid_kw = grid_kw_default if grid_kw is None else dict(grid_kw_default, **grid_kw)
+    legend_kw = (
+        legend_kw_default if legend_kw is None else dict(legend_kw_default, **legend_kw)
+    )
 
     # Create figure if not provided
     if ax is None:
@@ -1253,21 +1269,37 @@ def plot_phase_response_uncertain_model_set(
     num_outputs = complex_response_offnom_list.shape[2]
     num_inputs = complex_response_offnom_list.shape[3]
 
+    # Default plot settings
+    plot_nom_kw_default = {"color": "C0", "label": "Nominal"}
+    plot_offnom_kw_default = {"color": "C1", "alpha": 0.25, "label": "Off-Nominal"}
+    subplot_kw_default = {"sharex": True, "layout": "constrained"}
+    xlabel_default = r"$f$ (Hz)" if hz else r"$\omega$ (rad/s)"
+    ylabel_default = r"$\mu$"
+    grid_kw_default = {"linestyle": "--"}
+    legend_kw_default = {"loc": "outside lower center", "ncol": 2}
+
     # Parse plot settings
-    if plot_nom_kw is None:
-        plot_nom_kw = {"color": "C0", "label": "Nominal"}
-    if plot_offnom_kw is None:
-        plot_offnom_kw = {"color": "C1", "alpha": 0.25, "label": "Off-Nominal"}
-    if subplot_kw is None:
-        subplot_kw = {"sharex": True, "layout": "constrained"}
-    if xlabel is None:
-        xlabel = "$f$ (Hz)" if hz else r"$\omega$ (rad/s)"
-    if ylabel is None:
-        ylabel = "Phase (deg)" if deg else "Phase (rad)"
-    if grid_kw is None:
-        grid_kw = {"linestyle": "--"}
-    if legend_kw is None:
-        legend_kw = {"loc": "outside lower center", "ncol": 2}
+    plot_nom_kw = (
+        plot_nom_kw_default
+        if plot_nom_kw is None
+        else dict(plot_nom_kw_default, **plot_nom_kw)
+    )
+    plot_offnom_kw = (
+        plot_offnom_kw_default
+        if plot_offnom_kw is None
+        else dict(plot_offnom_kw_default, **plot_offnom_kw)
+    )
+    subplot_kw = (
+        subplot_kw_default
+        if subplot_kw is None
+        else dict(subplot_kw_default, **subplot_kw)
+    )
+    xlabel = xlabel_default if xlabel is None else xlabel
+    ylabel = ylabel_default if ylabel is None else ylabel
+    grid_kw = grid_kw_default if grid_kw is None else dict(grid_kw_default, **grid_kw)
+    legend_kw = (
+        legend_kw_default if legend_kw is None else dict(legend_kw_default, **legend_kw)
+    )
 
     # Create figure if not provided
     if ax is None:
@@ -1409,21 +1441,37 @@ def plot_singular_value_response_uncertain_model_set(
     # System paramters
     num_offnom = complex_response_offnom_list.shape[0]
 
+    # Default plot settings
+    plot_nom_kw_default = {"color": "C0", "label": "Nominal"}
+    plot_offnom_kw_default = {"color": "C1", "alpha": 0.25, "label": "Off-Nominal"}
+    subplot_kw_default = {"sharex": True, "layout": "constrained"}
+    xlabel_default = r"$f$ (Hz)" if hz else r"$\omega$ (rad/s)"
+    ylabel_default = r"$\mu$"
+    grid_kw_default = {"linestyle": "--"}
+    legend_kw_default = {"loc": "outside lower center", "ncol": 2}
+
     # Parse plot settings
-    if plot_nom_kw is None:
-        plot_nom_kw = {"color": "C0", "label": "Nominal"}
-    if plot_offnom_kw is None:
-        plot_offnom_kw = {"color": "C1", "alpha": 0.25, "label": "Off-Nominal"}
-    if subplot_kw is None:
-        subplot_kw = {"sharex": True, "layout": "constrained"}
-    if xlabel is None:
-        xlabel = "$f$ (Hz)" if hz else r"$\omega$ (rad/s)"
-    if ylabel is None:
-        ylabel = "Magnitude (dB)" if db else "Magnitude (-)"
-    if grid_kw is None:
-        grid_kw = {"linestyle": "--"}
-    if legend_kw is None:
-        legend_kw = {"loc": "outside lower center", "ncol": 2}
+    plot_nom_kw = (
+        plot_nom_kw_default
+        if plot_nom_kw is None
+        else dict(plot_nom_kw_default, **plot_nom_kw)
+    )
+    plot_offnom_kw = (
+        plot_offnom_kw_default
+        if plot_offnom_kw is None
+        else dict(plot_offnom_kw_default, **plot_offnom_kw)
+    )
+    subplot_kw = (
+        subplot_kw_default
+        if subplot_kw is None
+        else dict(subplot_kw_default, **subplot_kw)
+    )
+    xlabel = xlabel_default if xlabel is None else xlabel
+    ylabel = ylabel_default if ylabel is None else ylabel
+    grid_kw = grid_kw_default if grid_kw is None else dict(grid_kw_default, **grid_kw)
+    legend_kw = (
+        legend_kw_default if legend_kw is None else dict(legend_kw_default, **legend_kw)
+    )
 
     # Create figure if not provided
     if ax is None:

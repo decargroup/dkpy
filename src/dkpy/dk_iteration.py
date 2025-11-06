@@ -880,17 +880,21 @@ def plot_mu(
     >>> fig, ax = dkpy.plot_mu(d_scale_fit_info)
     """
 
+    # Default plot settings
+    plot_kw_default = {}
+    xlabel_default = r"$f$ (Hz)" if hz else r"$\omega$ (rad/s)"
+    ylabel_default = r"$\mu$"
+    grid_kw_default = {"linestyle": "--"}
+    legend_kw_default = {"loc": "lower left"}
+
     # Parse plot settings
-    if plot_kw is None:
-        plot_kw = {}
-    if xlabel is None:
-        xlabel = r"$f$ (Hz)" if hz else r"$\omega$ (rad/s)"
-    if ylabel is None:
-        ylabel = r"$\mu$"
-    if grid_kw is None:
-        grid_kw = {"linestyle": "--"}
-    if legend_kw is None:
-        legend_kw = {"loc": "lower left"}
+    plot_kw = plot_kw_default if plot_kw is None else dict(plot_kw_default, **plot_kw)
+    xlabel = xlabel_default if xlabel is None else xlabel
+    ylabel = ylabel_default if ylabel is None else ylabel
+    grid_kw = grid_kw_default if grid_kw is None else dict(grid_kw_default, **grid_kw)
+    legend_kw = (
+        legend_kw_default if legend_kw is None else dict(legend_kw_default, **legend_kw)
+    )
 
     # Create figure if not provided
     if ax is None:
@@ -1020,17 +1024,21 @@ def plot_D(
     >>> fig, ax = dkpy.plot_D(d_scale_fit_info)
     """
 
+    # Default plot settings
+    plot_kw_default = {}
+    xlabel_default = r"$f$ (Hz)" if hz else r"$\omega$ (rad/s)"
+    ylabel_default = r"$\mu$"
+    grid_kw_default = {"linestyle": "--"}
+    legend_kw_default = {"loc": "lower left"}
+
     # Parse plot settings
-    if plot_kw is None:
-        plot_kw = {}
-    if xlabel is None:
-        xlabel = r"$f$ (Hz)" if hz else r"$\omega$ (rad/s)"
-    if ylabel is None:
-        ylabel = r"D"
-    if grid_kw is None:
-        grid_kw = {"linestyle": "--"}
-    if legend_kw is None:
-        legend_kw = {"loc": "lower left"}
+    plot_kw = plot_kw_default if plot_kw is None else dict(plot_kw_default, **plot_kw)
+    xlabel = xlabel_default if xlabel is None else xlabel
+    ylabel = ylabel_default if ylabel is None else ylabel
+    grid_kw = grid_kw_default if grid_kw is None else dict(grid_kw_default, **grid_kw)
+    legend_kw = (
+        legend_kw_default if legend_kw is None else dict(legend_kw_default, **legend_kw)
+    )
 
     block_structure = d_scale_info.block_structure
     mask_l, mask_r = d_scale_fit._generate_d_scale_mask(block_structure)
