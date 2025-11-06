@@ -1024,12 +1024,17 @@ def plot_magnitude_response_uncertain_model_set(
     complex_response_nom: Union[np.ndarray, control.FrequencyResponseData],
     complex_response_offnom_list: Union[np.ndarray, control.FrequencyResponseList],
     omega: np.ndarray,
+    ax: Optional[Union[Axes, np.ndarray]] = None,
     db: bool = True,
     hz: bool = False,
     frequency_log_scale: bool = True,
-    plot_nom_kw: Dict[str, Any] = {},
-    plot_offnom_kw: Dict[str, Any] = {},
-    subplot_kw: Dict[str, Any] = {},
+    plot_nom_kw: Optional[Dict[str, Any]] = None,
+    plot_offnom_kw: Optional[Dict[str, Any]] = None,
+    subplot_kw: Optional[Dict[str, Any]] = None,
+    xlabel: Optional[str] = None,
+    ylabel: Optional[str] = None,
+    grid_kw: Optional[Dict[str, Any]] = None,
+    legend_kw: Optional[Dict[str, Any]] = None,
 ) -> Tuple[Figure, Union[Axes, np.ndarray], Legend]:
     """Plot magnitude response of nominal model and set of off-nominal models.
 
@@ -1042,6 +1047,8 @@ def plot_magnitude_response_uncertain_model_set(
         systems.
     omega : np.ndarray
         Angular frequency grid.
+    ax : Optional[plt.axes.Axes, np.narray]
+        Matplotlib axes or array of matplotlib axes to use.
     db : bool
         If True, plot the magnitude in units of dB. Otherwise, plot the magnitude in
         absolute units.
@@ -1086,62 +1093,80 @@ def plot_magnitude_response_uncertain_model_set(
     num_outputs = complex_response_offnom_list.shape[2]
     num_inputs = complex_response_offnom_list.shape[3]
 
-    # Nominal model plot keyword arguments
-    plot_nom_kwargs = {"color": "C0", "label": "Nominal"}
-    plot_nom_kwargs.update(plot_nom_kw)
+    # Parse plot settings
+    if plot_nom_kw is None:
+        plot_nom_kw = {"color": "C0", "label": "Nominal"}
+    if plot_offnom_kw is None:
+        plot_offnom_kw = {"color": "C1", "alpha": 0.25, "label": "Off-Nominal"}
+    if subplot_kw is None:
+        subplot_kw = {"sharex": True, "layout": "constrained"}
+    if xlabel is None:
+        xlabel = "$f$ (Hz)" if hz else r"$\omega$ (rad/s)"
+    if ylabel is None:
+        ylabel = "Magnitude (dB)" if db else "Magnitude (-)"
+    if grid_kw is None:
+        grid_kw = {"linestyle": "--"}
+    if legend_kw is None:
+        legend_kw = {"loc": "outside lower center", "ncol": 2}
 
-    # Off-nominal model plot keyword arguments
-    plot_offnom_kwargs = {"color": "C1", "alpha": 0.25, "label": "Off-Nominal"}
-    plot_offnom_kwargs.update(plot_offnom_kw)
+    # Create figure if not provided
+    if ax is None:
+        fig, ax = plt.subplots(num_outputs, num_inputs, squeeze=False, **subplot_kw)
+    else:
+        if isinstance(ax, np.ndarray):
+            try:
+                fig = ax[0].get_figure()
+            except AttributeError:
+                fig = ax[0, 0].get_figure()
+            except Exception:
+                raise ValueError("`ax` cannot be interpreted as plot axes.")
+        else:
+            fig = ax.get_figure()
+            ax = np.array([[ax]])
 
-    # Subplot keyword arguments
-    subplot_kwargs = {"sharex": True, "layout": "constrained"}
-    subplot_kwargs.update(subplot_kw)
+    # Select magnitude units (dB or absolute)
+    magnitude_offnom = np.abs(complex_response_offnom_list[:, :, :, :])
+    magnitude_offnom = control.mag2db(magnitude_offnom) if db else magnitude_offnom
+    magnitude_nom = np.abs(complex_response_nom)
+    magnitude_nom = control.mag2db(magnitude_nom) if db else magnitude_nom
 
-    # Initialize figure
-    fig, ax = plt.subplots(num_outputs, num_inputs, squeeze=False, **subplot_kwargs)
+    # Select frequency units (Hz or rad/s)
+    frequency = omega / (2 * np.pi) if hz else omega
 
     # Off-nominal frequency response
     for idx_offnom in range(num_offnom):
-        magnitude_offnom = np.abs(complex_response_offnom_list[idx_offnom, :, :, :])
         for idx_input in range(num_inputs):
             for idx_output in range(num_outputs):
                 ax[idx_output, idx_input].plot(
-                    omega / (2 * np.pi) if hz else omega,
-                    control.mag2db(magnitude_offnom[:, idx_output, idx_input])
-                    if db
-                    else magnitude_offnom[:, idx_output, idx_input],
-                    **plot_offnom_kwargs,
+                    frequency,
+                    magnitude_offnom[idx_offnom, :, idx_output, idx_input],
+                    **plot_offnom_kw,
                 )
 
     # Nominal frequency response
-    magnitude_nom = np.abs(complex_response_nom)
     for idx_input in range(num_inputs):
         for idx_output in range(num_outputs):
             ax[idx_output, idx_input].plot(
-                omega / (2 * np.pi) if hz else omega,
-                control.mag2db(magnitude_nom[:, idx_output, idx_input])
-                if db
-                else magnitude_nom[:, idx_output, idx_input],
-                **plot_nom_kwargs,
+                frequency,
+                magnitude_nom[:, idx_output, idx_input],
+                **plot_nom_kw,
             )
 
     # Plot settings
     for ax_output in ax:
         for ax_output_input in ax_output:
-            ax_output_input.set_ylabel("Magnitude (dB)" if db else "Magnitude (-)")
-            ax_output_input.grid()
+            ax_output_input.set_ylabel(ylabel)
+            ax_output_input.grid(**grid_kw)
             if frequency_log_scale:
                 ax_output_input.set_xscale("log")
     for idx_input in range(num_inputs):
-        ax[-1, idx_input].set_xlabel("$f$ (Hz)" if hz else r"$\omega$ (rad/s)")
+        ax[-1, idx_input].set_xlabel(xlabel)
     handles, labels = ax[0, 0].get_legend_handles_labels()
     legend_dict = dict(zip(labels, handles))
     legend = fig.legend(
         labels=legend_dict.keys(),
         handles=legend_dict.values(),
-        loc="outside lower center",
-        ncol=2,
+        **legend_kw,
     )
 
     return fig, ax, legend
@@ -1151,12 +1176,17 @@ def plot_phase_response_uncertain_model_set(
     complex_response_nom: Union[np.ndarray, control.FrequencyResponseData],
     complex_response_offnom_list: Union[np.ndarray, control.FrequencyResponseList],
     omega: np.ndarray,
+    ax: Optional[Union[Axes, np.ndarray]] = None,
     deg: bool = True,
     hz: bool = False,
     frequency_log_scale: bool = True,
-    plot_nom_kw: Dict[str, Any] = {},
-    plot_offnom_kw: Dict[str, Any] = {},
-    subplot_kw: Dict[str, Any] = {},
+    plot_nom_kw: Optional[Dict[str, Any]] = None,
+    plot_offnom_kw: Optional[Dict[str, Any]] = None,
+    subplot_kw: Optional[Dict[str, Any]] = None,
+    xlabel: Optional[str] = None,
+    ylabel: Optional[str] = None,
+    grid_kw: Optional[Dict[str, Any]] = None,
+    legend_kw: Optional[Dict[str, Any]] = None,
 ) -> Tuple[Figure, Union[Axes, np.ndarray], Legend]:
     """Plot phase response of nominal model and set of off-nominal models.
 
@@ -1169,6 +1199,8 @@ def plot_phase_response_uncertain_model_set(
         systems.
     omega : np.ndarray
         Angular frequency grid.
+    ax : Optional[plt.axes.Axes, np.narray]
+        Matplotlib axes or array of matplotlib axes to use.
     db : bool
         If True, plot the magnitude in units of dB. Otherwise, plot the magnitude in
         absolute units.
@@ -1187,6 +1219,14 @@ def plot_phase_response_uncertain_model_set(
     subplot_kw : Dict[str, Any]
         Keyword arguments for the subplot. See [#subplot_kw]_ for more information on
         the subplot keywords.
+    xlabel: Optional[str]
+        X-axis label.
+    ylabel: Optional[str]
+        Y-axis label.
+    grid_kw : Optional[Dict[str, Any]]
+        Keyword arguments for :meth:`plt.axes.Axes.grid`.
+    legend_kw : Optional[Dict[str, Any]]
+        Keyword arguments for :meth:`plt.axes.Axes.legend`.
 
     Returns
     -------
@@ -1213,62 +1253,80 @@ def plot_phase_response_uncertain_model_set(
     num_outputs = complex_response_offnom_list.shape[2]
     num_inputs = complex_response_offnom_list.shape[3]
 
-    # Nominal model plot keyword arguments
-    plot_nom_kwargs = {"color": "C0", "label": "Nominal"}
-    plot_nom_kwargs.update(plot_nom_kw)
+    # Parse plot settings
+    if plot_nom_kw is None:
+        plot_nom_kw = {"color": "C0", "label": "Nominal"}
+    if plot_offnom_kw is None:
+        plot_offnom_kw = {"color": "C1", "alpha": 0.25, "label": "Off-Nominal"}
+    if subplot_kw is None:
+        subplot_kw = {"sharex": True, "layout": "constrained"}
+    if xlabel is None:
+        xlabel = "$f$ (Hz)" if hz else r"$\omega$ (rad/s)"
+    if ylabel is None:
+        ylabel = "Phase (deg)" if deg else "Phase (rad)"
+    if grid_kw is None:
+        grid_kw = {"linestyle": "--"}
+    if legend_kw is None:
+        legend_kw = {"loc": "outside lower center", "ncol": 2}
 
-    # Off-nominal model plot keyword arguments
-    plot_offnom_kwargs = {"color": "C1", "alpha": 0.25, "label": "Off-Nominal"}
-    plot_offnom_kwargs.update(plot_offnom_kw)
+    # Create figure if not provided
+    if ax is None:
+        fig, ax = plt.subplots(num_outputs, num_inputs, squeeze=False, **subplot_kw)
+    else:
+        if isinstance(ax, np.ndarray):
+            try:
+                fig = ax[0].get_figure()
+            except AttributeError:
+                fig = ax[0, 0].get_figure()
+            except Exception:
+                raise ValueError("`ax` cannot be interpreted as plot axes.")
+        else:
+            fig = ax.get_figure()
+            ax = np.array([[ax]])
 
-    # Subplot keyword arguments
-    subplot_kwargs = {"sharex": True, "layout": "constrained"}
-    subplot_kwargs.update(subplot_kw)
+    # Select phase units (deg or rad)
+    phase_offnom = np.angle(complex_response_offnom_list[:, :, :, :])
+    phase_offnom = 180 / np.pi * phase_offnom if deg else phase_offnom
+    phase_nom = np.angle(complex_response_nom)
+    phase_nom = 180 / np.pi * phase_nom if deg else phase_nom
 
-    # Initialize figure
-    fig, ax = plt.subplots(num_outputs, num_inputs, squeeze=False, **subplot_kwargs)
+    # Select frequency units (Hz or rad/s)
+    frequency = omega / (2 * np.pi) if hz else omega
 
     # Off-nominal frequency response
     for idx_offnom in range(num_offnom):
-        phase_offnom = np.angle(complex_response_offnom_list[idx_offnom, :, :, :])
         for idx_input in range(num_inputs):
             for idx_output in range(num_outputs):
                 ax[idx_output, idx_input].plot(
-                    omega / (2 * np.pi) if hz else omega,
-                    180 / np.pi * phase_offnom[:, idx_output, idx_input]
-                    if deg
-                    else phase_offnom[:, idx_output, idx_input],
-                    **plot_offnom_kwargs,
+                    frequency,
+                    phase_offnom[idx_offnom, :, idx_output, idx_input],
+                    **plot_offnom_kw,
                 )
 
     # Nominal frequency response
-    phase_nom = np.angle(complex_response_nom)
     for idx_input in range(num_inputs):
         for idx_output in range(num_outputs):
             ax[idx_output, idx_input].plot(
-                omega / (2 * np.pi) if hz else omega,
-                180 / np.pi * phase_nom[:, idx_output, idx_input]
-                if deg
-                else phase_nom[:, idx_output, idx_input],
-                **plot_nom_kwargs,
+                frequency,
+                phase_nom[:, idx_output, idx_input],
+                **plot_nom_kw,
             )
 
     # Plot settings
     for ax_output in ax:
         for ax_output_input in ax_output:
-            ax_output_input.set_ylabel("Phase (deg)" if deg else "Phase (rad)")
-            ax_output_input.grid()
+            ax_output_input.set_ylabel(ylabel)
+            ax_output_input.grid(**grid_kw)
             if frequency_log_scale:
                 ax_output_input.set_xscale("log")
     for idx_input in range(num_inputs):
-        ax[-1, idx_input].set_xlabel("$f$ (Hz)" if hz else r"$\omega$ (rad/s)")
+        ax[-1, idx_input].set_xlabel(xlabel)
     handles, labels = ax[0, 0].get_legend_handles_labels()
     legend_dict = dict(zip(labels, handles))
     legend = fig.legend(
         labels=legend_dict.keys(),
         handles=legend_dict.values(),
-        loc="outside lower center",
-        ncol=2,
+        **legend_kw,
     )
 
     return fig, ax, legend
@@ -1278,12 +1336,17 @@ def plot_singular_value_response_uncertain_model_set(
     complex_response_nom: Union[np.ndarray, control.FrequencyResponseData],
     complex_response_offnom_list: Union[np.ndarray, control.FrequencyResponseList],
     omega: np.ndarray,
+    ax: Optional[Axes] = None,
     db: bool = True,
     hz: bool = False,
     frequency_log_scale: bool = True,
-    plot_nom_kw: Dict[str, Any] = {},
-    plot_offnom_kw: Dict[str, Any] = {},
-    subplot_kw: Dict[str, Any] = {},
+    plot_nom_kw: Optional[Dict[str, Any]] = None,
+    plot_offnom_kw: Optional[Dict[str, Any]] = None,
+    subplot_kw: Optional[Dict[str, Any]] = None,
+    xlabel: Optional[str] = None,
+    ylabel: Optional[str] = None,
+    grid_kw: Optional[Dict[str, Any]] = None,
+    legend_kw: Optional[Dict[str, Any]] = None,
 ) -> Tuple[Figure, Axes, Legend]:
     """Plot singular value response of nominal model and set of off-nominal models.
 
@@ -1314,6 +1377,14 @@ def plot_singular_value_response_uncertain_model_set(
     subplot_kw : Dict[str, Any]
         Keyword arguments for the subplot. See [#subplot_kw]_ for more information on
         the subplot keywords.
+    xlabel: Optional[str]
+        X-axis label.
+    ylabel: Optional[str]
+        Y-axis label.
+    grid_kw : Optional[Dict[str, Any]]
+        Keyword arguments for :meth:`plt.axes.Axes.grid`.
+    legend_kw : Optional[Dict[str, Any]]
+        Keyword arguments for :meth:`plt.axes.Axes.legend`.
 
     Returns
     -------
@@ -1338,57 +1409,66 @@ def plot_singular_value_response_uncertain_model_set(
     # System paramters
     num_offnom = complex_response_offnom_list.shape[0]
 
-    # Nominal model plot keyword arguments
-    plot_nom_kwargs = {"color": "C0", "label": "Nominal"}
-    plot_nom_kwargs.update(plot_nom_kw)
+    # Parse plot settings
+    if plot_nom_kw is None:
+        plot_nom_kw = {"color": "C0", "label": "Nominal"}
+    if plot_offnom_kw is None:
+        plot_offnom_kw = {"color": "C1", "alpha": 0.25, "label": "Off-Nominal"}
+    if subplot_kw is None:
+        subplot_kw = {"sharex": True, "layout": "constrained"}
+    if xlabel is None:
+        xlabel = "$f$ (Hz)" if hz else r"$\omega$ (rad/s)"
+    if ylabel is None:
+        ylabel = "Magnitude (dB)" if db else "Magnitude (-)"
+    if grid_kw is None:
+        grid_kw = {"linestyle": "--"}
+    if legend_kw is None:
+        legend_kw = {"loc": "outside lower center", "ncol": 2}
 
-    # Off-nominal model plot keyword arguments
-    plot_offnom_kwargs = {"color": "C1", "alpha": 0.25, "label": "Off-Nominal"}
-    plot_offnom_kwargs.update(plot_offnom_kw)
+    # Create figure if not provided
+    if ax is None:
+        fig, ax = plt.subplots(**subplot_kw)
+    else:
+        fig = ax.get_figure()
 
-    # Subplot keyword arguments
-    subplot_kwargs = {"ncols": 1, "nrows": 1, "layout": "constrained"}
-    subplot_kwargs.update(subplot_kw)
+    # Magnitude units (dB or absolute)
+    sval_offnom = np.linalg.svdvals(complex_response_offnom_list)
+    sval_offnom = control.mag2db(sval_offnom) if db else sval_offnom
+    sval_nom = np.linalg.svdvals(complex_response_nom)
+    sval_nom = control.mag2db(sval_nom) if db else sval_nom
 
-    # Initialize figure
-    fig, ax = plt.subplots(**subplot_kwargs)
+    # Frequency units (Hz or rad/s)
+    frequency = omega / (2 * np.pi) if hz else omega
 
     # Off-nominal frequency response
     for idx_offnom in range(num_offnom):
-        sval_offnom = np.linalg.svdvals(
-            complex_response_offnom_list[idx_offnom, :, :, :]
-        )
-        for idx_sval in range(sval_offnom.shape[1]):
+        for idx_sval in range(sval_offnom.shape[-1]):
             ax.semilogx(
-                omega / (2 * np.pi) if hz else omega,
-                control.mag2db(sval_offnom[:, idx_sval])
-                if db
-                else sval_offnom[:, idx_sval],
-                **plot_offnom_kwargs,
+                frequency,
+                sval_offnom[idx_offnom, :, idx_sval],
+                **plot_offnom_kw,
             )
 
     # Nominal frequency response
-    sval_nom = np.linalg.svdvals(complex_response_nom)
-    for idx_sval in range(sval_nom.shape[1]):
+    for idx_sval in range(sval_nom.shape[-1]):
         ax.plot(
-            omega / (2 * np.pi) if hz else omega,
-            control.mag2db(sval_nom[:, idx_sval]) if db else sval_nom[:, idx_sval],
-            **plot_nom_kwargs,
+            frequency,
+            sval_nom[:, idx_sval],
+            **plot_nom_kw,
         )
 
     # Plot settings
     if frequency_log_scale:
         ax.set_xscale("log")
-    ax.set_ylabel("Magnitude (dB)" if db else "Magnitude (-)")
-    ax.grid()
-    ax.set_xlabel("$f$ (Hz)" if hz else r"$\omega$ (rad/s)")
+    ax.set_ylabel(ylabel)
+    ax.grid(**grid_kw)
+    ax.set_xlabel(xlabel)
     handles, labels = ax.get_legend_handles_labels()
     legend_dict = dict(zip(labels, handles))
     legend = fig.legend(
         labels=legend_dict.keys(),
         handles=legend_dict.values(),
-        loc="outside lower center",
-        ncol=2,
+        **legend_kw,
     )
 
     return fig, ax, legend

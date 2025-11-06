@@ -825,7 +825,7 @@ def plot_mu(
     ----------
     d_scale_fit_info : dkpy.IterResult
         Object containing information about the D-scale fit.
-    ax : Optional[plt.Axes]
+    ax : Optional[plt.axes.Axes]
         Matplotlib axes to use.
     hide : Optional[Literal["mu_omega", "mu_fit_omega"]]
         Set to ``'mu_omega'`` or ``'mu_fit_omega'`` to hide either one of
