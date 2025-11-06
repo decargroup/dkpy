@@ -64,13 +64,22 @@ def example_uncertainty_characterization():
     )
 
     # Plot: Singular value response of uncerainty residuals
-    dkpy.plot_singular_value_response_residual(response_residuals_dict, omega)
+    for model_id, response_residuals in response_residuals_dict.items():
+        _, ax, _ = dkpy.plot_singular_value_response_residual(response_residuals, omega)
+        ax.set_title(model_id)
 
     # Plot: Comparison of singular value response of uncerainty residuals for each
     # uncertainty model
-    dkpy.plot_singular_value_response_residual_comparison(
-        response_residuals_dict, omega
-    )
+    _, ax = plt.subplots(layout="constrained")
+    for model_id, response_residuals in response_residuals_dict.items():
+        dkpy.plot_singular_value_response_residual(
+            response_residuals,
+            omega,
+            ax=ax,
+            hide="sval",
+            plot_sval_max_kw={"label": model_id},
+            legend_kw={"ncol": 3},
+        )
 
     # Plot: Magnitude response of uncertainty weight frequency response and overbounding
     # fit

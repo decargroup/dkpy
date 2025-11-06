@@ -19,7 +19,7 @@ def example_aircraft_uncertainty_characterization():
     omega = eg["omega"]
 
     # Compute the residual response for different uncertainty models
-    response_residual = dkpy.compute_uncertainty_residual_response(
+    response_residual_dict = dkpy.compute_uncertainty_residual_response(
         response_actuator,
         response_actuator_offnom_list,
         {"additive", "multiplicative_input", "inverse_multiplicative_input"},
@@ -28,7 +28,7 @@ def example_aircraft_uncertainty_characterization():
     # Compute the optimal uncertainty weights with a given structure
     response_weight_left, response_weight_right = (
         dkpy.compute_uncertainty_weight_response(
-            response_residual["multiplicative_input"],
+            response_residual_dict["multiplicative_input"],
             "scalar",
             "identity",
         )
@@ -44,9 +44,16 @@ def example_aircraft_uncertainty_characterization():
 
     # Plot: Comparison of singular value response of uncerainty residuals for each
     # uncertainty model
-    dkpy.plot_singular_value_response_residual_comparison(
-        response_residual, omega, hz=True
-    )
+    _, ax = plt.subplots(layout="constrained")
+    for model_id, response_residuals in response_residual_dict.items():
+        dkpy.plot_singular_value_response_residual(
+            response_residuals,
+            omega,
+            ax=ax,
+            hide="sval",
+            plot_sval_max_kw={"label": model_id},
+            legend_kw={"ncol": 3},
+        )
 
     # Plot: Magnitude response of uncertainty weight frequency response and overbounding
     # fit

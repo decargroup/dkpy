@@ -8,11 +8,8 @@ __all__ = [
     "plot_phase_response_uncertain_model_set",
     "plot_singular_value_response_uncertain_model_set",
     "plot_singular_value_response_residual",
-    "plot_singular_value_response_residual_comparison",
     "plot_magnitude_response_uncertainty_weight",
 ]
-
-import warnings
 
 import control
 import numpy as np
@@ -20,7 +17,7 @@ import cvxpy
 import scipy
 from matplotlib import pyplot as plt
 
-from typing import List, Optional, Union, Tuple, Dict, Callable, Set, Any
+from typing import List, Optional, Union, Tuple, Dict, Callable, Set, Any, Literal
 from matplotlib.figure import Figure
 from matplotlib.axes import Axes
 from matplotlib.legend import Legend
@@ -1098,7 +1095,7 @@ def plot_magnitude_response_uncertain_model_set(
     plot_offnom_kw_default = {"color": "C1", "alpha": 0.25, "label": "Off-Nominal"}
     subplot_kw_default = {"sharex": True, "layout": "constrained"}
     xlabel_default = r"$f$ (Hz)" if hz else r"$\omega$ (rad/s)"
-    ylabel_default = r"$\mu$"
+    ylabel_default = "Magnitude (dB)" if db else "Magnitude (-)"
     grid_kw_default = {"linestyle": "--"}
     legend_kw_default = {"loc": "outside lower center", "ncol": 2}
 
@@ -1274,7 +1271,7 @@ def plot_phase_response_uncertain_model_set(
     plot_offnom_kw_default = {"color": "C1", "alpha": 0.25, "label": "Off-Nominal"}
     subplot_kw_default = {"sharex": True, "layout": "constrained"}
     xlabel_default = r"$f$ (Hz)" if hz else r"$\omega$ (rad/s)"
-    ylabel_default = r"$\mu$"
+    ylabel_default = "Phase (deg)" if deg else "Phase (rad)"
     grid_kw_default = {"linestyle": "--"}
     legend_kw_default = {"loc": "outside lower center", "ncol": 2}
 
@@ -1391,6 +1388,8 @@ def plot_singular_value_response_uncertain_model_set(
         systems.
     omega : np.ndarray
         Angular frequency grid.
+    ax : Optional[plt.axes.Axes, np.narray]
+        Matplotlib axes or array of matplotlib axes to use.
     db : bool
         If True, plot the magnitude in units of dB. Otherwise, plot the magnitude in
         absolute units.
@@ -1420,9 +1419,8 @@ def plot_singular_value_response_uncertain_model_set(
 
     Returns
     -------
-    Tuple[Figure, Union[Axes, np.ndarray], Legend]
-        Matplotlib Figure object, Axes object (or np.ndarray of Axes objects), and
-        Legend object.
+    Tuple[Figure, Axes, Legend]
+        Matplotlib Figure object, Axes object, and Legend object.
 
     References
     ----------
@@ -1446,7 +1444,7 @@ def plot_singular_value_response_uncertain_model_set(
     plot_offnom_kw_default = {"color": "C1", "alpha": 0.25, "label": "Off-Nominal"}
     subplot_kw_default = {"sharex": True, "layout": "constrained"}
     xlabel_default = r"$f$ (Hz)" if hz else r"$\omega$ (rad/s)"
-    ylabel_default = r"$\mu$"
+    ylabel_default = "Magnitude (dB)" if db else "Magnitude (-)"
     grid_kw_default = {"linestyle": "--"}
     legend_kw_default = {"loc": "outside lower center", "ncol": 2}
 
@@ -1523,31 +1521,42 @@ def plot_singular_value_response_uncertain_model_set(
 
 
 def plot_singular_value_response_residual(
-    complex_response_residual_dict: Dict[str, np.ndarray],
+    complex_response_residual: np.ndarray,
     omega: np.ndarray,
+    ax: Optional[Axes] = None,
     db: bool = True,
     hz: bool = False,
+    hide: Optional[Literal["sval", "sval_max"]] = None,
     frequency_log_scale: bool = True,
-    plot_sval_max_kw: Dict[str, Any] = {},
-    plot_sval_kw: Dict[str, Any] = {},
-    subplot_kw: Dict[str, Any] = {},
-) -> Dict[str, Tuple[Figure, Axes, Legend]]:
+    plot_sval_max_kw: Optional[Dict[str, Any]] = None,
+    plot_sval_kw: Optional[Dict[str, Any]] = None,
+    subplot_kw: Optional[Dict[str, Any]] = None,
+    xlabel: Optional[str] = None,
+    ylabel: Optional[str] = None,
+    grid_kw: Optional[Dict[str, Any]] = None,
+    legend_kw: Optional[Dict[str, Any]] = None,
+) -> Tuple[Figure, Axes, Legend]:
     """Plot the singular value response of the uncertainty residuals for different
     unstructured uncertainty models on separate figures.
 
     Parameters
     ----------
-    complex_response_residual_dict : Dict[str, np.ndarray]
+    complex_response_residual : np.ndarray
         Dictionary of the uncertainty residual frequency response matrices over a grid
         of frequencies for different uncertainty models.
     omega : np.narray
         Angular frequency grid.
+    ax : Optional[plt.axes.Axes, np.narray]
+        Matplotlib axes or array of matplotlib axes to use.
     db : bool
         If True, plot the magnitude in units of dB. Otherwise, plot the magnitude in
         absolute units.
     hz : bool
         If True, plot the frequency in units of Hz. Otherwise, plot the frequency in
         units of rad/s.
+    hide : Optional[Literal["sval", "sval_max"]],
+        Set to "sval" to hide the singular value residual response and "sval_max" to
+        hide the maximum singular value residual response.
     frequency_log_scale : bool
         If True, plot the frequency using a logarithmic axis. Otherwise, plot the
         the frequency using a linear axis.
@@ -1560,12 +1569,19 @@ def plot_singular_value_response_residual(
     subplot_kw : Dict[str, Any]
         Keyword arguments for the subplot. See [#subplot_kw]_ for more information on
         the subplot keywords.
+    xlabel: Optional[str]
+        X-axis label.
+    ylabel: Optional[str]
+        Y-axis label.
+    grid_kw : Optional[Dict[str, Any]]
+        Keyword arguments for :meth:`plt.axes.Axes.grid`.
+    legend_kw : Optional[Dict[str, Any]]
+        Keyword arguments for :meth:`plt.axes.Axes.legend`.
 
     Returns
     -------
-    Tuple[Figure, Union[Axes, np.ndarray], Legend]
-        Matplotlib Figure object, Axes object (or np.ndarray of Axes objects), and
-        Legend object.
+    Tuple[Figure, Axes, Legend]
+        Matplotlib Figure object, Axes object, and Legend object.
 
     References
     ----------
@@ -1573,199 +1589,93 @@ def plot_singular_value_response_residual(
     .. [#subplot_kw] https://matplotlib.org/stable/api/_as_gen/matplotlib.pyplot.subplots.html
     """
 
-    # Residual singular value plot keyword arguments
-    plot_sval_max_kwargs = {"color": "black"}
-    plot_sval_max_kwargs.update(plot_sval_max_kw)
+    plot_sval_max_kw_default = {"label": "Maximum Residual"}
+    plot_sval_kw_default = {"color": "grey", "alpha": 0.30, "label": "Residual"}
+    subplot_kw_default = {"layout": "constrained"}
+    xlabel_default = r"$f$ (Hz)" if hz else r"$\omega$ (rad/s)"
+    ylabel_default = "Magnitude (dB)" if db else "Magnitude (-)"
+    grid_kw_default = {"linestyle": "--"}
+    legend_kw_default = {"loc": "outside lower center", "ncol": 2}
 
-    # Residual maximum singular value plot keyword arguments
-    plot_sval_kwargs = {"color": "grey", "alpha": 0.25}
-    plot_sval_kwargs.update(plot_sval_kw)
+    # Parse plot settings
+    plot_sval_max_kw = (
+        plot_sval_max_kw_default
+        if plot_sval_max_kw is None
+        else dict(plot_sval_max_kw_default, **plot_sval_max_kw)
+    )
+    plot_sval_kw = (
+        plot_sval_kw_default
+        if plot_sval_kw is None
+        else dict(plot_sval_kw_default, **plot_sval_kw)
+    )
+    subplot_kw = (
+        subplot_kw_default
+        if subplot_kw is None
+        else dict(subplot_kw_default, **subplot_kw)
+    )
+    xlabel = xlabel_default if xlabel is None else xlabel
+    ylabel = ylabel_default if ylabel is None else ylabel
+    grid_kw = grid_kw_default if grid_kw is None else dict(grid_kw_default, **grid_kw)
+    legend_kw = (
+        legend_kw_default if legend_kw is None else dict(legend_kw_default, **legend_kw)
+    )
 
-    # Subplot keyword arguments
-    subplot_kwargs = {"ncols": 1, "nrows": 1, "layout": "constrained"}
-    subplot_kwargs.update(subplot_kw)
+    # Off-nominal frequency response parameters
+    num_offnom = complex_response_residual.shape[0]
 
-    # Initialize dictionary for storing figure and axes
-    figure_dict = {}
+    # Singular value and maximum singular value residual response
+    sval_response_residual = np.linalg.svdvals(complex_response_residual)
+    sval_max_response_residual = np.max(sval_response_residual, axis=(0, 2))
 
-    # Uncertainty model residual suffixes
-    residual_suffix_dict = {
-        "additive": "A",
-        "multiplicative_input": "I",
-        "multiplicative_output": "O",
-        "inverse_additive": "iA",
-        "inverse_multiplicative_input": "iI",
-        "inverse_multiplicative_output": "iO",
-    }
+    # Create figure if not provided
+    if ax is None:
+        fig, ax = plt.subplots(**subplot_kw)
+    else:
+        fig = ax.get_figure()
 
-    # Iterate over each uncertainty model
-    for (
-        uncertainty_model_id,
-        complex_response_residual,
-    ) in complex_response_residual_dict.items():
-        # Off-nominal frequency response parameters
-        num_offnom = complex_response_residual.shape[0]
+    # Select magnitude units (dB or absolute)
+    sval_response_residual = (
+        control.mag2db(sval_response_residual) if db else sval_response_residual
+    )
+    sval_max_response_residual = (
+        control.mag2db(sval_max_response_residual) if db else sval_max_response_residual
+    )
 
-        # Uncertainty model suffix
-        residual_suffix = residual_suffix_dict[uncertainty_model_id]
+    # Select frequency units (Hz or rad/s)
+    frequency = omega / (2 * np.pi) if hz else omega
 
-        # Compute the singular value and maximum singlar value response of the residuals
-        sval_response_residual = np.linalg.svdvals(complex_response_residual)
-        sval_max_response_residual = np.max(sval_response_residual, axis=(0, 2))
-
-        # Intialize the plot
-        fig, ax = plt.subplots(**subplot_kwargs)
-
-        # Singular value response of the residuals
+    # Singular value response of the residuals
+    if hide != "sval":
         for idx_offnom in range(num_offnom):
             for idx_sval in range(sval_response_residual.shape[2]):
                 ax.plot(
-                    omega / (2 * np.pi) if hz else omega,
-                    control.mag2db(sval_response_residual[idx_offnom, :, idx_sval])
-                    if db
-                    else sval_response_residual[idx_offnom, :, idx_sval],
-                    label=rf"$\sigma(E_{{{residual_suffix}}})$",
-                    **plot_sval_kwargs,
+                    frequency,
+                    sval_response_residual[idx_offnom, :, idx_sval],
+                    **plot_sval_kw,
                 )
-        # Maximum singular value response of the residuals
+    # Maximum singular value response of the residuals
+    if hide != "sval_max":
         ax.plot(
-            omega / (2 * np.pi) if hz else omega,
-            control.mag2db(sval_max_response_residual)
-            if db
-            else sval_max_response_residual,
-            label=rf"$\max \; \sigma(E_{{{residual_suffix}}})$",
-            **plot_sval_max_kwargs,
-        )
-
-        # Plot settings
-        if frequency_log_scale:
-            ax.set_xscale("log")
-        ax.set_ylabel("Magnitude (dB)" if db else "Magnitude (-)")
-        ax.grid()
-        ax.set_xlabel("$f$ (Hz)" if hz else r"$\omega$ (rad/s)")
-        handles, labels = ax.get_legend_handles_labels()
-        legend = legend_dict = dict(zip(labels, handles))
-        fig.legend(
-            labels=legend_dict.keys(),
-            handles=legend_dict.values(),
-            loc="outside lower center",
-            ncol=2,
-        )
-
-        figure_dict[uncertainty_model_id] = (fig, ax, legend)
-
-    return figure_dict
-
-
-def plot_singular_value_response_residual_comparison(
-    complex_response_residual_dict: Dict[str, np.ndarray],
-    omega: np.ndarray,
-    db: bool = True,
-    hz: bool = False,
-    frequency_log_scale: bool = True,
-    plot_sval_max_kw: Dict[str, Any] = {},
-    subplot_kw: Dict[str, Any] = {},
-) -> Tuple[Figure, Axes, Legend]:
-    """Plot the maximum singular value response of the uncertainty residuals for
-    different unstructured uncertainty models on the same figure for comparision of the
-    various uncertainty models.
-
-    Parameters
-    ----------
-    complex_response_residual_dict : Dict[str, np.ndarray]
-        Dictionary of the uncertainty residual frequency response matrices over a grid
-        of frequencies for different uncertainty models.
-    omega : np.narray
-        Angular frequency grid.
-    db : bool
-        If True, plot the magnitude in units of dB. Otherwise, plot the magnitude in
-        absolute units.
-    hz : bool
-        If True, plot the frequency in units of Hz. Otherwise, plot the frequency in
-        units of rad/s.
-    frequency_log_scale : bool
-        If True, plot the frequency using a logarithmic axis. Otherwise, plot the
-        the frequency using a linear axis.
-    plot_sval_max_kw : Dict[str, Any]
-        Keyword arguments for the maximum singular value plot. See [#plot_kw]_ for more
-        information on plotting keywords.
-    subplot_kw : Dict[str, Any]
-        Keyword arguments for the subplot. See [#subplot_kw]_ for more information on
-        the subplot keywords.
-
-    Returns
-    -------
-    Tuple[Figure, Union[Axes, np.ndarray], Legend]
-        Matplotlib Figure object, Axes object (or np.ndarray of Axes objects), and
-        Legend object.
-
-    References
-    ----------
-    .. [#plot_kw] https://matplotlib.org/stable/api/_as_gen/matplotlib.pyplot.plot.html
-    .. [#subplot_kw] https://matplotlib.org/stable/api/_as_gen/matplotlib.pyplot.subplots.html
-    """
-
-    # Residual singular value plot keyword arguments
-    plot_sval_max_kwargs = {}
-    plot_sval_max_kwargs.update(plot_sval_max_kw)
-
-    # Subplot keyword arguments
-    subplot_kwargs = {"ncols": 1, "nrows": 1, "layout": "constrained"}
-    subplot_kwargs.update(subplot_kw)
-
-    # Uncertainty model suffixes
-    residual_suffix_dict = {
-        "additive": "A",
-        "multiplicative_input": "I",
-        "multiplicative_output": "O",
-        "inverse_additive": "iA",
-        "inverse_multiplicative_input": "iI",
-        "inverse_multiplicative_output": "iO",
-    }
-
-    # Maximum singular value response of uncertainty residuals
-    sval_max_response_residual_dict = {}
-    for (
-        uncertainty_model_id,
-        complex_response_residual_list,
-    ) in complex_response_residual_dict.items():
-        sval_response_residual_list = np.linalg.svdvals(complex_response_residual_list)
-        sval_max_response_residual = np.max(sval_response_residual_list, axis=(0, 2))
-        sval_max_response_residual_dict[uncertainty_model_id] = (
-            sval_max_response_residual
-        )
-
-    # Initialize figure
-    fig, ax = plt.subplots(**subplot_kwargs)
-
-    # Maximum singular value reponse of uncertainty residuals
-    for (
-        uncertainty_model_id,
-        sval_max_response_residual,
-    ) in sval_max_response_residual_dict.items():
-        residual_suffix = residual_suffix_dict[uncertainty_model_id]
-        ax.semilogx(
-            omega / (2 * np.pi) if hz else omega,
-            control.mag2db(sval_max_response_residual)
-            if db
-            else sval_max_response_residual,
-            label=rf"$\max \; {{\sigma}}(E_{{{residual_suffix}}})$",
-            **plot_sval_max_kwargs,
+            frequency,
+            sval_max_response_residual,
+            **plot_sval_max_kw,
         )
 
     # Plot settings
     if frequency_log_scale:
         ax.set_xscale("log")
-    ax.set_ylabel("Magnitude (dB)" if db else "Magnitude (-)")
-    ax.grid()
-    ax.set_xlabel("$f$ (Hz)" if hz else r"$\omega$ (rad/s)")
+    ax.set_ylabel(ylabel)
+    ax.grid(**grid_kw)
+    ax.set_xlabel(xlabel)
     handles, labels = ax.get_legend_handles_labels()
     legend_dict = dict(zip(labels, handles))
+    for artist in fig.get_children():
+        if isinstance(artist, Legend):
+            artist.remove()
     legend = fig.legend(
         labels=legend_dict.keys(),
         handles=legend_dict.values(),
-        loc="outside lower center",
-        ncol=3,
+        **legend_kw,
     )
 
     return fig, ax, legend
