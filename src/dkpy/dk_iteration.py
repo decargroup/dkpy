@@ -13,7 +13,10 @@ __all__ = [
 
 import abc
 import logging
-from typing import Any, Dict, List, Optional, Tuple, Union, List
+from typing import Any, Dict, List, Optional, Tuple, Union, Literal
+from matplotlib.axes import Axes
+from matplotlib.legend import Legend
+from matplotlib.figure import Figure
 
 import control
 import numpy as np
@@ -800,10 +803,16 @@ class DkIterInteractiveOrder(DkIteration):
 
 def plot_mu(
     d_scale_info: IterResult,
-    ax: Optional[plt.Axes] = None,
+    ax: Optional[Axes] = None,
+    hide: Optional[Literal["mu_omega", "mu_fit_omega"]] = None,
+    hz: bool = False,
     plot_kw: Optional[Dict[str, Any]] = None,
-    hide: Optional[str] = None,
-) -> Tuple[plt.Figure, plt.Axes]:
+    subplot_kw: Optional[Dict[str, Any]] = None,
+    xlabel: Optional[str] = None,
+    ylabel: Optional[str] = None,
+    grid_kw: Optional[Dict[str, Any]] = None,
+    legend_kw: Optional[Dict[str, Any]] = None,
+) -> Tuple[Figure, Axes]:
     """Plot mu.
 
     Parameters
@@ -820,8 +829,8 @@ def plot_mu(
 
     Returns
     -------
-    Tuple[plt.Figure, plt.Axes]
-        Matplotlib :class:`plt.Figure` and :class:`plt.Axes` objects.
+    Tuple[plt.figure.Figure, plt.axes.Axes]
+        Matplotlib :class:`plt.figure.Figure` and :class:`plt.axes.Axes` objects.
 
     Examples
     --------
@@ -854,24 +863,46 @@ def plot_mu(
     ... )
     >>> fig, ax = dkpy.plot_mu(d_scale_fit_info)
     """
+
+    # Parse plot settings
+    if plot_kw is None:
+        plot_kw = {}
+    if subplot_kw is None:
+        subplot_kw = {}
+    if xlabel is None:
+        xlabel = r"$f$ (Hz)" if hz else r"$\omega$ (rad/s)"
+    if ylabel is None:
+        ylabel = r"$\mu$"
+    if grid_kw is None:
+        grid_kw = {"linestyle": "--"}
+    if legend_kw is None:
+        legend_kw = {"loc": "lower left"}
+
     # Create figure if not provided
     if ax is None:
         fig, ax = plt.subplots()
     else:
         fig = ax.get_figure()
+
     # Set label
-    if plot_kw is None:
-        plot_kw = {}
     label = plot_kw.pop("label", "mu")
     label_mu_omega = label + ""
     label_mu_fit_omega = label + "_fit"
+
     # Clear line styles
     _ = plot_kw.pop("ls", None)
     _ = plot_kw.pop("linestyle", None)
+
+    # Frequency
+    if hz:
+        freq = d_scale_info.omega / (2 * np.pi)  # Frequency [Hz]
+    else:
+        freq = d_scale_info.omega  # Angular frequency [rad/s]
+
     # Plot mu
     if hide != "mu_omega":
         ax.semilogx(
-            d_scale_info.omega,
+            freq,
             d_scale_info.mu_omega,
             label=label_mu_omega,
             ls="--",
@@ -879,19 +910,21 @@ def plot_mu(
         )
     if hide != "mu_fit_omega":
         ax.semilogx(
-            d_scale_info.omega,
+            freq,
             d_scale_info.mu_fit_omega,
             label=label_mu_fit_omega,
             **plot_kw,
         )
+
     # Set axis labels
-    ax.set_xlabel(r"$\omega$ (rad/s)")
-    ax.set_ylabel(r"$\mu(\omega)$")
+    ax.set_xlabel(xlabel)
+    ax.set_ylabel(ylabel)
     ax.set_ylim(
         (0.75 * np.min(d_scale_info.mu_omega), 1.25 * np.max(d_scale_info.mu_omega))
     )
-    ax.grid(linestyle="--")
-    ax.legend(loc="lower left")
+    ax.grid(**grid_kw)
+    ax.legend(**legend_kw)
+
     # Return figure and axes
     return fig, ax
 
