@@ -695,6 +695,7 @@ class DkIterInteractiveOrder(DkIteration):
         structured_singular_value: structured_singular_value.StructuredSingularValue,
         d_scale_fit: d_scale_fit.DScaleFit,
         max_fit_order: int = 4,
+        plot_mu_kw: Dict[str, Any] = {},
     ):
         """Instantiate :class:`DkIterInteractiveOrder`.
 
@@ -708,6 +709,9 @@ class DkIterInteractiveOrder(DkIteration):
             A D-scale fit object.
         max_fit_order : int
             Maximum fit order.
+        plot_mu_kw: Dict[str, Any]
+            Keyword arguments for :func:`plot_mu` that customize the D-scale fit order
+            plots.
 
         Examples
         --------
@@ -738,6 +742,7 @@ class DkIterInteractiveOrder(DkIteration):
             d_scale_fit,
         )
         self.max_fit_order = max_fit_order
+        self.plot_mu_kw = plot_mu_kw
 
     def _get_fit_order(
         self,
@@ -778,6 +783,7 @@ class DkIterInteractiveOrder(DkIteration):
             ax=ax,
             plot_kw=dict(label="true"),
             hide="mu_fit_omega",
+            **self.plot_mu_kw,
         )
         for i, ds in enumerate(d_info):
             plot_mu(
@@ -785,6 +791,7 @@ class DkIterInteractiveOrder(DkIteration):
                 ax=ax,
                 plot_kw=dict(label=f"order={i}"),
                 hide="mu_omega",
+                **self.plot_mu_kw,
             )
         print("Close plot to continue...")
         plt.show()
