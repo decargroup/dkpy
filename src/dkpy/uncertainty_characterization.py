@@ -9,6 +9,7 @@ __all__ = [
     "plot_singular_value_response_uncertain_model_set",
     "plot_singular_value_response_residual",
     "plot_magnitude_response_uncertainty_weight",
+    "plot_magnitude_response_uncertainty_weight_fit",
 ]
 
 import control
@@ -1682,36 +1683,30 @@ def plot_singular_value_response_residual(
 
 
 def plot_magnitude_response_uncertainty_weight(
-    complex_response_weight_left: np.ndarray,
-    complex_response_weight_right: np.ndarray,
+    complex_response_weight: np.ndarray,
     omega: np.ndarray,
-    weight_left: Optional[control.StateSpace] = None,
-    weight_right: Optional[control.StateSpace] = None,
+    ax: Optional[Axes | np.ndarray] = None,
     db: bool = True,
     hz: bool = False,
     frequency_log_scale: bool = True,
-    plot_response_kw: Dict[str, Any] = {},
-    plot_response_fit_kw: Dict[str, Any] = {},
-    subplot_kw: Dict[str, Any] = {},
+    plot_kw: Optional[Dict[str, Any]] = None,
+    subplot_kw: Optional[Dict[str, Any]] = None,
+    xlabel: Optional[str] = None,
+    ylabel: Optional[str] = None,
+    grid_kw: Optional[Dict[str, Any]] = None,
+    legend_kw: Optional[Dict[str, Any]] = None,
 ) -> Tuple[Figure, Union[Axes, np.ndarray], Legend]:
-    """Plot the diagonal elements of the optimal left and right uncertainty weight
-    frequency responses. Optionally, the fitted overbounding left and right uncertainty
-    weights can also be displayed.
+    """Plot the diagonal elements of the uncertainty weight frequency response.
 
     Parameters
     ----------
-    complex_response_weight_left : np.ndarray,
+    complex_response_weight : np.ndarray,
         Frequency response matrices of the left uncertainty weight over a grid of
-        frequencies.
-    complex_response_weight_right : np.ndarray,
-        Frequency response matrices of the right uncertainty weight over a grid of
         frequencies.
     omega : np.ndarray
         Angular frequency grid.
-    weight_left: Optional[control.StateSpace] = None,
-        State-space model if the fitted overbounding left uncertainty weight.
-    weight_right: Optional[control.StateSpace] = None,
-        State-space model if the fitted overbounding right uncertainty weight.
+    ax : Optional[Union[Axes, np.ndarray]]
+        Matplotlib axes or array of matplotlib axes to use.
     db : bool
         If True, plot the magnitude in units of dB. Otherwise, plot the magnitude in
         absolute units.
@@ -1721,15 +1716,20 @@ def plot_magnitude_response_uncertainty_weight(
     frequency_log_scale : bool
         If True, plot the frequency using a logarithmic axis. Otherwise, plot the
         the frequency using a linear axis.
-    plot_response_kw : Dict[str, Any]
+    plot_kw : Optional[Dict[str, Any]]
         Keyword arguments for the frequency response of the uncertainty weight plot.
         See [#plot_kw]_ for more information on plotting keywords.
-    plot_response_fit_kw : Dict[str, Any]
-        Keyword arguments for the frequency response of the fitted uncertainty weight
-        plot. See [#plot_kw]_ for more information on plotting keywords.
-    subplot_kw : Dict[str, Any]
+    subplot_kw : Optional[Dict[str, Any]]
         Keyword arguments for the subplot. See [#subplot_kw]_ for more information on
         the subplot keywords.
+    xlabel: Optional[str]
+        X-axis label.
+    ylabel: Optional[str]
+        Y-axis label.
+    grid_kw : Optional[Dict[str, Any]]
+        Keyword arguments for :meth:`plt.axes.Axes.grid`.
+    legend_kw : Optional[Dict[str, Any]]
+        Keyword arguments for :meth:`plt.axes.Axes.legend`.
 
     Returns
     -------
@@ -1743,121 +1743,250 @@ def plot_magnitude_response_uncertainty_weight(
     .. [#subplot_kw] https://matplotlib.org/stable/api/_as_gen/matplotlib.pyplot.subplots.html
     """
 
-    # Uncertainty weight response plot keyword arguments
-    plot_response_kwargs = {
-        "color": "C0",
-        "marker": "*",
-        "linestyle": " ",
-        "label": "Response",
-    }
-    plot_response_kwargs.update(plot_response_kw)
+    plot_response_kw_default = {"color": "C0", "linestyle": "-", "label": "Response"}
+    subplot_kw_default = {"layout": "constrained", "sharex": True}
+    xlabel_default = r"$f$ (Hz)" if hz else r"$\omega$ (rad/s)"
+    ylabel_default = "$W$"
+    grid_kw_default = {"linestyle": "--"}
+    legend_kw_default = {"loc": "outside lower center", "ncol": 2}
 
-    # Uncertainty weight fit response plot keyword arguments
-    plot_response_fit_kwargs = {
-        "color": "C1",
-        "linestyle": "-",
-        "label": "Fit",
-    }
-    plot_response_fit_kwargs.update(plot_response_fit_kw)
-
-    # Subplot keyword arguments
-    subplot_kwargs = {"sharex": True, "layout": "constrained"}
-    subplot_kw = {} if subplot_kw is None else subplot_kw
-    subplot_kwargs.update(subplot_kw)
-
-    # Uncertainty weight parameters
-    num_left = complex_response_weight_left.shape[1]
-    num_right = complex_response_weight_right.shape[1]
-
-    # Magnitude response of the uncertainty weights
-    magnitude_response_weight_left = np.abs(complex_response_weight_left)
-    magnitude_response_weight_right = np.abs(complex_response_weight_right)
-
-    # Initialize figure
-    fig, ax = plt.subplots(
-        max(num_left, num_right), 2, sharex=True, layout="constrained"
+    # Parse plot settings
+    plot_kw = (
+        plot_response_kw_default
+        if plot_kw is None
+        else dict(plot_response_kw_default, **plot_kw)
+    )
+    subplot_kw = (
+        subplot_kw_default
+        if subplot_kw is None
+        else dict(subplot_kw_default, **subplot_kw)
+    )
+    xlabel = xlabel_default if xlabel is None else xlabel
+    ylabel = ylabel_default if ylabel is None else ylabel
+    grid_kw = grid_kw_default if grid_kw is None else dict(grid_kw_default, **grid_kw)
+    legend_kw = (
+        legend_kw_default if legend_kw is None else dict(legend_kw_default, **legend_kw)
     )
 
-    # Plot left uncertainty weight frequency response
-    for idx_left in range(num_left):
-        ax[idx_left, 0].plot(
-            omega / (2 * np.pi) if hz else omega,
-            control.mag2db(magnitude_response_weight_left[:, idx_left, idx_left])
-            if db
-            else magnitude_response_weight_left[:, idx_left, idx_left],
-            **plot_response_kwargs,
-        )
-        ax[idx_left, 0].set_ylabel(
-            f"$|W_{{L, ({idx_left + 1}, {idx_left + 1})}}|$ (dB)"
-            if db
-            else f"$|W_{{L, ({idx_left + 1}, {idx_left + 1})}}|$ (-)"
-        )
-        ax[idx_left, 0].grid()
-    # Plot right uncertainty weight frequency response
-    for idx_right in range(num_left):
-        ax[idx_right, 1].plot(
-            omega / (2 * np.pi) if hz else omega,
-            control.mag2db(magnitude_response_weight_right[:, idx_right, idx_right])
-            if db
-            else magnitude_response_weight_right[:, idx_right, idx_right],
-            **plot_response_kwargs,
-        )
-        ax[idx_right, 1].set_ylabel(
-            f"$|W_{{R, ({idx_right + 1}, {idx_right + 1})}}|$ (dB)"
-            if db
-            else f"$|W_{{R, ({idx_right + 1}, {idx_right + 1})}}|$ (-)"
-        )
-        ax[idx_right, 1].grid()
+    # Uncertainty weight parameters
+    num_weights = complex_response_weight.shape[1]
 
-    # Plot left uncertainty weight fit frequency response
-    if weight_left is not None:
-        response_fit_weight_left = control.frequency_response(weight_left, omega)
-        magnitude_response_fit_weight_left = np.array(
-            response_fit_weight_left.magnitude
+    # Magnitude response of the uncertainty weights
+    magnitude_response_weight = np.abs(complex_response_weight)
+
+    # Select frequency units (Hz or rad/s)
+    frequency = omega / (2 * np.pi) if hz else omega
+
+    # Select magnitude units (dB or absolute)
+    magnitude_response_weight = (
+        control.mag2db(magnitude_response_weight) if db else magnitude_response_weight
+    )
+
+    # Create figure if not provided
+    if ax is None:
+        fig, ax = plt.subplots(num_weights, squeeze=False, **subplot_kw)
+    else:
+        if isinstance(ax, np.ndarray):
+            try:
+                fig = ax[0].get_figure()
+            except AttributeError:
+                fig = ax[0, 0].get_figure()
+            except Exception:
+                raise ValueError("`ax` cannot be interpreted as plot axes.")
+        else:
+            fig = ax.get_figure()
+            ax = np.array([ax])
+
+    # Plot uncertainty weight frequency response
+    for idx_weight in range(num_weights):
+        ax[idx_weight, 0].plot(
+            frequency,
+            magnitude_response_weight[:, idx_weight, idx_weight],
+            **plot_kw,
         )
-        for idx_left in range(num_left):
-            ax[idx_left, 0].plot(
-                omega / (2 * np.pi) if hz else omega,
-                control.mag2db(
-                    magnitude_response_fit_weight_left[idx_left, idx_left, :]
-                )
-                if db
-                else magnitude_response_fit_weight_left[idx_left, idx_left, :],
-                **plot_response_fit_kwargs,
-            )
-    # Plot right uncertainty weight fit frequency response
-    if weight_right is not None:
-        response_fit_weight_right = control.frequency_response(weight_right, omega)
-        magnitude_response_fit_weight_right = np.array(
-            response_fit_weight_right.magnitude
-        )
-        for idx_right in range(num_right):
-            ax[idx_right, 1].plot(
-                omega / (2 * np.pi) if hz else omega,
-                control.mag2db(
-                    magnitude_response_fit_weight_right[idx_right, idx_right, :]
-                )
-                if db
-                else magnitude_response_fit_weight_right[idx_right, idx_right, :],
-                **plot_response_fit_kwargs,
-            )
 
     # Plot settings
-    for idx_col in range(2):
-        ax[-1, idx_col].set_xlabel("$f$ (Hz)" if hz else r"$\omega$ (rad/s)")
-    for ax_row in ax:
-        for ax_row_col in ax_row:
-            if frequency_log_scale:
-                ax_row_col.set_xscale("log")
-            if not ax_row_col.has_data():
-                fig.delaxes(ax_row_col)
+    ax[-1, 0].set_xlabel(xlabel)
+    for idx_weight, a in enumerate(ax):
+        # Set y-label
+        ylabel_idx = ylabel + rf"$_{{({idx_weight + 1}, {idx_weight + 1})}}$"
+        if db:
+            ylabel_idx += " (dB)"
+        else:
+            ylabel_idx += " (-)"
+        a[0].set_ylabel(ylabel_idx)
+        # Set grid
+        a[0].grid(**grid_kw)
+        # Set x-axis scale
+        if frequency_log_scale:
+            a[0].set_xscale("log")
+    # Set legend
     handles, labels = ax[0, 0].get_legend_handles_labels()
     legend_dict = dict(zip(labels, handles))
+    for artist in fig.get_children():
+        if isinstance(artist, Legend):
+            artist.remove()
     legend = fig.legend(
         labels=legend_dict.keys(),
         handles=legend_dict.values(),
-        loc="outside lower center",
-        ncol=2,
+        **legend_kw,
+    )
+
+    return fig, ax, legend
+
+
+def plot_magnitude_response_uncertainty_weight_fit(
+    weight_fit: Union[control.StateSpace, control.TransferFunction],
+    omega: np.ndarray,
+    ax: Optional[Union[Axes, np.ndarray]] = None,
+    db: bool = True,
+    hz: bool = False,
+    frequency_log_scale: bool = True,
+    plot_kw: Optional[Dict[str, Any]] = None,
+    subplot_kw: Optional[Dict[str, Any]] = None,
+    xlabel: Optional[str] = None,
+    ylabel: Optional[str] = None,
+    grid_kw: Optional[Dict[str, Any]] = None,
+    legend_kw: Optional[Dict[str, Any]] = None,
+):
+    """Plot the diagonal elements of an uncertainty weight fit.
+
+    Parameters
+    ----------
+    weight_fit : Union[control.StateSpace, control.TransferFunction]
+        Uncertainty weight fit.
+    omega : np.ndarray
+        Angular frequency grid.
+    ax : Optional[Union[Axes, np.ndarray]]
+        Matplotlib axes or array of matplotlib axes to use.
+    db : bool
+        If True, plot the magnitude in units of dB. Otherwise, plot the magnitude in
+        absolute units.
+    hz : bool
+        If True, plot the frequency in units of Hz. Otherwise, plot the frequency in
+        units of rad/s.
+    frequency_log_scale : bool
+        If True, plot the frequency using a logarithmic axis. Otherwise, plot the
+        the frequency using a linear axis.
+    plot_kw : Optional[Dict[str, Any]]
+        Keyword arguments for the frequency response of the uncertainty weight plot.
+        See [#plot_kw]_ for more information on plotting keywords.
+    subplot_kw : Optional[Dict[str, Any]]
+        Keyword arguments for the subplot. See [#subplot_kw]_ for more information on
+        the subplot keywords.
+    xlabel: Optional[str]
+        X-axis label.
+    ylabel: Optional[str]
+        Y-axis label.
+    grid_kw : Optional[Dict[str, Any]]
+        Keyword arguments for :meth:`plt.axes.Axes.grid`.
+    legend_kw : Optional[Dict[str, Any]]
+        Keyword arguments for :meth:`plt.axes.Axes.legend`.
+
+    Returns
+    -------
+    Tuple[Figure, np.ndarray, Legend]
+        Matplotlib Figure object, np.ndarray of Axes objects, and Legend object.
+
+    References
+    ----------
+    .. [#plot_kw] https://matplotlib.org/stable/api/_as_gen/matplotlib.pyplot.plot.html
+    .. [#subplot_kw] https://matplotlib.org/stable/api/_as_gen/matplotlib.pyplot.subplots.html
+    """
+
+    plot_response_kw_default = {"color": "C1", "linestyle": "-", "label": "Fit"}
+    subplot_kw_default = {"layout": "constrained", "sharex": True}
+    xlabel_default = r"$f$ (Hz)" if hz else r"$\omega$ (rad/s)"
+    ylabel_default = "$W$"
+    grid_kw_default = {"linestyle": "--"}
+    legend_kw_default = {"loc": "outside lower center", "ncol": 2}
+
+    # Parse plot settings
+    plot_kw = (
+        plot_response_kw_default
+        if plot_kw is None
+        else dict(plot_response_kw_default, **plot_kw)
+    )
+    subplot_kw = (
+        subplot_kw_default
+        if subplot_kw is None
+        else dict(subplot_kw_default, **subplot_kw)
+    )
+    xlabel = xlabel_default if xlabel is None else xlabel
+    ylabel = ylabel_default if ylabel is None else ylabel
+    grid_kw = grid_kw_default if grid_kw is None else dict(grid_kw_default, **grid_kw)
+    legend_kw = (
+        legend_kw_default if legend_kw is None else dict(legend_kw_default, **legend_kw)
+    )
+
+    # Magnitude response of the uncertainty weights
+    response_weight_fit = control.frequency_response(weight_fit, omega)
+    complex_response_weight_fit = _convert_frequency_response_data_to_array(
+        response_weight_fit
+    )
+    magnitude_response_weight_fit = np.abs(complex_response_weight_fit)
+
+    # System paramters
+    num_weights = magnitude_response_weight_fit.shape[1]
+
+    # Select frequency units (Hz or rad/s)
+    frequency = omega / (2 * np.pi) if hz else omega
+
+    # Select magnitude units (dB or absolute)
+    magnitude_response_weight = (
+        control.mag2db(magnitude_response_weight_fit)
+        if db
+        else magnitude_response_weight_fit
+    )
+
+    # Create figure if not provided
+    if ax is None:
+        fig, ax = plt.subplots(num_weights, squeeze=False, **subplot_kw)
+    else:
+        if isinstance(ax, np.ndarray):
+            try:
+                fig = ax[0].get_figure()
+            except AttributeError:
+                fig = ax[0, 0].get_figure()
+            except Exception:
+                raise ValueError("`ax` cannot be interpreted as plot axes.")
+        else:
+            fig = ax.get_figure()
+            ax = np.array([ax])
+
+    # Plot uncertainty weight frequency response
+    for idx_weight in range(num_weights):
+        ax[idx_weight, 0].plot(
+            frequency,
+            magnitude_response_weight[:, idx_weight, idx_weight],
+            **plot_kw,
+        )
+
+    # Plot settings
+    ax[-1, 0].set_xlabel(xlabel)
+    for idx_weight, a in enumerate(ax):
+        # Set y-label
+        ylabel_idx = ylabel + rf"$_{{({idx_weight + 1}, {idx_weight + 1})}}$"
+        if db:
+            ylabel_idx += " (dB)"
+        else:
+            ylabel_idx += " (-)"
+        a[0].set_ylabel(ylabel_idx)
+        # Set grid
+        a[0].grid(**grid_kw)
+        # Set x-axis scale
+        if frequency_log_scale:
+            a[0].set_xscale("log")
+    # Set legend
+    handles, labels = ax[0, 0].get_legend_handles_labels()
+    legend_dict = dict(zip(labels, handles))
+    for artist in fig.get_children():
+        if isinstance(artist, Legend):
+            artist.remove()
+    legend = fig.legend(
+        labels=legend_dict.keys(),
+        handles=legend_dict.values(),
+        **legend_kw,
     )
 
     return fig, ax, legend

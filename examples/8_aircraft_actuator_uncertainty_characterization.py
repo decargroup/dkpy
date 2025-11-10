@@ -55,14 +55,12 @@ def example_aircraft_uncertainty_characterization():
             legend_kw={"ncol": 3},
         )
 
-    # Plot: Magnitude response of uncertainty weight frequency response and overbounding
-    # fit
-    dkpy.plot_magnitude_response_uncertainty_weight(
-        response_weight_left,
-        response_weight_right,
-        omega,
-        weight_left=weight_left,
-        hz=True,
+    # Plot: Magnitude response of left uncertainty weight frequency response and fit
+    _, ax, _ = dkpy.plot_magnitude_response_uncertainty_weight(
+        response_weight_left, omega, ylabel="$W_{L}$"
+    )
+    dkpy.plot_magnitude_response_uncertainty_weight_fit(
+        weight_left, omega, ax=ax, ylabel="$W_{L}$", plot_kw={"linestyle": "--"}
     )
     plt.show()
 
