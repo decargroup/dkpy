@@ -9,7 +9,7 @@ __all__ = [
     "plot_singular_value_response_uncertain_model_set",
     "plot_singular_value_response_residual",
     "plot_singular_value_response_residual_comparison",
-    "plot_magnitude_response_uncertainty_weight",
+    "plot_singular_value_response_uncertainty_weight",
 ]
 
 import warnings
@@ -1425,7 +1425,7 @@ def plot_singular_value_response_uncertain_model_set(
 
 
 def plot_singular_value_response_residual(
-    complex_response_residual_dict: Dict[str, np.ndarray],
+    complex_response_residual_dict: Dict[UncertaintyModelId, np.ndarray],
     omega: np.ndarray,
     db: bool = True,
     hz: bool = False,
@@ -1560,7 +1560,7 @@ def plot_singular_value_response_residual(
 
 
 def plot_singular_value_response_residual_comparison(
-    complex_response_residual_dict: Dict[str, np.ndarray],
+    complex_response_residual_dict: Dict[UncertaintyModelId, np.ndarray],
     omega: np.ndarray,
     db: bool = True,
     hz: bool = False,
@@ -1673,12 +1673,10 @@ def plot_singular_value_response_residual_comparison(
     return fig, ax, legend
 
 
-def plot_magnitude_response_uncertainty_weight(
-    complex_response_weight_left: np.ndarray,
-    complex_response_weight_right: np.ndarray,
+def plot_singular_value_response_uncertainty_weight(
+    complex_weight: np.ndarray,
     omega: np.ndarray,
-    weight_left: Optional[control.StateSpace] = None,
-    weight_right: Optional[control.StateSpace] = None,
+    weight_fit: Optional[control.LTI] = None,
     db: bool = True,
     hz: bool = False,
     frequency_log_scale: bool = True,
@@ -1686,24 +1684,18 @@ def plot_magnitude_response_uncertainty_weight(
     plot_response_fit_kw: Dict[str, Any] = {},
     subplot_kw: Dict[str, Any] = {},
 ) -> Tuple[Figure, Union[Axes, np.ndarray], Legend]:
-    """Plot the diagonal elements of the optimal left and right uncertainty weight
-    frequency responses. Optionally, the fitted overbounding left and right uncertainty
-    weights can also be displayed.
+    """
+    Plot the singular value respone of an uncertainty weight.
 
     Parameters
     ----------
-    complex_response_weight_left : np.ndarray,
-        Frequency response matrices of the left uncertainty weight over a grid of
-        frequencies.
-    complex_response_weight_right : np.ndarray,
-        Frequency response matrices of the right uncertainty weight over a grid of
-        frequencies.
-    omega : np.ndarray
+    complex_weight : Dict[str, np.ndarray]
+        Dictionary of the uncertainty residual frequency response matrices over a grid
+        of frequencies for different uncertainty models.
+    omega : np.narray
         Angular frequency grid.
-    weight_left: Optional[control.StateSpace] = None,
-        State-space model if the fitted overbounding left uncertainty weight.
-    weight_right: Optional[control.StateSpace] = None,
-        State-space model if the fitted overbounding right uncertainty weight.
+    weight_fit : Optional[control.LTI]
+        Fitted uncertainty weight model.
     db : bool
         If True, plot the magnitude in units of dB. Otherwise, plot the magnitude in
         absolute units.
@@ -1713,12 +1705,9 @@ def plot_magnitude_response_uncertainty_weight(
     frequency_log_scale : bool
         If True, plot the frequency using a logarithmic axis. Otherwise, plot the
         the frequency using a linear axis.
-    plot_response_kw : Dict[str, Any]
-        Keyword arguments for the frequency response of the uncertainty weight plot.
-        See [#plot_kw]_ for more information on plotting keywords.
-    plot_response_fit_kw : Dict[str, Any]
-        Keyword arguments for the frequency response of the fitted uncertainty weight
-        plot. See [#plot_kw]_ for more information on plotting keywords.
+    plot_sval_max_kw : Dict[str, Any]
+        Keyword arguments for the maximum singular value plot. See [#plot_kw]_ for more
+        information on plotting keywords.
     subplot_kw : Dict[str, Any]
         Keyword arguments for the subplot. See [#subplot_kw]_ for more information on
         the subplot keywords.
@@ -1757,93 +1746,43 @@ def plot_magnitude_response_uncertainty_weight(
     subplot_kw = {} if subplot_kw is None else subplot_kw
     subplot_kwargs.update(subplot_kw)
 
-    # Uncertainty weight parameters
-    num_left = complex_response_weight_left.shape[1]
-    num_right = complex_response_weight_right.shape[1]
+    # Singular value weight response
+    sval_weight = np.linalg.svdvals(complex_weight)
+    sval_weight = control.mag2db(sval_weight) if db else sval_weight
 
-    # Magnitude response of the uncertainty weights
-    magnitude_response_weight_left = np.abs(complex_response_weight_left)
-    magnitude_response_weight_right = np.abs(complex_response_weight_right)
+    # Singular value weight fit response
+    if weight_fit is None:
+        sval_weight_fit = None
+    else:
+        frd_weight_fit = control.FrequencyResponseData(weight_fit, omega, squeeze=False)
+        response_weight_fit = frd_weight_fit.complex.transpose(2, 0, 1)
+        sval_weight_fit = np.linalg.svdvals(response_weight_fit)
+    sval_weight_fit = control.mag2db(sval_weight_fit) if db else sval_weight_fit
 
     # Initialize figure
-    fig, ax = plt.subplots(
-        max(num_left, num_right), 2, sharex=True, layout="constrained"
-    )
+    fig, ax = plt.subplots(**subplot_kwargs)
 
-    # Plot left uncertainty weight frequency response
-    for idx_left in range(num_left):
-        ax[idx_left, 0].plot(
+    # Plot weight singular value response
+    for idx_sval in range(sval_weight.shape[-1]):
+        ax.plot(
             omega / (2 * np.pi) if hz else omega,
-            control.mag2db(magnitude_response_weight_left[:, idx_left, idx_left])
-            if db
-            else magnitude_response_weight_left[:, idx_left, idx_left],
+            sval_weight[:, idx_sval],
             **plot_response_kwargs,
         )
-        ax[idx_left, 0].set_ylabel(
-            f"$|W_{{L, ({idx_left + 1}, {idx_left + 1})}}|$ (dB)"
-            if db
-            else f"$|W_{{L, ({idx_left + 1}, {idx_left + 1})}}|$ (-)"
-        )
-        ax[idx_left, 0].grid()
-    # Plot right uncertainty weight frequency response
-    for idx_right in range(num_left):
-        ax[idx_right, 1].plot(
-            omega / (2 * np.pi) if hz else omega,
-            control.mag2db(magnitude_response_weight_right[:, idx_right, idx_right])
-            if db
-            else magnitude_response_weight_right[:, idx_right, idx_right],
-            **plot_response_kwargs,
-        )
-        ax[idx_right, 1].set_ylabel(
-            f"$|W_{{R, ({idx_right + 1}, {idx_right + 1})}}|$ (dB)"
-            if db
-            else f"$|W_{{R, ({idx_right + 1}, {idx_right + 1})}}|$ (-)"
-        )
-        ax[idx_right, 1].grid()
-
-    # Plot left uncertainty weight fit frequency response
-    if weight_left is not None:
-        response_fit_weight_left = control.frequency_response(weight_left, omega)
-        magnitude_response_fit_weight_left = np.array(
-            response_fit_weight_left.magnitude
-        )
-        for idx_left in range(num_left):
-            ax[idx_left, 0].plot(
+        if sval_weight_fit is not None:
+            ax.plot(
                 omega / (2 * np.pi) if hz else omega,
-                control.mag2db(
-                    magnitude_response_fit_weight_left[idx_left, idx_left, :]
-                )
-                if db
-                else magnitude_response_fit_weight_left[idx_left, idx_left, :],
-                **plot_response_fit_kwargs,
-            )
-    # Plot right uncertainty weight fit frequency response
-    if weight_right is not None:
-        response_fit_weight_right = control.frequency_response(weight_right, omega)
-        magnitude_response_fit_weight_right = np.array(
-            response_fit_weight_right.magnitude
-        )
-        for idx_right in range(num_right):
-            ax[idx_right, 1].plot(
-                omega / (2 * np.pi) if hz else omega,
-                control.mag2db(
-                    magnitude_response_fit_weight_right[idx_right, idx_right, :]
-                )
-                if db
-                else magnitude_response_fit_weight_right[idx_right, idx_right, :],
+                sval_weight_fit[:, idx_sval],
                 **plot_response_fit_kwargs,
             )
 
     # Plot settings
-    for idx_col in range(2):
-        ax[-1, idx_col].set_xlabel("$f$ (Hz)" if hz else r"$\omega$ (rad/s)")
-    for ax_row in ax:
-        for ax_row_col in ax_row:
-            if frequency_log_scale:
-                ax_row_col.set_xscale("log")
-            if not ax_row_col.has_data():
-                fig.delaxes(ax_row_col)
-    handles, labels = ax[0, 0].get_legend_handles_labels()
+    ax.set_xlabel("$f$ (Hz)" if hz else r"$\omega$ (rad/s)")
+    ax.set_ylabel("Magnitude (dB)" if db else "Magnitude (-)")
+    ax.grid()
+    if frequency_log_scale:
+        ax.set_xscale("log")
+    handles, labels = ax.get_legend_handles_labels()
     legend_dict = dict(zip(labels, handles))
     legend = fig.legend(
         labels=legend_dict.keys(),

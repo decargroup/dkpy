@@ -26,7 +26,7 @@ def example_aircraft_uncertainty_characterization():
     )
 
     # Compute the optimal uncertainty weights with a given structure
-    response_weight_left, response_weight_right = (
+    complex_weight_left, complex_weight_right = (
         dkpy.compute_uncertainty_weight_response(
             response_residual["multiplicative_input"],
             "scalar",
@@ -35,7 +35,9 @@ def example_aircraft_uncertainty_characterization():
     )
 
     # Fit an overbounding LTI system to the optimal uncertainty weight response
-    weight_left = dkpy.fit_uncertainty_weight(response_weight_left, omega, 1)
+    weight_left = dkpy.fit_uncertainty_weight(
+        complex_weight_left, omega, 1, "left", "scalar"
+    )
 
     # Plot: Singular value response of nominal and off-nominal systems
     dkpy.plot_singular_value_response_uncertain_model_set(
@@ -48,15 +50,13 @@ def example_aircraft_uncertainty_characterization():
         response_residual, omega, hz=True
     )
 
-    # Plot: Magnitude response of uncertainty weight frequency response and overbounding
-    # fit
-    dkpy.plot_magnitude_response_uncertainty_weight(
-        response_weight_left,
-        response_weight_right,
+    # Plot: Singular value response of left uncertainty weight
+    dkpy.plot_singular_value_response_uncertainty_weight(
+        complex_weight_left,
         omega,
-        weight_left=weight_left,
-        hz=True,
+        weight_left,
     )
+
     plt.show()
 
 
