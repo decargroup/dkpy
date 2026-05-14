@@ -4,7 +4,7 @@ build-backend = "hatchling.build"
 
 [project]
 name = "dkpy"
-version = "0.1.9"
+version = "0.1.10"
 dependencies = [
     "numpy>=1.21.0",
     "scipy>=1.7.0",
@@ -14,9 +14,10 @@ dependencies = [
     "joblib>=1.4.0",
     "matplotlib>=3.9.0",
 ]
-requires-python = ">=3.7, <3.14"
+requires-python = ">=3.7"
 authors = [
   {name="Steven Dahdah", email="steven.dahdah@mail.mcgill.ca"},
+  {name="Timothy Everett Adams", email="timothy.adams@mail.mcgill.ca"},
   {name="James Richard Forbes", email="james.richard.forbes@mcgill.ca"},
 ]
 description = "D-K iteration in Python"
