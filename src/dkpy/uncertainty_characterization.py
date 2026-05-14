@@ -2147,8 +2147,7 @@ def plot_singular_value_response_uncertainty_weight(
     plot_response_fit_kw: Dict[str, Any] = {},
     subplot_kw: Dict[str, Any] = {},
 ) -> Tuple[Figure, Union[Axes, np.ndarray], Legend]:
-    """
-    Plot the singular value respone of an uncertainty weight.
+    """Plot the singular value respone of an uncertainty weight.
 
     Parameters
     ----------
@@ -2255,3 +2254,86 @@ def plot_singular_value_response_uncertainty_weight(
     )
 
     return fig, ax, legend
+
+
+def plot_uncertainty_measure(
+    measure: np.ndarray,
+    omega: np.ndarray,
+    db: bool = True,
+    hz: bool = False,
+    frequency_log_scale: bool = True,
+    plot_kw: Dict[str, Any] = {},
+    subplot_kw: Dict[str, Any] = {},
+) -> Tuple[Figure, Union[Axes, np.ndarray]]:
+    """Plot uncertainty measure frequency response.
+
+    Parameters
+    ----------
+    measure : np.ndarray
+        Uncertainty measure frequency response.
+    omega : np.narray
+        Angular frequency grid.
+    weight_fit : Optional[control.LTI]
+        Fitted uncertainty weight model.
+    db : bool
+        If True, plot the magnitude in units of dB. Otherwise, plot the magnitude in
+        absolute units.
+    hz : bool
+        If True, plot the frequency in units of Hz. Otherwise, plot the frequency in
+        units of rad/s.
+    frequency_log_scale : bool
+        If True, plot the frequency using a logarithmic axis. Otherwise, plot the
+        the frequency using a linear axis.
+    plot_sval_max_kw : Dict[str, Any]
+        Keyword arguments for the maximum singular value plot. See [#plot_kw]_ for more
+        information on plotting keywords.
+    subplot_kw : Dict[str, Any]
+        Keyword arguments for the subplot. See [#subplot_kw]_ for more information on
+        the subplot keywords.
+
+    Returns
+    -------
+    Tuple[Figure, Union[Axes, np.ndarray], Legend]
+        Matplotlib Figure object, Axes object (or np.ndarray of Axes objects), and
+        Legend object.
+
+    References
+    ----------
+    .. [#plot_kw] https://matplotlib.org/stable/api/_as_gen/matplotlib.pyplot.plot.html
+    .. [#subplot_kw] https://matplotlib.org/stable/api/_as_gen/matplotlib.pyplot.subplots.html
+
+    """
+    # Plot keyword arguments
+    plot_kwargs = {
+        "color": "C0",
+        "marker": "",
+        "linestyle": "-",
+    }
+    plot_kwargs.update(plot_kw)
+
+    # Subplot keyword arguments
+    subplot_kwargs = {"sharex": True, "layout": "constrained"}
+    subplot_kw = {} if subplot_kw is None else subplot_kw
+    subplot_kwargs.update(subplot_kw)
+
+    # Measure response
+    measure = control.mag2db(measure) if db else measure
+
+    # Initialize figure
+    fig, ax = plt.subplots(**subplot_kwargs)
+
+    # Plot weight singular value response
+    ax.plot(
+        omega / (2 * np.pi) if hz else omega,
+        measure,
+        **plot_kwargs,
+    )
+
+    # Plot settings
+    ax.set_xlabel("$f$ (Hz)" if hz else r"$\omega$ (rad/s)")
+    ax.set_ylabel("Magnitude (dB)" if db else "Magnitude (-)")
+    ax.grid()
+    if frequency_log_scale:
+        ax.set_xscale("log")
+
+    return fig, ax
