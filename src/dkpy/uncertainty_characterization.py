@@ -20,27 +20,29 @@ import cvxpy
 import scipy
 from matplotlib import pyplot as plt
 
-from typing import List, Optional, Union, Tuple, Dict, Callable, Set, Any
+from typing import List, Optional, Union, Tuple, Dict, Any, Literal
 from matplotlib.figure import Figure
 from matplotlib.axes import Axes
 from matplotlib.legend import Legend
 
 from . import utilities
 
+UncertaintyModelId = Literal[
+    "additive",
+    "multiplicative_input",
+    "multiplicative_output",
+    "inverse_additive",
+    "inverse_multiplicative_input",
+    "inverse_multiplicative_output",
+]
+
 
 def compute_uncertainty_residual_response(
     complex_response_nom: Union[np.ndarray, control.FrequencyResponseData],
     complex_response_offnom_list: Union[np.ndarray, control.FrequencyResponseList],
-    uncertainty_model: Union[str, List[str], Set[str]] = {
-        "additive",
-        "multiplicative_input",
-        "multiplicative_output",
-        "inverse_additive",
-        "inverse_multiplicative_input",
-        "inverse_multiplicative_output",
-    },
+    uncertainty_model: Union[UncertaintyModelId, List[UncertaintyModelId]],
     tol_residual_existence: float = 1e-12,
-) -> Dict[str, np.ndarray]:
+) -> Dict[UncertaintyModelId, np.ndarray]:
     """Compute the residual response of unstructured uncertainty models.
 
     Parameters
@@ -49,7 +51,7 @@ def compute_uncertainty_residual_response(
         Frequency response of the nominal system.
     complex_response_offnom_list : Union[np.ndarray, control.FrequencyResponseList]
         Frequency response of the off-nominal system.
-    uncertainty_model : Union[str, List[str], Set[str]]
+    uncertainty_model : Union[UncertaintyModelId, List[UncertaintyModelId]]
         Uncertainty model identifiers to compute the residual response.
     tol_residual_existence : float
         Tolerance for the existence of an uncertainty residual.
@@ -98,202 +100,82 @@ def compute_uncertainty_residual_response(
     # Uncertainty residual response dictionary
     complex_response_residual_dict = {}
 
-    # Check uncertainty model identifiers
-    uncertainty_model = set(uncertainty_model)
-    valid_uncertainty_model = {
-        "additive",
-        "multiplicative_input",
-        "multiplicative_output",
-        "inverse_additive",
-        "inverse_multiplicative_input",
-        "inverse_multiplicative_output",
+    compute_residual_dispatcher = {
+        "additive": _compute_residual_additive,
+        "multiplicative_input": _compute_residual_multiplicative_input,
+        "multiplicative_output": _compute_residual_multiplicative_output,
+        "inverse_additive": _compute_residual_inverse_additive,
+        "inverse_multiplicative_input": _compute_residual_inverse_multiplicative_input,
+        "inverse_multiplicative_output": _compute_residual_inverse_multiplicative_output,
     }
-    if not uncertainty_model.issubset(valid_uncertainty_model):
-        raise ValueError(
-            "The uncertainty model identifiers provided in `uncertainty_model` do not "
-            "all correspond to valid uncertainty models. In particular, "
-            f"{uncertainty_model.difference(valid_uncertainty_model)} are not valid "
-            "uncertainty model identifiers. The identifiers are: "
-            '"additive": Additive uncertainty, '
-            '"multiplicative_input": Multiplicative input uncertainty, '
-            '"multiplicative_output": Multiplicative output uncertainty, '
-            '"inverse_additive": Inverse additive uncertainty, '
-            '"inverse_multiplicative_input": Inverse multiplicative input uncertainty, '
-            '"inverse_multiplicative_output": Inverse multiplicative output uncertainty.'
-        )
 
-    # Additive uncertainty residual response
-    if "additive" in uncertainty_model:
-        complex_response_residual_list = _compute_uncertainty_residual_response(
+    for model in uncertainty_model:
+        try:
+            compute_residual_model = compute_residual_dispatcher[model]
+        except KeyError:
+            raise KeyError(
+                "The uncertainty model identifier must be `additive`, "
+                "`multiplicative_input`, `multiplicative_output`, `inverse_additive` "
+                "`inverse_multiplicative_input`, or `inverse_multiplicative_output` "
+                f"(got `{model}`)."
+            )
+        complex_response_residual_list = compute_residual_model(
             complex_response_nom,
             complex_response_offnom_list,
-            _compute_uncertainty_residual_additive_freq,
             tol_residual_existence,
         )
-        complex_response_residual_dict["additive"] = complex_response_residual_list
-
-    # Multiplicative input uncertainty residual response
-    if "multiplicative_input" in uncertainty_model:
-        complex_response_residual_list = _compute_uncertainty_residual_response(
-            complex_response_nom,
-            complex_response_offnom_list,
-            _compute_uncertainty_residual_multiplicative_input_freq,
-            tol_residual_existence,
-        )
-        complex_response_residual_dict["multiplicative_input"] = (
-            complex_response_residual_list
-        )
-
-    # Multiplicative output uncertainty residual response
-    if "multiplicative_output" in uncertainty_model:
-        complex_response_residual_list = _compute_uncertainty_residual_response(
-            complex_response_nom,
-            complex_response_offnom_list,
-            _compute_uncertainty_residual_multiplicative_output_freq,
-            tol_residual_existence,
-        )
-        complex_response_residual_dict["multiplicative_output"] = (
-            complex_response_residual_list
-        )
-
-    # Inverse additive uncertainty residual response
-    if "inverse_additive" in uncertainty_model:
-        complex_response_residual_list = _compute_uncertainty_residual_response(
-            complex_response_nom,
-            complex_response_offnom_list,
-            _compute_uncertainty_residual_inverse_additive_freq,
-            tol_residual_existence,
-        )
-        complex_response_residual_dict["inverse_additive"] = (
-            complex_response_residual_list
-        )
-
-    # Inverse multiplicative input uncertainty residual response
-    if "inverse_multiplicative_input" in uncertainty_model:
-        complex_response_residual_list = _compute_uncertainty_residual_response(
-            complex_response_nom,
-            complex_response_offnom_list,
-            _compute_uncertainty_residual_inverse_multiplicative_input_freq,
-            tol_residual_existence,
-        )
-        complex_response_residual_dict["inverse_multiplicative_input"] = (
-            complex_response_residual_list
-        )
-
-    # Inverse multiplicative output uncertainty residual response
-    if "inverse_multiplicative_output" in uncertainty_model:
-        complex_response_residual_list = _compute_uncertainty_residual_response(
-            complex_response_nom,
-            complex_response_offnom_list,
-            _compute_uncertainty_residual_inverse_multiplicative_output_freq,
-            tol_residual_existence,
-        )
-        complex_response_residual_dict["inverse_multiplicative_output"] = (
-            complex_response_residual_list
-        )
+        complex_response_residual_dict[model] = complex_response_residual_list
 
     return complex_response_residual_dict
 
 
-def _compute_uncertainty_residual_response(
-    complex_response_nom: np.ndarray,
-    complex_response_offnom_list: np.ndarray,
-    compute_uncertainty_residual_freq: Callable,
-    tol_residual_existence: float,
+def _compute_residual_additive(
+    complex_nominal: np.ndarray,
+    complex_offnominal: np.ndarray,
+    tol_residual_existence: Optional[float] = None,
 ) -> np.ndarray:
-    """Compute the uncertainty residual response for a given uncertainty model.
+    """Compute the additive uncertainty residual frequency responses.
 
     Parameters
     ----------
-    complex_response_nom : np.ndarray
-        Frequency response of the nominal system.
-    complex_response_offnom_list : np.ndarray
-        Frequency response of the off-nominal system.
-    compute_uncertainty_residual_freq : Callable,
-        Uncertainty residual computation function at a given frequency.
+    complex_nominal : np.ndarray
+        Nominal model frequency response.
+    complex_offnominal : np.ndarray
+        Off-nominal model frequency responses.
     tol_residual_existence : float
         Tolerance for the existence of an uncertainty residual.
 
     Returns
     -------
     np.ndarray
-        Uncertainty residual response of the given uncertainty model.
+        Additive uncertainty residual frequency response for all off-nominal models.
     """
+    complex_residual = complex_offnominal - complex_nominal
 
-    # Frequency response parameters
-    num_offnom = complex_response_offnom_list.shape[0]
-    num_frequency = complex_response_offnom_list.shape[1]
-
-    complex_response_residual_list = []
-    for idx_offnom in range(num_offnom):
-        complex_response_residual = []
-        complex_response_offnom = complex_response_offnom_list[idx_offnom, :, :, :]
-        for idx_freq in range(num_frequency):
-            complex_response_nom_freq = complex_response_nom[idx_freq, :, :]
-            complex_response_offnom_freq = complex_response_offnom[idx_freq, :, :]
-            complex_response_residual_freq = compute_uncertainty_residual_freq(
-                complex_response_nom_freq,
-                complex_response_offnom_freq,
-                tol_residual_existence,
-            )
-            complex_response_residual.append(complex_response_residual_freq)
-        complex_response_residual = np.array(complex_response_residual, dtype=complex)
-        complex_response_residual_list.append(complex_response_residual)
-    complex_response_residual_list = np.array(complex_response_residual_list)
-
-    return complex_response_residual_list
+    return complex_residual
 
 
-def _compute_uncertainty_residual_additive_freq(
-    complex_response_nom_freq: np.ndarray,
-    complex_response_offnom_freq: np.ndarray,
-    tol_residual_existence: Optional[float] = None,
-) -> np.ndarray:
-    """Compute the additive uncertainty residual at a frequency.
-
-    Parameters
-    ----------
-    complex_response_nom_freq : np.ndarray
-        Nominal frequency response matrix evaluated at a given frequency.
-    complex_response_offnom_freq : np.ndarray
-        Frequency response matrix of a single off-nominal system evaluated at a given
-        frequency.
-    tol_residual_existence : float
-        Tolerance for the existence of a multiplicative input uncertainty residual.
-
-    Returns
-    -------
-    np.ndarray
-        Additive uncertainty residual at a given frequency.
-    """
-    complex_response_residual_freq = (
-        complex_response_offnom_freq - complex_response_nom_freq
-    )
-
-    return complex_response_residual_freq
-
-
-def _compute_uncertainty_residual_multiplicative_input_freq(
-    complex_response_nom_freq: np.ndarray,
-    complex_response_offnom_freq: np.ndarray,
+def _compute_residual_multiplicative_input(
+    complex_nominal: np.ndarray,
+    complex_offnominal: np.ndarray,
     tol_residual_existence: float = 1e-8,
 ) -> np.ndarray:
-    """Compute the multiplicative input uncertainty residual at a frequency.
+    """Compute the multiplicative input uncertainty residual frequency responses.
 
     Parameters
     ----------
-    complex_response_nom_freq : np.ndarray
-        Nominal frequency response matrix evaluated at a given frequency.
-    complex_response_offnom_freq : np.ndarray
-        Frequency response matrix of a single off-nominal system evaluated at a given
-        frequency.
+    complex_response_nom : np.ndarray
+        Nominal model frequency response.
+    complex_response_offnom : np.ndarray
+        Off-nominal model frequency responses.
     tol_residual_existence : float
-        Tolerance for the existence of a multiplicative input uncertainty residual.
+        Tolerance for the existence of an uncertainty residual.
 
     Returns
     -------
     np.ndarray
-        Multiplicative input uncertainty residual at a given frequency.
+        Multiplicative input uncertainty residual frequency response for all
+        off-nominal models.
 
     Raises
     ------
@@ -303,19 +185,19 @@ def _compute_uncertainty_residual_multiplicative_input_freq(
         solution.
     """
 
-    num_inputs = complex_response_nom_freq.shape[1]
-    num_outputs = complex_response_nom_freq.shape[0]
+    nbr_inputs = complex_nominal.shape[-1]
+    nbr_outputs = complex_nominal.shape[-2]
 
-    A = complex_response_nom_freq
-    B = complex_response_offnom_freq - complex_response_nom_freq
-    X, residues_lstsq, _, _ = scipy.linalg.lstsq(A, B)
-    complex_response_residual_freq = X
+    a = complex_nominal
+    b = complex_offnominal - complex_nominal
+    x, residues_lstsq, _, _ = scipy.linalg.lstsq(a, b)
+    complex_residual = x
 
-    if num_inputs >= num_outputs:
-        return complex_response_residual_freq
+    if nbr_inputs >= nbr_outputs:
+        return complex_residual
     else:
         if np.all(residues_lstsq <= tol_residual_existence):
-            return complex_response_residual_freq
+            return complex_residual
         else:
             raise ValueError(
                 "A multiplicative input uncertainty residual does not exist for the "
@@ -327,27 +209,27 @@ def _compute_uncertainty_residual_multiplicative_input_freq(
             )
 
 
-def _compute_uncertainty_residual_multiplicative_output_freq(
-    complex_response_nom_freq: np.ndarray,
-    complex_response_offnom_freq: np.ndarray,
+def _compute_residual_multiplicative_output(
+    complex_nominal: np.ndarray,
+    complex_offnominal: np.ndarray,
     tol_residual_existence: float = 1e-8,
 ) -> np.ndarray:
-    """Compute the multiplicative output uncertainty residual at a frequency.
+    """Compute the multiplicative output uncertainty residual frequency responses.
 
     Parameters
     ----------
-    complex_response_nom_freq : np.ndarray
-        Nominal frequency response matrix evaluated at a given frequency.
-    complex_response_offnom_freq : np.ndarray
-        Frequency response matrix of a single off-nominal system evaluated at a given
-        frequency.
+    complex_nominal : np.ndarray
+        Nominal model frequency response.
+    complex_offnominal : np.ndarray
+        Off-nominal model frequency responses.
     tol_residual_existence : float
-        Tolerance for the existence of a multiplicative input uncertainty residual.
+        Tolerance for the existence of an uncertainty residual.
 
     Returns
     -------
     np.ndarray
-        Multiplicative output uncertainty residual at a given frequency.
+        Multiplicative output uncertainty residual frequency response for all
+        off-nominal models.
 
     Raises
     ------
@@ -357,19 +239,19 @@ def _compute_uncertainty_residual_multiplicative_output_freq(
         solution.
     """
 
-    num_inputs = complex_response_nom_freq.shape[1]
-    num_outputs = complex_response_nom_freq.shape[0]
+    nbr_inputs = complex_nominal.shape[-1]
+    nbr_outputs = complex_nominal.shape[-2]
 
-    A = complex_response_nom_freq.T
-    B = complex_response_offnom_freq.T - complex_response_nom_freq.T
-    X, residues_lstsq, _, _ = scipy.linalg.lstsq(A, B)
-    complex_response_residual_freq = X.T
+    a = np.moveaxis(complex_nominal, -1, -2)
+    b = np.moveaxis(complex_offnominal - complex_nominal, -1, -2)
+    x, residues_lstsq, _, _ = scipy.linalg.lstsq(a, b)
+    complex_residual = np.moveaxis(x, -1, -2)
 
-    if num_inputs <= num_outputs:
-        return complex_response_residual_freq
+    if nbr_inputs <= nbr_outputs:
+        return complex_residual
     else:
         if np.all(residues_lstsq <= tol_residual_existence):
-            return complex_response_residual_freq
+            return complex_residual
         else:
             raise ValueError(
                 "A multiplicative output uncertainty residual does not exist for the "
@@ -381,27 +263,27 @@ def _compute_uncertainty_residual_multiplicative_output_freq(
             )
 
 
-def _compute_uncertainty_residual_inverse_additive_freq(
-    complex_response_nom_freq: np.ndarray,
-    complex_response_offnom_freq: np.ndarray,
+def _compute_residual_inverse_additive(
+    complex_nominal: np.ndarray,
+    complex_offnominal: np.ndarray,
     tol_residual_existence: float = 1e-8,
 ) -> np.ndarray:
-    """Compute the inverse additive uncertainty residual at a frequency.
+    """Compute the inverse additive uncertainty residual frequency responses.
 
     Parameters
     ----------
-    complex_response_nom_freq : np.ndarray
-        Nominal frequency response matrix evaluated at a given frequency.
-    complex_response_offnom_freq : np.ndarray
-        Frequency response matrix of a single off-nominal system evaluated at a given
-        frequency.
+    complex_nominal : np.ndarray
+        Nominal model frequency response.
+    complex_offnominal : np.ndarray
+        Off-nominal model frequency responses.
     tol_residual_existence : float
-        Tolerance for the existence of a inverse additive uncertainty residual.
+        Tolerance for the existence of an uncertainty residual.
 
     Returns
     -------
     np.ndarray
-        Inverse additive uncertainty residual at a given frequency.
+        Inverse additive uncertainty residual frequency response for all
+        off-nominal models.
 
     Raises
     ------
@@ -411,24 +293,24 @@ def _compute_uncertainty_residual_inverse_additive_freq(
         solution.
     """
 
-    num_inputs = complex_response_nom_freq.shape[1]
-    num_outputs = complex_response_nom_freq.shape[0]
+    nbr_inputs = complex_nominal.shape[-1]
+    nbr_outputs = complex_nominal.shape[-2]
 
-    A1 = complex_response_offnom_freq
-    B1 = complex_response_offnom_freq - complex_response_nom_freq
-    Y, residues_lstsq_1, _, _ = scipy.linalg.lstsq(A1, B1)
-    A2 = complex_response_nom_freq.T
-    B2 = Y.T
-    X, residues_lstsq_2, _, _ = scipy.linalg.lstsq(A2, B2)
-    complex_response_residual_freq = X.T
+    a1 = complex_offnominal
+    b1 = complex_offnominal - complex_nominal
+    y, residues_lstsq_1, _, _ = scipy.linalg.lstsq(a1, b1)
+    a2 = np.moveaxis(complex_nominal, -1, -2)
+    b2 = np.moveaxis(y, -1, -2)
+    x, residues_lstsq_2, _, _ = scipy.linalg.lstsq(a2, b2)
+    complex_residual = np.moveaxis(x, -1, -2)
 
-    if num_inputs == num_outputs:
-        return complex_response_residual_freq
+    if nbr_inputs == nbr_outputs:
+        return complex_residual
     else:
         if np.all(residues_lstsq_1 <= tol_residual_existence) and np.all(
             residues_lstsq_2 <= tol_residual_existence
         ):
-            return complex_response_residual_freq
+            return complex_residual
         else:
             raise ValueError(
                 "An inverse additive uncertainty residual does not exist for the "
@@ -440,28 +322,27 @@ def _compute_uncertainty_residual_inverse_additive_freq(
             )
 
 
-def _compute_uncertainty_residual_inverse_multiplicative_input_freq(
-    complex_response_nom_freq: np.ndarray,
-    complex_response_offnom_freq: np.ndarray,
+def _compute_residual_inverse_multiplicative_input(
+    complex_nominal: np.ndarray,
+    complex_offnominal: np.ndarray,
     tol_residual_existence: float = 1e-8,
 ) -> np.ndarray:
-    """Compute the inverse multiplicative input uncertainty residual at a frequency.
+    """Compute the inverse multiplicative input uncertainty residual frequency responses.
 
     Parameters
     ----------
-    complex_response_nom_freq: np.ndarray
-        Nominal frequency response matrix evaluated at a given frequency.
-    complex_response_offnom_freq : np.ndarray
-        Frequency response matrix of a single off-nominal system evaluated at a given
-        frequency.
+    complex_nominal : np.ndarray
+        Nominal model frequency response.
+    complex_offnominal : np.ndarray
+        Off-nominal model frequency responses.
     tol_residual_existence : float
-        Tolerance for the existence of an inverse multiplicative input uncertainty
-        residual.
+        Tolerance for the existence of an uncertainty residual.
 
     Returns
     -------
     np.ndarray
-        Inverse multiplicative input uncertainty residual at a given frequency.
+        Inverse multiplicative input uncertainty residual frequency response for all
+        off-nominal models.
 
     Raises
     ------
@@ -471,19 +352,19 @@ def _compute_uncertainty_residual_inverse_multiplicative_input_freq(
         a solution.
     """
 
-    num_inputs = complex_response_nom_freq.shape[1]
-    num_outputs = complex_response_nom_freq.shape[0]
+    nbr_inputs = complex_nominal.shape[-1]
+    nbr_outputs = complex_nominal.shape[-2]
 
-    A = complex_response_offnom_freq
-    B = complex_response_offnom_freq - complex_response_nom_freq
-    X, residues_lstsq, _, _ = scipy.linalg.lstsq(A, B)
-    complex_response_residual_freq = X
+    a = complex_offnominal
+    b = complex_offnominal - complex_nominal
+    x, residues_lstsq, _, _ = scipy.linalg.lstsq(a, b)
+    complex_residual = x
 
-    if num_inputs >= num_outputs:
-        return complex_response_residual_freq
+    if nbr_inputs >= nbr_outputs:
+        return complex_residual
     else:
         if np.all(residues_lstsq <= tol_residual_existence):
-            return complex_response_residual_freq
+            return complex_residual
         else:
             raise ValueError(
                 "An inverse multiplicative input uncertainty residual does not exist "
@@ -495,27 +376,27 @@ def _compute_uncertainty_residual_inverse_multiplicative_input_freq(
             )
 
 
-def _compute_uncertainty_residual_inverse_multiplicative_output_freq(
-    complex_response_nom_freq: np.ndarray,
-    complex_response_offnom_freq: np.ndarray,
+def _compute_residual_inverse_multiplicative_output(
+    complex_nominal: np.ndarray,
+    complex_offnominal: np.ndarray,
     tol_residual_existence: float = 1e-8,
 ) -> np.ndarray:
-    """Compute the inverse multiplicative output uncertainty residual at a frequency.
+    """Compute the inverse multiplicative output uncertainty residual frequency responses.
 
     Parameters
     ----------
-    complex_response_nom_freq : np.ndarray
-        Nominal frequency response matrix evaluated at a given frequency.
-    complex_response_offnom_freq : np.ndarray
-        Frequency response matrix of a single off-nominal system evaluated at a given
-        frequency.
+    complex_nominal : np.ndarray
+        Nominal model frequency response.
+    complex_offnominal : np.ndarray
+        Off-nominal model frequency responses.
     tol_residual_existence : float
-        Tolerance for the existence of a multiplicative input uncertainty residual.
+        Tolerance for the existence of an uncertainty residual.
 
     Returns
     -------
     np.ndarray
-        Inverse multiplicative output uncertainty residual at a given frequency.
+        Inverse multiplicative output uncertainty residual frequency response for all
+        off-nominal models.
 
     Raises
     ------
@@ -525,19 +406,19 @@ def _compute_uncertainty_residual_inverse_multiplicative_output_freq(
         a solution.
     """
 
-    num_inputs = complex_response_nom_freq.shape[1]
-    num_outputs = complex_response_nom_freq.shape[0]
+    nbr_inputs = complex_nominal.shape[-1]
+    nbr_outputs = complex_nominal.shape[-2]
 
-    A = complex_response_offnom_freq.T
-    B = complex_response_offnom_freq.T - complex_response_nom_freq.T
-    X, residues_lstsq, _, _ = scipy.linalg.lstsq(A, B)
-    complex_response_residual_freq = X.T
+    a = np.moveaxis(complex_offnominal, -1, -2)
+    b = np.moveaxis(complex_offnominal - complex_nominal, -1, -2)
+    x, residues_lstsq, _, _ = scipy.linalg.lstsq(a, b)
+    complex_residual = np.moveaxis(x, -1, -2)
 
-    if num_inputs <= num_outputs:
-        return complex_response_residual_freq
+    if nbr_inputs <= nbr_outputs:
+        return complex_residual
     else:
         if np.all(residues_lstsq <= tol_residual_existence):
-            return complex_response_residual_freq
+            return complex_residual
         else:
             raise ValueError(
                 "An inverse multiplicative output uncertainty residual does not exist "

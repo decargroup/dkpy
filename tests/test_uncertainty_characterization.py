@@ -84,21 +84,14 @@ class TestComputeUncertaintyResidualResponse:
         """Regression test :func:`compute_uncertainty_residual_response`."""
 
         # Frequency response of systems
-        frequency_response_nom = control.frequency_response(
-            sys_nom, omega, squeeze=False
-        )
-        frequency_response_offnom_list = control.frequency_response(
+        frd_nominal = control.frequency_response(sys_nom, omega, squeeze=False)
+        frd_offnominal_list = control.frequency_response(
             sys_offnom_list, omega, squeeze=False
         )
         # Complex frequency response of systems
-        complex_response_nom = frequency_response_nom.complex.transpose(2, 0, 1)
-        complex_response_offnom_list = []
-        for frequency_response_offnom in frequency_response_offnom_list:
-            complex_response_offnom_list.append(
-                frequency_response_offnom.complex.transpose(2, 0, 1)
-            )
-        complex_response_offnom_list = np.array(
-            complex_response_offnom_list, dtype=complex
+        complex_nominal = frd_nominal.complex.transpose(2, 0, 1)
+        complex_offnominal = np.array(
+            [frd.complex.transpose(2, 0, 1) for frd in frd_offnominal_list]
         )
 
         # Uncertainty residual computation
@@ -111,8 +104,8 @@ class TestComputeUncertaintyResidualResponse:
             "inverse_multiplicative_output",
         ]
         frequency_response_residual_dict = dkpy.compute_uncertainty_residual_response(
-            complex_response_nom,
-            complex_response_offnom_list,
+            complex_nominal,
+            complex_offnominal,
             uncertainty_model_list,
         )
         ndarrays_regression.check(
@@ -121,7 +114,7 @@ class TestComputeUncertaintyResidualResponse:
         )
 
     @pytest.mark.parametrize(
-        "complex_response_nom_freq, complex_response_offnom_freq",
+        "complex_response_nom, complex_response_offnom",
         [
             (
                 np.array([[1, 0], [0, 1], [1, 1]]),
@@ -129,20 +122,20 @@ class TestComputeUncertaintyResidualResponse:
             ),
         ],
     )
-    def test_compute_uncertainty_residual_multiplicative_input_freq(
-        self, complex_response_nom_freq, complex_response_offnom_freq
+    def test_compute_residual_multiplicative_input_error(
+        self, complex_response_nom, complex_response_offnom
     ):
         """Test ValueError of
-        :func:`_compute_uncertainty_residual_multiplicative_input_freq`.
+        :func:`_compute_residual_multiplicative_input`.
         """
 
         with pytest.raises(ValueError):
-            residual_freq = dkpy.uncertainty_characterization._compute_uncertainty_residual_multiplicative_input_freq(
-                complex_response_nom_freq, complex_response_offnom_freq
+            residual_freq = dkpy.uncertainty_characterization._compute_residual_multiplicative_input(
+                complex_response_nom, complex_response_offnom
             )
 
     @pytest.mark.parametrize(
-        "complex_response_nom_freq, complex_response_offnom_freq",
+        "complex_response_nom, complex_response_offnom",
         [
             (
                 np.array([[1, 0], [0, 1], [1, 1]]).T,
@@ -150,19 +143,19 @@ class TestComputeUncertaintyResidualResponse:
             ),
         ],
     )
-    def test_compute_uncertainty_residual_multiplicative_output_freq(
-        self, complex_response_nom_freq, complex_response_offnom_freq
+    def test_compute_residual_multiplicative_output_error(
+        self, complex_response_nom, complex_response_offnom
     ):
         """Test ValueError of
-        :func:`_compute_uncertainty_residual_multiplicative_output_freq`.
+        :func:`_compute_residual_multiplicative_output`.
         """
         with pytest.raises(ValueError):
-            residual_freq = dkpy.uncertainty_characterization._compute_uncertainty_residual_multiplicative_output_freq(
-                complex_response_nom_freq, complex_response_offnom_freq
+            residual_freq = dkpy.uncertainty_characterization._compute_residual_multiplicative_output(
+                complex_response_nom, complex_response_offnom
             )
 
     @pytest.mark.parametrize(
-        "complex_response_nom_freq, complex_response_offnom_freq",
+        "complex_response_nom, complex_response_offnom",
         [
             (
                 np.array([[1, 0], [0, 1], [1, 1]]),
@@ -174,19 +167,21 @@ class TestComputeUncertaintyResidualResponse:
             ),
         ],
     )
-    def test_compute_uncertainty_residual_inverse_additive_freq(
-        self, complex_response_nom_freq, complex_response_offnom_freq
+    def test_compute_residual_inverse_additive_error(
+        self, complex_response_nom, complex_response_offnom
     ):
         """Test ValueError of
-        :func:`_compute_uncertainty_residual_inverse_additive_freq`.
+        :func:`_compute_residual_inverse_additive`.
         """
         with pytest.raises(ValueError):
-            residual_freq = dkpy.uncertainty_characterization._compute_uncertainty_residual_inverse_additive_freq(
-                complex_response_nom_freq, complex_response_offnom_freq
+            residual_freq = (
+                dkpy.uncertainty_characterization._compute_residual_inverse_additive(
+                    complex_response_nom, complex_response_offnom
+                )
             )
 
     @pytest.mark.parametrize(
-        "complex_response_nom_freq, complex_response_offnom_freq",
+        "complex_response_nom, complex_response_offnom",
         [
             (
                 np.array([[1, 0], [0, 1], [1, 1]]),
@@ -194,19 +189,19 @@ class TestComputeUncertaintyResidualResponse:
             ),
         ],
     )
-    def test_compute_uncertainty_residual_inverse_multiplicative_input_freq(
-        self, complex_response_nom_freq, complex_response_offnom_freq
+    def test_compute_residual_inverse_multiplicative_input_error(
+        self, complex_response_nom, complex_response_offnom
     ):
         """Test ValueError of
-        :func:`_compute_uncertainty_residual_inverse_multiplicative_input_freq`.
+        :func:`_compute_residual_inverse_multiplicative_input`.
         """
         with pytest.raises(ValueError):
-            residual_freq = dkpy.uncertainty_characterization._compute_uncertainty_residual_inverse_multiplicative_input_freq(
-                complex_response_nom_freq, complex_response_offnom_freq
+            residual_freq = dkpy.uncertainty_characterization._compute_residual_inverse_multiplicative_input(
+                complex_response_nom, complex_response_offnom
             )
 
     @pytest.mark.parametrize(
-        "complex_response_nom_freq, complex_response_offnom_freq",
+        "complex_response_nom, complex_response_offnom",
         [
             (
                 np.array([[1, 0], [0, 1], [1, 1]]).T,
@@ -214,15 +209,15 @@ class TestComputeUncertaintyResidualResponse:
             ),
         ],
     )
-    def test_compute_uncertainty_residual_inverse_multiplicative_output_freq(
-        self, complex_response_nom_freq, complex_response_offnom_freq
+    def test_compute_residual_inverse_multiplicative_output_error(
+        self, complex_response_nom, complex_response_offnom
     ):
         """Test ValueError of
-        :func:`_compute_uncertainty_residual_inverse_multiplicative_output_freq`.
+        :func:`_compute_residual_inverse_multiplicative_output`.
         """
         with pytest.raises(ValueError):
-            residual_freq = dkpy.uncertainty_characterization._compute_uncertainty_residual_inverse_multiplicative_output_freq(
-                complex_response_nom_freq, complex_response_offnom_freq
+            residual_freq = dkpy.uncertainty_characterization._compute_residual_inverse_multiplicative_output(
+                complex_response_nom, complex_response_offnom
             )
 
 
