@@ -467,7 +467,7 @@ def compute_uncertainty_weight_response(
     residual frequency response where the left and right uncertainty weights are assumed
     to be diagonal.
 
-    >>> complex_response_nom, complex_response_offnom_list, omega = (
+    >>> complex_nominal, complex_offnominal_list, omega = (
     ...     example_multimodel_uncertainty
     ... )
     >>> uncertainty_models = [
@@ -478,14 +478,14 @@ def compute_uncertainty_weight_response(
     ...     "inverse_multiplicative_input",
     ...     "inverse_multiplicative_output",
     ... ]
-    >>> complex_response_residual_dict = compute_uncertainty_residual_response(
-    ...     complex_response_nom,
-    ...     complex_response_offnom_list,
+    >>> complex_residual_dict = compute_uncertainty_residual_response(
+    ...     complex_nominal,
+    ...     complex_offnominal_list,
     ...     uncertainty_models,
     ... )
-    >>> complex_response_weight_left, complex_response_weight_right = (
+    >>> complex_weight_left, complex_weight_right = (
     ...     dkpy.compute_uncertainty_weight_response(
-    ...         complex_response_residual_dict["multiplicative_input"],
+    ...         complex_residual_dict["multiplicative_input"],
     ...         "diagonal",
     ...         "diagonal",
     ...     )
@@ -666,14 +666,7 @@ def fit_uncertainty_weight(
     >>> complex_response_nom, complex_response_offnom_list, omega = (
     ...     example_multimodel_uncertainty
     ... )
-    >>> uncertainty_models = {
-    ...     "additive",
-    ...     "multiplicative_input",
-    ...     "multiplicative_output",
-    ...     "inverse_additive",
-    ...     "inverse_multiplicative_input",
-    ...     "inverse_multiplicative_output",
-    ... }
+    >>> uncertainty_models = ["multiplicative_input"]
     >>> complex_response_residual_dict = compute_uncertainty_residual_response(
     ...     complex_response_nom,
     ...     complex_response_offnom_list,
@@ -979,6 +972,35 @@ def compute_uncertainty_measure_response(
     -------
     np.ndarray
         Measure frequency response.
+
+
+    Examples
+    --------
+    Compute the uncertainty measure response for a multiplicative input uncertainty
+    model.
+
+    >>> complex_nominal, complex_offnominal_list, omega = (
+    ...     example_multimodel_uncertainty
+    ... )
+    >>> uncertainty_models = ["multiplicative_input"]
+    >>> complex_residual_dict = compute_uncertainty_residual_response(
+    ...     complex_nominal,
+    ...     complex_offnominal_list,
+    ...     uncertainty_models,
+    ... )
+    >>> complex_weight_left, complex_weight_right = (
+    ...     dkpy.compute_uncertainty_weight_response(
+    ...         complex_residual_dict["multiplicative_input"],
+    ...         "diagonal",
+    ...         "diagonal",
+    ...     )
+    ... )
+    >>> measure = dkpy.compute_uncertainty_measure_response(
+    ...     complex_nominal,
+    ...     complex_weight_left,
+    ...     complex_weight_right,
+    ...     "multiplicative_input",
+    ... )
     """
 
     complex_nominal = _convert_frequency_response_data_to_array(complex_nominal)

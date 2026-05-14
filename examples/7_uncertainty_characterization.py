@@ -46,6 +46,13 @@ def example_uncertainty_characterization():
         complex_weight_right, omega, [3, 5], "right", "diagonal"
     )
 
+    measure = dkpy.compute_uncertainty_measure_response(
+        complex_nominal,
+        complex_weight_left,
+        complex_weight_right,
+        "multiplicative_input",
+    )
+
     # Plot: Magnitude response of nominal and off-nominal systems
     dkpy.plot_magnitude_response_uncertain_model_set(
         response_nom,
