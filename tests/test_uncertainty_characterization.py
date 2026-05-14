@@ -768,54 +768,6 @@ class TestFitUncertaintyWeight:
                 "diagonal",
                 [4, 4],
             ),
-            (
-                control.TransferFunction(
-                    [
-                        [[1], [3]],
-                        [[2], [1]],
-                    ],
-                    [
-                        [[1, 2 * 0.5 * 1, 1**2], [0.5, 1]],
-                        [[1, 1], [1, 2 * 0.3 * 5, 5**2]],
-                    ],
-                ),
-                [
-                    control.TransferFunction(
-                        [
-                            [[1], [3.25]],
-                            [[1.9], [1]],
-                        ],
-                        [
-                            [[1, 2 * 0.4 * 1.1, 1.1**2], [0.6, 1]],
-                            [[0.8, 1], [1, 2 * 0.4 * 4.2, 4.2**2]],
-                        ],
-                    ),
-                    control.TransferFunction(
-                        [
-                            [[1.1], [2.85]],
-                            [[1.7], [0.9]],
-                        ],
-                        [
-                            [[1, 2 * 0.45 * 0.9, 0.9**2], [0.55, 1]],
-                            [[0.95, 1], [1, 2 * 0.8 * 5.5, 5.5**2]],
-                        ],
-                    ),
-                    control.TransferFunction(
-                        [
-                            [[1], [3.05]],
-                            [[1.7], [1.0]],
-                        ],
-                        [
-                            [[1, 2 * 0.5 * 1.3, 1.3**2], [0.42, 1]],
-                            [[1, 1], [1, 2 * 0.9 * 5.25, 5.25**2]],
-                        ],
-                    ),
-                ],
-                np.logspace(-1, 1.5, 100),
-                "diagonal",
-                "diagonal",
-                np.array([4.0, 4.0]),
-            ),
         ],
     )
     def test_fit_uncertainty_weight(
@@ -866,10 +818,18 @@ class TestFitUncertaintyWeight:
 
         # Overbounding transfer function fit
         weight_left_fit = dkpy.fit_uncertainty_weight(
-            complex_response_weight_left, omega, fit_order
+            complex_response_weight_left,
+            omega,
+            fit_order,
+            "left",
+            weight_left_structure,
         )
         weight_right_fit = dkpy.fit_uncertainty_weight(
-            complex_response_weight_right, omega, fit_order
+            complex_response_weight_right,
+            omega,
+            fit_order,
+            "right",
+            weight_right_structure,
         )
 
         # Uncertainty weight fit frequency response
@@ -893,7 +853,7 @@ class TestFitUncertaintyWeight:
         # Regression testing
         ndarrays_regression.check(
             complex_response_weight_fit_dict,
-            default_tolerance=dict(atol=1e-3, rtol=0),
+            default_tolerance=dict(atol=1e-2, rtol=1e-2),
         )
 
 

@@ -25,7 +25,7 @@ from matplotlib.figure import Figure
 from matplotlib.axes import Axes
 from matplotlib.legend import Legend
 
-from . import utilities
+from . import lti_system_fit
 
 UncertaintyModelId = Literal[
     "additive",
@@ -614,48 +614,48 @@ def compute_uncertainty_weight_response(
 
 
 def fit_uncertainty_weight(
-    complex_response_uncertainty_weight: Union[
-        np.ndarray, control.FrequencyResponseData
-    ],
+    complex_uncertainty_weight: Union[np.ndarray, control.FrequencyResponseData],
     omega: np.ndarray,
     order: Union[int, List[int], np.ndarray],
+    uncertainty_weight_type: Literal["left", "right"],
+    uncertainty_weight_structure: Literal["scalar", "diagonal", "full"],
     weight: Optional[np.ndarray] = None,
-    linear_solver_params: Optional[Dict[str, Any]] = None,
+    solver_params: Optional[Dict[str, Any]] = None,
     tol_bisection: float = 1e-3,
     max_iter_bisection: int = 500,
-    num_spec_constr: int = 500,
+    max_iter_bisection_init: int = 15,
+    nbr_power_constraint: int = 500,
 ) -> control.StateSpace:
-    """Fit an overbounding stable and minimum-phase state-space uncertainty weight to
-    frequency response data.
+    """Fit an overbounding stable and minimum-phase uncertainty weight.
 
     Parameters
     ----------
-    complex_response_uncertainty_weight : Union[np.ndarray, control.FrequencyResponseData]
-        Uncertainty weight frequency response used for the overbounding fit.
+    complex_uncertainty_weight : Union[np.ndarray, control.FrequencyResponseData]
+        Frequency response of uncertainty weight.
     order : Union[int, List[int], np.ndarray]
-        Order of the LTI system fit. If `order` is an `int`, the order will be
-        used for all elements of the weight. If `order` is a `List` or `np.ndarray`,
-        the order can be specified for each element of the weight.
-    weight : Optional[np.ndarray] = None
-        Frequency-dependent weight used to improve the fit over certain bandwidths. The
-        weight is a 2D array with the first dimension representing the number of
-        elements in the weight and the second dimension representing the number of
-        frequency points.
-    linear_solver_params : Dict[str, Any]
-        Keyword arguments for the linear feasibility problem solver. See
-        [#cvxpy_solver]_ for more information.
+        Order of the uncertainty weight model.
+    uncertainty_weight_type: Literal["left", "right"],
+        Identifier for the left or right uncertainty weight.
+    uncertainty_weight_structure : Literal["scalar", "diagonal", "full"]
+        Structure constraint for the uncertainty weight.
+    weight : Optional[np.ndrray] = None
+        Frequency-dependent weight for fit accuracy.
+    solver_params: Optional[Dict[str, Any]]
+        Solver parameters for the optimization problem. These are keyword arguments for
+        `cvxpy.Problem.solve()` [#cvxpy_solver]_.
     tol_bisection : float
         Numerical tolerance for the bisection algorithm.
     max_iter_bisection : int
-        Maximum allowable number of iterations in the bisection algorithm.
-    num_spec_constr : int
-        Number of constraints used to enforce the spectral factorizability of the
-        fitted autocorrelation.
+        Maximum number of iterations for the bisection algorithm.
+    max_iter_bisection_init : int
+        Maximum number of iterations for the bisection algorithm initialization.
+    nbr_power_constraint : Optional[np.ndarray]
+        Number of frequencies to enforce non-negativity of power spectrum.
 
     Returns
     -------
     control.StateSpace
-        Fitted overbounding uncertainty weight state-space systems.
+        Overbounding stable and minimum-phase uncertainty weight.
 
     Examples
     --------
@@ -686,10 +686,10 @@ def fit_uncertainty_weight(
     ...     )
     ... )
     >>> weight_left = dkpy.fit_uncertainty_weight(
-    ...     complex_response_weight_left, omega, [4, 5]
+    ...     complex_response_weight_left, omega, [4, 5], "left", "diagonal"
     ... )
     >>> weight_right = dkpy.fit_uncertainty_weight(
-    ...     complex_response_weight_right, omega, [3, 5]
+    ...     complex_response_weight_right, omega, [3, 5], "right", "diagonal"
     ... )
 
     References
@@ -698,12 +698,12 @@ def fit_uncertainty_weight(
     """
 
     # Convert frequency response data to expected type
-    complex_response_uncertainty_weight = _convert_frequency_response_data_to_array(
-        complex_response_uncertainty_weight
+    complex_uncertainty_weight = _convert_frequency_response_data_to_array(
+        complex_uncertainty_weight
     )
 
     # Solver settings
-    linear_solver_params = (
+    solver_params = (
         {
             "solver": cvxpy.CLARABEL,
             "tol_gap_abs": 1e-9,
@@ -712,54 +712,247 @@ def fit_uncertainty_weight(
             "tol_infeas_abs": 1e-9,
             "tol_infeas_rel": 1e-9,
         }
-        if linear_solver_params is None
-        else linear_solver_params
+        if solver_params is None
+        else solver_params
     )
 
-    # Parse arguments
-    num_elements = complex_response_uncertainty_weight.shape[1]
-    order_list = (
-        order * np.ones(num_elements, dtype=int)
-        if isinstance(order, int)
-        else np.array(order, dtype=int)
-    )
+    # Fit method dispatcher
+    fit_method_dispatcher = {
+        "scalar": _fit_uncertainty_weight_scalar,
+        "diagonal": _fit_uncertainty_weight_diagonal,
+        "full": _fit_uncertainty_weight_full,
+    }
 
-    if weight is None:
-        # Take the default frequency-dependent weight as the normalized magnitude the
-        # uncertainty weight magnitude in order to place greater importance on tightly
-        # overbounding at the largest uncertainties
-        weight = np.diagonal(
-            np.abs(complex_response_uncertainty_weight), axis1=1, axis2=2
+    # Select uncertainty weight fit method based on weight structure
+    try:
+        fit_uncertainty_weight_method = fit_method_dispatcher[
+            uncertainty_weight_structure
+        ]
+    except KeyError:
+        raise KeyError(
+            "Exptected `weight_structure` to be `scalar`, `diagonal` or `full` (got "
+            f"`{uncertainty_weight_structure}`)."
         )
-        weight = weight / np.max(weight, axis=0)
 
+    # Fit uncertainty weight
+    uncertainty_weight = fit_uncertainty_weight_method(
+        complex_uncertainty_weight,
+        omega,
+        order,
+        uncertainty_weight_type,
+        weight,
+        solver_params,
+        tol_bisection,
+        max_iter_bisection,
+        max_iter_bisection_init,
+        nbr_power_constraint,
+    )
+
+    return uncertainty_weight
+
+
+def _fit_uncertainty_weight_scalar(
+    complex_uncertainty_weight: np.ndarray,
+    omega: np.ndarray,
+    order: int,
+    uncertainty_weight_type: Literal["left", "right"],
+    weight: Optional[np.ndarray] = None,
+    solver_params: Optional[Dict[str, Any]] = None,
+    tol_bisection: float = 1e-3,
+    max_iter_bisection: int = 500,
+    max_iter_bisection_init: int = 15,
+    nbr_power_constraint: int = 500,
+) -> control.StateSpace:
+    """Fit an overbounding stable and minimum-phase scalar uncertainty weight.
+
+    Parameters
+    ----------
+    complex_uncertainty_weight : Union[np.ndarray, control.FrequencyResponseData]
+        Frequency response of uncertainty weight.
+    order : Union[int, List[int], np.ndarray]
+        Order of the uncertainty weight model.
+    uncertainty_weight_type: Literal["left", "right"],
+        Identifier for the left or right uncertainty weight.
+    weight : Optional[np.ndrray] = None
+        Frequency-dependent weight for fit accuracy.
+    solver_params: Optional[Dict[str, Any]]
+        Solver parameters for the optimization problem. These are keyword arguments for
+        `cvxpy.Problem.solve()` [#cvxpy_solver]_.
+    tol_bisection : float
+        Numerical tolerance for the bisection algorithm.
+    max_iter_bisection : int
+        Maximum number of iterations for the bisection algorithm.
+    max_iter_bisection_init : int
+        Maximum number of iterations for the bisection algorithm initialization.
+    nbr_power_constraint : Optional[np.ndarray]
+        Number of frequencies to enforce non-negativity of power spectrum.
+
+    Returns
+    -------
+    control.StateSpace
+        Overbounding stable and minimum-phase uncertainty weight.
+
+    References
+    ----------
+    .. [#cxvpy_solver] https://www.cvxpy.org/tutorial/solvers/index.html
+    """
+
+    # Auxiliary parameters
+    nbr_signals = complex_uncertainty_weight.shape[1]
+
+    # Compute the magnitude of the scalar weight. Given that a scalar weight is assumed,
+    # the weight contains the same values on the diagonals and zeros elsewhere.
+    # Therefore, we take the first diagonal as they are identical along the diagonal.
+    magnitude_uncertainty_weight = np.abs(complex_uncertainty_weight[:, 0, 0])
+
+    # Fit the scalar uncertainty weight
+    uncertainty_weight_scalar = lti_system_fit.fit_magnitude_siso_ct(
+        magnitude_fit=magnitude_uncertainty_weight,
+        omega=omega,
+        order=order,
+        magnitude_upper_bound=None,
+        magnitude_lower_bound=magnitude_uncertainty_weight,
+        weight=weight,
+        solver_params=solver_params,
+        tol_bisection=tol_bisection,
+        max_iter_bisection=max_iter_bisection,
+        max_iter_bisection_init=max_iter_bisection_init,
+        nbr_power_constraint=nbr_power_constraint,
+    )
+
+    # Duplicate the scalar uncertainty weight along the diagonal
+    uncertainty_weight = control.append(*([uncertainty_weight_scalar] * nbr_signals))
+
+    return uncertainty_weight
+
+
+def _fit_uncertainty_weight_diagonal(
+    complex_uncertainty_weight: np.ndarray,
+    omega: np.ndarray,
+    order: Union[int, List[int]],
+    uncertainty_weight_type: Literal["left", "right"],
+    weight: Optional[np.ndarray] = None,
+    solver_params: Optional[Dict[str, Any]] = None,
+    tol_bisection: float = 1e-3,
+    max_iter_bisection: int = 500,
+    max_iter_bisection_init: int = 15,
+    nbr_power_constraint: int = 500,
+):
+    """Fit an overbounding stable and minimum-phase diagonal uncertainty weight.
+
+    Parameters
+    ----------
+    complex_uncertainty_weight : Union[np.ndarray, control.FrequencyResponseData]
+        Frequency response of uncertainty weight.
+    order : Union[int, List[int], np.ndarray]
+        Order of the uncertainty weight model.
+    uncertainty_weight_type: Literal["left", "right"],
+        Identifier for the left or right uncertainty weight.
+    weight : Optional[np.ndrray] = None
+        Frequency-dependent weight for fit accuracy.
+    solver_params: Optional[Dict[str, Any]]
+        Solver parameters for the optimization problem. These are keyword arguments for
+        `cvxpy.Problem.solve()` [#cvxpy_solver]_.
+    tol_bisection : float
+        Numerical tolerance for the bisection algorithm.
+    max_iter_bisection : int
+        Maximum number of iterations for the bisection algorithm.
+    max_iter_bisection_init : int
+        Maximum number of iterations for the bisection algorithm initialization.
+    nbr_power_constraint : Optional[np.ndarray]
+        Number of frequencies to enforce non-negativity of power spectrum.
+
+    Returns
+    -------
+    control.StateSpace
+        Overbounding stable and minimum-phase uncertainty weight.
+
+    References
+    ----------
+    .. [#cxvpy_solver] https://www.cvxpy.org/tutorial/solvers/index.html
+    """
+    # Auxiliary parameters
+    nbr_signals = complex_uncertainty_weight.shape[1]
+
+    # Parse order into list format
+    order_list = [order] * nbr_signals if isinstance(order, int) else order
+
+    # Fit the diagonal uncertainty weight elements
     uncertainty_weight_list = []
-    for idx_element in range(num_elements):
-        # Extract the parameters relevant to each SISO uncertainty weight element
-        magnitude_response_weight_element = np.abs(
-            complex_response_uncertainty_weight[:, idx_element, idx_element]
-        )
-        order_element = order_list[idx_element]
-        weight_element = weight[:, idx_element]
+    for idx in range(nbr_signals):
+        # Compute the magnitude of the diagonal uncertainty weight element
+        magnitude_uncertainty_weight = np.abs(complex_uncertainty_weight[:, idx, idx])
+        order_idx = order_list[idx]
 
-        # Fit the uncertainty weight to each SISO element
-        uncertainty_weight_element = utilities._fit_magnitude_log_chebyshev_siso(
+        # Fit the diagonal uncertainty weight element
+        uncertainty_weight_diagonal = lti_system_fit.fit_magnitude_siso_ct(
+            magnitude_fit=magnitude_uncertainty_weight,
             omega=omega,
-            magnitude_fit=magnitude_response_weight_element,
-            order=order_element,
-            magnitude_lower_bound=magnitude_response_weight_element,
-            weight=weight_element,
-            linear_solver_params=linear_solver_params,
+            order=order_idx,
+            magnitude_upper_bound=None,
+            magnitude_lower_bound=magnitude_uncertainty_weight,
+            weight=weight,
+            solver_params=solver_params,
             tol_bisection=tol_bisection,
             max_iter_bisection=max_iter_bisection,
-            num_spec_constr=num_spec_constr,
+            max_iter_bisection_init=max_iter_bisection_init,
+            nbr_power_constraint=nbr_power_constraint,
         )
-        uncertainty_weight_list.append(uncertainty_weight_element)
+        uncertainty_weight_list.append(uncertainty_weight_diagonal)
 
-    # Construct uncertainty weight fit from SISO elements
+    # Construct the diagonal uncertainty weight from the diagonal elements
     uncertainty_weight = control.append(*uncertainty_weight_list)
 
     return uncertainty_weight
+
+
+def _fit_uncertainty_weight_full(
+    complex_uncertainty_weight: np.ndarray,
+    omega: np.ndarray,
+    order: int,
+    uncertainty_weight_type: Literal["left", "right"],
+    weight: Optional[np.ndarray] = None,
+    solver_params: Optional[Dict[str, Any]] = None,
+    tol_bisection: float = 1e-3,
+    max_iter_bisection: int = 500,
+    max_iter_bisection_init: int = 15,
+    nbr_power_constraint: int = 500,
+):
+    """Fit an overbounding stable and minimum-phase full uncertainty weight.
+
+    Parameters
+    ----------
+    complex_uncertainty_weight : Union[np.ndarray, control.FrequencyResponseData]
+        Frequency response of uncertainty weight.
+    order : Union[int, List[int], np.ndarray]
+        Order of the uncertainty weight model.
+    uncertainty_weight_type: Literal["left", "right"],
+        Identifier for the left or right uncertainty weight.
+    weight : Optional[np.ndrray] = None
+        Frequency-dependent weight for fit accuracy.
+    solver_params: Optional[Dict[str, Any]]
+        Solver parameters for the optimization problem. These are keyword arguments for
+        `cvxpy.Problem.solve()` [#cvxpy_solver]_.
+    tol_bisection : float
+        Numerical tolerance for the bisection algorithm.
+    max_iter_bisection : int
+        Maximum number of iterations for the bisection algorithm.
+    max_iter_bisection_init : int
+        Maximum number of iterations for the bisection algorithm initialization.
+    nbr_power_constraint : Optional[np.ndarray]
+        Number of frequencies to enforce non-negativity of power spectrum.
+
+    Returns
+    -------
+    control.StateSpace
+        Overbounding stable and minimum-phase uncertainty weight.
+
+    References
+    ----------
+    .. [#cxvpy_solver] https://www.cvxpy.org/tutorial/solvers/index.html
+    """
+
+    raise NotImplementedError()
 
 
 def _convert_frequency_response_data_to_array(
