@@ -431,9 +431,9 @@ def _compute_residual_inverse_multiplicative_output(
 
 
 def compute_uncertainty_weight_response(
-    complex_response_residual_list: Union[np.ndarray, control.FrequencyResponseList],
-    weight_left_structure: str,
-    weight_right_structure: str,
+    complex_residual: Union[np.ndarray, control.FrequencyResponseList],
+    weight_left_structure: Literal["full", "diagonal", "scalar", "identity"],
+    weight_right_structure: Literal["full", "diagonal", "scalar", "identity"],
     solver_params: Optional[Dict[str, Any]] = None,
 ) -> Tuple[np.ndarray, np.ndarray]:
     """Compute the optimal uncertainty weight frequency response.
@@ -443,16 +443,14 @@ def compute_uncertainty_weight_response(
 
     Parameters
     ----------
-    complex_response_residual_list : Union[np.ndarray, control.FrequencyResponseList]
+    complex_residual : Union[np.ndarray, control.FrequencyResponseList]
         Frequency response of the residuals for which to compute the optimal uncertainty
         weights.
-    weight_left_structure : str
-        Structure of the left uncertainty weight. Valid structures include: "diagonal",
-        "scalar", and "identity".
-    weight_right_structure : str
-        Structure of the right uncertainty weight. Valid structures include: "diagonal",
-        "scalar", and "identity".
-    solver_param : Dict[str, Any]
+    weight_left_structure : Literal["full", "diagonal", "scalar", "identity"]
+        Structure of the left uncertainty weight.
+    weight_right_structure : Literal["full", "diagonal", "scalar", "identity"]
+        Structure of the right uncertainty weight.
+    solver_params : Dict[str, Any]
         Keyword arguments for the convex optimization solver. See [#cvxpy_solver]_ for
         more information.
 
@@ -471,14 +469,14 @@ def compute_uncertainty_weight_response(
     >>> complex_response_nom, complex_response_offnom_list, omega = (
     ...     example_multimodel_uncertainty
     ... )
-    >>> uncertainty_models = {
+    >>> uncertainty_models = [
     ...     "additive",
     ...     "multiplicative_input",
     ...     "multiplicative_output",
     ...     "inverse_additive",
     ...     "inverse_multiplicative_input",
     ...     "inverse_multiplicative_output",
-    ... }
+    ... ]
     >>> complex_response_residual_dict = compute_uncertainty_residual_response(
     ...     complex_response_nom,
     ...     complex_response_offnom_list,
@@ -497,72 +495,12 @@ def compute_uncertainty_weight_response(
     .. [#uncertainty_characterization] G. J. Balas, A. K. Packard, and P. J. Seiler,
     “Uncertain Model Set Calculation from Frequency Domain Data,” Springer eBooks,
     pp. 89–105, Jan. 2009, doi: https://doi.org/10.1007/978-1-4419-0895-7_6.
-
     """
 
     # Convert frequency response data to expected type
-    complex_response_residual_list = _convert_frequency_response_list_to_array(
-        complex_response_residual_list
-    )
+    complex_residual = _convert_frequency_response_list_to_array(complex_residual)
 
-    # Frequency response parameters
-    num_frequency = complex_response_residual_list.shape[1]
-
-    # Compute optimal uncertainty weights
-    complex_response_weight_left = []
-    complex_response_weight_right = []
-    for idx_freq in range(num_frequency):
-        complex_residual_freq = complex_response_residual_list[:, idx_freq, :, :]
-        weight_left_freq, weight_right_freq = _compute_optimal_weight_freq(
-            complex_residual_freq,
-            weight_left_structure,
-            weight_right_structure,
-            solver_params,
-        )
-        complex_response_weight_left.append(weight_left_freq)
-        complex_response_weight_right.append(weight_right_freq)
-
-    # Generate uncertainty weight complex frequency reponses
-    complex_response_weight_left = np.array(complex_response_weight_left)
-    complex_response_weight_right = np.array(complex_response_weight_right)
-
-    return complex_response_weight_left, complex_response_weight_right
-
-
-def _compute_optimal_weight_freq(
-    complex_residual_offnom_set_freq: np.ndarray,
-    weight_left_structure: str,
-    weight_right_structure: str,
-    solver_params: Optional[Dict[str, Any]] = None,
-) -> Tuple[np.ndarray, np.ndarray]:
-    """Compute the optimal uncertainty weight at a given frequency.
-
-    Parameters
-    ----------
-    complex_residual_offnom_set_freq : np.ndarray
-        Frequency response matrix of the off-nominal models at a given frequency.
-    weight_left_structure : str
-        Structure of the left uncertainty weight. Valid structures include: "diagonal",
-        "scalar", and "identity".
-    weight_right_structure : str
-        Structure of the right uncertainty weight. Valid structures include: "diagonal",
-        "scalar", and "identity".
-    solver_param : Dict[str, Any]
-        Keyword arguments for the convex optimization solver. See [#cvxpy_solver]_ for
-        more information.
-
-    Returns
-    -------
-    Tuple[np.ndarray, np.ndarray]
-        The left and right uncertainty weight frequency response matrices at a given
-        frequency.
-
-    References
-    ----------
-    .. [#cxvpy_solver] https://www.cvxpy.org/tutorial/solvers/index.html
-    """
-
-    # Solver settings
+    # Parse solver parameters
     solver_params = (
         {
             "solver": cvxpy.CLARABEL,
@@ -576,85 +514,103 @@ def _compute_optimal_weight_freq(
         else solver_params
     )
 
-    # System parameters
-    num_left = complex_residual_offnom_set_freq.shape[1]
-    num_right = complex_residual_offnom_set_freq.shape[2]
-    num_offnom = complex_residual_offnom_set_freq.shape[0]
+    # Frequency response parameters
+    nbr_frequency = complex_residual.shape[1]
+    nbr_left = complex_residual.shape[2]
+    nbr_right = complex_residual.shape[3]
+    nbr_offnom = complex_residual.shape[0]
 
     # Generate left weight variable
-    if weight_left_structure == "diagonal":
-        L = cvxpy.Variable((num_left, num_left), diag=True)
-    elif weight_left_structure == "scalar":
-        L_scalar = cvxpy.Variable()
-        L = L_scalar * scipy.sparse.eye_array(num_left)
-    elif weight_left_structure == "identity":
-        L = cvxpy.Parameter(
-            shape=(num_left, num_left), value=np.eye(num_left), diag=True
-        )
-    else:
-        raise ValueError(
-            f'"{weight_left_structure}" is not a valid value for '
-            '`weight_right_structure`. It must take a value of either "diagonal" '
-            '"scalar", or "identity".'
+    weight_left_power_dispatcher = {
+        "full": cvxpy.Variable((nbr_left, nbr_left), hermitian=True),
+        "diagonal": cvxpy.Variable((nbr_left, nbr_left), diag=True),
+        "scalar": cvxpy.Variable() * scipy.sparse.eye_array(nbr_left),
+        "identity": cvxpy.Constant(value=np.eye(nbr_left)),
+    }
+    try:
+        weight_left_power = weight_left_power_dispatcher[weight_left_structure]
+    except KeyError:
+        raise KeyError(
+            '`weight_left_structure` must be "full", "diagonal", or "scalar" (got '
+            f'"{weight_left_structure})".'
         )
 
     # Generate right weight variable
-    if weight_right_structure == "diagonal":
-        R = cvxpy.Variable((num_right, num_right), diag=True)
-    elif weight_right_structure == "scalar":
-        R_scalar = cvxpy.Variable()
-        R = R_scalar * scipy.sparse.eye_array(num_right)
-    elif weight_right_structure == "identity":
-        R = cvxpy.Parameter(
-            shape=(num_right, num_right), value=np.eye(num_right), diag=True
-        )
-    else:
-        raise ValueError(
-            f'"{weight_right_structure}" is not a valid value for '
-            '`weight_right_structure`. It must take a value of either "diagonal" '
-            '"scalar", or "identity".'
+    weight_right_power_dispatcher = {
+        "full": cvxpy.Variable((nbr_right, nbr_right), hermitian=True),
+        "diagonal": cvxpy.Variable((nbr_right, nbr_right), diag=True),
+        "scalar": cvxpy.Variable() * scipy.sparse.eye_array(nbr_right),
+        "identity": cvxpy.Constant(value=np.eye(nbr_right)),
+    }
+    try:
+        weight_right_power = weight_right_power_dispatcher[weight_right_structure]
+    except KeyError:
+        raise KeyError(
+            '`weight_right_structure` must be "full", "diagonal", or "scalar" (got '
+            f'"{weight_right_structure})".'
         )
 
-    # Generate optimal uncertainty weight constraints
-    constraint_freq_list = []
-    for idx_offnom in range(num_offnom):
-        E_k = cvxpy.Parameter(
-            shape=(num_left, num_right),
-            value=complex_residual_offnom_set_freq[idx_offnom, :, :],
-            complex=True,
-        )
+    # Generate residual parameters
+    residual_offnom = cvxpy.Parameter(
+        shape=(nbr_offnom, nbr_left, nbr_right),
+        complex=True,
+    )
+
+    # Uncertainty set constraints over all frequencies
+    constraint_list = []
+    for idx_offnom in range(nbr_offnom):
         constraint_matrix_freq = cvxpy.bmat(
             [
-                [L, E_k],
-                [E_k.H, R],
+                [weight_left_power, residual_offnom[idx_offnom, :, :]],
+                [residual_offnom[idx_offnom, :, :].H, weight_right_power],
             ]
         )
         constraint_freq = constraint_matrix_freq >> 0
-        constraint_freq_list.append(constraint_freq)
-    constraint_freq_list.append(L.H == L)
-    constraint_freq_list.append(L >> 0)
-    constraint_freq_list.append(R.H == R)
-    constraint_freq_list.append(R >> 0)
+        constraint_list.append(constraint_freq)
+
+    # Positive semidefiniteness constraints
+    constraint_list.append(weight_left_power >> 0)
+    constraint_list.append(weight_right_power >> 0)
 
     # Semidefinite program
-    objective = cvxpy.Minimize(cvxpy.trace(L) + cvxpy.trace(R))
-    problem = cvxpy.Problem(objective, constraint_freq_list)
-    problem.solve(**solver_params)
+    objective = cvxpy.Minimize(
+        nbr_right * cvxpy.trace(weight_left_power)
+        + nbr_left * cvxpy.trace(weight_right_power)
+    )
+    problem = cvxpy.Problem(objective, constraint_list)
 
-    # Extract left weight
-    if weight_left_structure == "identity":
-        L_value = np.array(L.value)
-    else:
-        L_value = np.array(L.value.toarray())
-    complex_response_weight_left_freq = np.sqrt(L_value)
-    # Extract right weight
-    if weight_right_structure == "identity":
-        R_value = np.array(R.value)
-    else:
-        R_value = np.array(R.value.toarray())
-    complex_response_weight_right_freq = np.sqrt(R_value)
+    # Compute optimal uncertainty weights
+    complex_weight_left = []
+    complex_weight_right = []
+    for idx_freq in range(nbr_frequency):
+        # Residual of off-nominal models at given frequency
+        residual_offnom.value = complex_residual[:, idx_freq, :, :]
 
-    return complex_response_weight_left_freq, complex_response_weight_right_freq
+        # Solve optimal weight SDP
+        problem.solve(canon_backend=cvxpy.SCIPY_CANON_BACKEND, **solver_params)
+
+        # Extract left weight
+        if weight_left_structure == "identity" or weight_left_structure == "full":
+            weight_left_power_opt = np.array(weight_left_power.value)
+        else:
+            weight_left_power_opt = np.array(weight_left_power.value.toarray())
+        weight_left_opt = scipy.linalg.sqrtm(weight_left_power_opt)
+
+        # Extract right weight
+        if weight_right_structure == "identity" or weight_right_structure == "full":
+            weight_right_power_opt = np.array(weight_right_power.value)
+        else:
+            weight_right_power_opt = np.array(weight_right_power.value.toarray())
+        weight_right_opt = scipy.linalg.sqrtm(weight_right_power_opt)
+
+        complex_weight_left.append(weight_left_opt)
+        complex_weight_right.append(weight_right_opt)
+
+    # Generate uncertainty weight complex frequency reponses
+    complex_weight_left = np.array(complex_weight_left)
+    complex_weight_right = np.array(complex_weight_right)
+
+    return complex_weight_left, complex_weight_right
 
 
 def fit_uncertainty_weight(

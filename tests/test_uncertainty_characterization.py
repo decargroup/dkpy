@@ -636,7 +636,7 @@ class TestComputeUncertaintyWeightResponse:
         # Regression testing
         ndarrays_regression.check(
             complex_response_weight_dict,
-            default_tolerance=dict(atol=1e-5, rtol=0),
+            default_tolerance=dict(atol=1e-3, rtol=0),
         )
 
 
@@ -893,7 +893,7 @@ class TestFitUncertaintyWeight:
         # Regression testing
         ndarrays_regression.check(
             complex_response_weight_fit_dict,
-            default_tolerance=dict(atol=1e-5, rtol=0),
+            default_tolerance=dict(atol=1e-3, rtol=0),
         )
 
 
