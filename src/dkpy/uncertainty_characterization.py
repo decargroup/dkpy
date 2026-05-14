@@ -3,6 +3,7 @@
 __all__ = [
     "compute_uncertainty_residual_response",
     "compute_uncertainty_weight_response",
+    "compute_uncertainty_measure_response",
     "fit_uncertainty_weight",
     "plot_magnitude_response_uncertain_model_set",
     "plot_phase_response_uncertain_model_set",
@@ -953,6 +954,468 @@ def _fit_uncertainty_weight_full(
     """
 
     raise NotImplementedError()
+
+
+def compute_uncertainty_measure_response(
+    complex_nominal: Union[np.ndarray, control.FrequencyResponseData],
+    complex_weight_left: Union[np.ndarray, control.FrequencyResponseData],
+    complex_weight_right: Union[np.ndarray, control.FrequencyResponseData],
+    uncertainty_model: UncertaintyModelId,
+) -> np.ndarray:
+    """Compute measure (size/volume) frequency response of uncertainty model.
+
+    Parameters
+    ----------
+    complex_nominal : Union[np.ndarray, control.FrequencyResponseData]
+        Nominal model complex frequency response.
+    complex_weight_left : Union[np.ndarray, control.FrequencyResponseData]
+        Left uncertainty weight complex frequency response.
+    complex_weight_right : Union[np.ndarray, control.FrequencyResponseData]
+        Right uncertainty weight complex frequency reponse.
+    uncertainty_model : UncertaintyModelId
+        Uncertainty model identifier.
+
+    Returns
+    -------
+    np.ndarray
+        Measure frequency response.
+    """
+
+    complex_nominal = _convert_frequency_response_data_to_array(complex_nominal)
+    complex_weight_left = _convert_frequency_response_data_to_array(complex_weight_left)
+    complex_weight_right = _convert_frequency_response_data_to_array(
+        complex_weight_right
+    )
+
+    transform_to_additive_dispatcher = {
+        "additive": _transform_additive_to_additive,
+        "multiplicative_input": _transform_multiplicative_input_to_additive,
+        "multiplicative_output": _transform_multiplicative_output_to_additive,
+        "inverse_additive": _transform_inverse_additive_to_additive,
+        "inverse_multiplicative_input": _transform_inverse_multiplicative_input_to_additive,
+        "inverse_multiplicative_output": _transform_inverse_multiplicative_output_to_additive,
+    }
+
+    # Compute equivalent additive uncertainty model frequency response
+    complex_uncertainty_add = transform_to_additive_dispatcher[uncertainty_model](
+        complex_nominal, complex_weight_left, complex_weight_right
+    )
+    complex_nominal_add = complex_uncertainty_add[0]
+    complex_weight_left_add = complex_uncertainty_add[1]
+    complex_weight_right_add = complex_uncertainty_add[2]
+
+    # Compute minimal representation of additive uncertainty frequency response
+    complex_weight_add_min = _compute_minimal_weights_additive(
+        complex_weight_left_add, complex_weight_right_add
+    )
+    complex_weight_left_add = complex_weight_add_min[0]
+    complex_weight_right_add = complex_weight_add_min[1]
+
+    # Compute measure frequency response of minimal additive uncertainty response
+    measure = _compute_uncertainty_measure_additive(
+        complex_weight_left_add, complex_weight_right_add
+    )
+
+    return measure
+
+
+def _compute_uncertainty_measure_additive(
+    complex_weight_left: np.ndarray,
+    complex_weight_right: np.ndarray,
+) -> np.ndarray:
+    """Compute measure (size/volume) frequency response of additive uncertainty.
+
+    Parameters
+    ----------
+    complex_nominal : np.ndarray
+        Nominal model complex frequency response of additive uncertainty.
+    complex_weight_left : np.ndarray
+        Left uncertainty weight complex frequency response of additive uncertainty.
+    complex_weight_right : np.ndarray
+        Right uncertainty weight complex frequency response of additive uncertainty
+
+    Returns
+    -------
+    np.ndarray
+        Measure frequency response of additive uncertainty.
+
+    Raises
+    ------
+    ValueError
+        Left uncertainty weight is non-square.
+    ValueError
+        Right uncertainty weight is non-square.
+    """
+
+    # Check uncertainty weight dimensions
+    if complex_weight_left.shape[1] != complex_weight_left.shape[2]:
+        raise ValueError(
+            "Left uncertainty weight must be square (got "
+            f"{complex_weight_left.shape[1]} rows and {complex_weight_left.shape[2]} "
+            f"columns)."
+        )
+    if complex_weight_right.shape[1] != complex_weight_right.shape[2]:
+        raise ValueError(
+            "Right uncertainty weight must be square (got "
+            f"{complex_weight_right.shape[1]} rows and {complex_weight_right.shape[2]} "
+            f"columns)."
+        )
+
+    # Auxiliary parameters
+    nbr_inputs = complex_weight_right.shape[1]
+    nbr_outputs = complex_weight_left.shape[1]
+
+    # Measure computation
+    measure_weight_left = np.abs(np.linalg.det(complex_weight_left)) ** (
+        2 / nbr_outputs
+    )
+    measure_weight_right = np.abs(np.linalg.det(complex_weight_right)) ** (
+        2 / nbr_inputs
+    )
+    measure = measure_weight_left * measure_weight_right
+
+    return measure
+
+
+def _transform_additive_to_additive(
+    complex_nominal: np.ndarray,
+    complex_weight_left: np.ndarray,
+    complex_weight_right: np.ndarray,
+) -> Tuple[np.ndarray, np.ndarray, np.ndarray]:
+    """Transform additive uncertainty frequency response to additive form.
+
+    Parameters
+    ----------
+    complex_nominal : np.ndarray
+        Nominal model complex frequency response of additive uncertainty.
+    complex_weight_left : np.ndarray
+        Left uncertainty weight complex frequency response of additive uncertainty.
+    complex_weight_right : np.ndarray
+        Right uncertainty weight complex frequency response of additive uncertainty.
+
+    Returns
+    -------
+    Tuple[np.ndarray, np.ndarray, np.ndarray]
+        Nominal model, left uncertainty weight, and right uncertainty weight complex
+        frequency response of equivalent additive uncertainty.
+    """
+
+    # Nominal model
+    complex_nominal_add = complex_nominal
+
+    # Left uncertainty weight
+    complex_weight_left_add = complex_weight_left
+
+    # Right uncertainty weight
+    complex_weight_right_add = complex_weight_right
+
+    return complex_nominal_add, complex_weight_left_add, complex_weight_right_add
+
+
+def _transform_multiplicative_input_to_additive(
+    complex_nominal: np.ndarray,
+    complex_weight_left: np.ndarray,
+    complex_weight_right: np.ndarray,
+) -> Tuple[np.ndarray, np.ndarray, np.ndarray]:
+    """Transform multiplicative input uncertainty frequency response to additive form.
+
+    Parameters
+    ----------
+    complex_nominal : np.ndarray
+        Nominal model complex frequency response of multiplicative input uncertainty.
+    complex_weight_left : np.ndarray
+        Left uncertainty weight complex frequency response of multiplicative input
+        uncertainty.
+    complex_weight_right : np.ndarray
+        Right uncertainty weight complex frequency response of multiplicative input
+        uncertainty.
+
+    Returns
+    -------
+    Tuple[np.ndarray, np.ndarray, np.ndarray]
+        Nominal model, left uncertainty weight, and right uncertainty weight complex
+        frequency response of equivalent additive uncertainty.
+    """
+
+    # Nominal model
+    complexnominal_add = complex_nominal
+
+    # Left uncertainty weight
+    complex_weight_left_add = complex_nominal @ complex_weight_left
+
+    # Right uncertainty weight
+    complex_weight_right_add = complex_weight_right
+
+    return complexnominal_add, complex_weight_left_add, complex_weight_right_add
+
+
+def _transform_multiplicative_output_to_additive(
+    complex_nominal: np.ndarray,
+    complex_weight_left: np.ndarray,
+    complex_weight_right: np.ndarray,
+) -> Tuple[np.ndarray, np.ndarray, np.ndarray]:
+    """Transform multiplicative output uncertainty frequency response to additive form.
+
+    Parameters
+    ----------
+    complex_nominal : np.ndarray
+        Nominal model complex frequency response of multiplicative output uncertainty.
+    complex_weight_left : np.ndarray
+        Left uncertainty weight complex frequency response of multiplicative output
+        uncertainty.
+    complex_weight_right : np.ndarray
+        Right uncertainty weight complex frequency response of multiplicative output
+        uncertainty.
+
+    Returns
+    -------
+    Tuple[np.ndarray, np.ndarray, np.ndarray]
+        Nominal model, left uncertainty weight, and right uncertainty weight complex
+        frequency response of equivalent additive uncertainty.
+    """
+
+    # Nominal model
+    complex_nominal_add = complex_nominal
+
+    # Left uncertainty weight
+    complex_weight_left_add = complex_weight_left
+
+    # Right uncertainty weight
+    complex_weight_right_add = complex_weight_right @ complex_nominal
+
+    return complex_nominal_add, complex_weight_left_add, complex_weight_right_add
+
+
+def _transform_inverse_additive_to_additive(
+    complex_nominal: np.ndarray,
+    complex_weight_left: np.ndarray,
+    complex_weight_right: np.ndarray,
+) -> Tuple[np.ndarray, np.ndarray, np.ndarray]:
+    """Transform inverse additive uncertainty frequency response to additive form.
+
+    Parameters
+    ----------
+    complex_nominal : np.ndarray
+        Nominal model complex frequency response of inverse additive uncertainty.
+    complex_weight_left : np.ndarray
+        Left uncertainty weight complex frequency response of inverse additive
+        uncertainty.
+    complex_weight_right : np.ndarray
+        Right uncertainty weight complex frequency response of inverse additive
+        uncertainty.
+
+    Returns
+    -------
+    Tuple[np.ndarray, np.ndarray, np.ndarray]
+        Nominal model, left uncertainty weight, and right uncertainty weight complex
+        frequency response of equivalent additive uncertainty.
+    """
+
+    # Auxiliary variables
+    product = complex_weight_right @ complex_nominal @ complex_weight_left
+    product_herm = np.moveaxis(product.conj(), -1, -2)
+    eye_outer = np.eye(product.shape[1])[None, :, :]
+    eye_inner = np.eye(product.shape[2])[None, :, :]
+
+    # Nominal model
+    a_nominal = eye_outer - product @ product_herm
+    b_nominal = complex_weight_right @ complex_nominal
+    x_nominal = np.linalg.solve(a_nominal, b_nominal)
+    complex_nominal_add = (
+        complex_nominal
+        + complex_nominal @ complex_weight_left @ product_herm @ x_nominal
+    )
+
+    # Left uncertainty weight
+    # The transpose using np.moveaxis is required as the linear system solved is in the
+    # form X @ A = B whereas numpy requires C @ X = D. The original problem is converted
+    # to the equivalent problem A.T @ X.T = B.T.
+    a_left = np.moveaxis(scipy.linalg.sqrtm(eye_inner - product_herm @ product), -1, -2)
+    b_left = np.moveaxis(-(complex_nominal @ complex_weight_left), -1, -2)
+    complex_weight_left_add = np.moveaxis(np.linalg.solve(a_left, b_left), -1, -2)
+
+    # Right uncertainty weight
+    a_right = scipy.linalg.sqrtm(eye_outer - product @ product_herm)
+    b_right = complex_weight_right @ complex_nominal
+    complex_weight_right_add = np.linalg.solve(a_right, b_right)
+
+    return complex_nominal_add, complex_weight_left_add, complex_weight_right_add
+
+
+def _transform_inverse_multiplicative_input_to_additive(
+    complex_nominal: np.ndarray,
+    complex_weight_left: np.ndarray,
+    complex_weight_right: np.ndarray,
+) -> Tuple[np.ndarray, np.ndarray, np.ndarray]:
+    """Transform inverse multiplicative input uncertainty frequency response to additive form.
+
+    Parameters
+    ----------
+    complex_nominal : np.ndarray
+        Nominal model complex frequency response of inverse multiplicative input
+        uncertainty.
+    complex_weight_left : np.ndarray
+        Left uncertainty weight complex frequency response of inverse multiplicative
+        input uncertainty.
+    complex_weight_right : np.ndarray
+        Right uncertainty weight complex frequency response of inverse multiplicative
+        input uncertainty.
+
+    Returns
+    -------
+    Tuple[np.ndarray, np.ndarray, np.ndarray]
+        Nominal model, left uncertainty weight, and right uncertainty weight complex
+        frequency response of equivalent additive uncertainty.
+    """
+    # Auxiliary variables
+    product = complex_weight_right @ complex_weight_left
+    product_herm = np.moveaxis(product.conj(), -1, -2)
+    eye_outer = np.eye(product.shape[1])[None, :, :]
+    eye_inner = np.eye(product.shape[2])[None, :, :]
+
+    # Nominal model
+    a_nominal = eye_outer - product @ product_herm
+    b_nominal = complex_weight_right
+    x_nominal = np.linalg.solve(a_nominal, b_nominal)
+    complex_nominal_add = (
+        complex_nominal
+        + complex_nominal @ complex_weight_left @ product_herm @ x_nominal
+    )
+
+    # Left uncertainty weight
+    # The transpose using np.moveaxis is required as the linear system solved is in the
+    # form X @ A = B whereas numpy requires C @ X = D. The original problem is converted
+    # to the equivalent problem A.T @ X.T = B.T.
+    a_left = np.moveaxis(scipy.linalg.sqrtm(eye_inner - product_herm @ product), -1, -2)
+    b_left = np.moveaxis(-(complex_nominal @ complex_weight_left), -1, -2)
+    complex_weight_left_add = np.moveaxis(np.linalg.solve(a_left, b_left), -1, -2)
+
+    # Right uncertainty weight
+    a_right = scipy.linalg.sqrtm(eye_outer - product @ product_herm)
+    b_right = complex_weight_right
+    complex_weight_right_add = np.linalg.solve(a_right, b_right)
+
+    return complex_nominal_add, complex_weight_left_add, complex_weight_right_add
+
+
+def _transform_inverse_multiplicative_output_to_additive(
+    complex_nominal: np.ndarray,
+    complex_weight_left: np.ndarray,
+    complex_weight_right: np.ndarray,
+) -> Tuple[np.ndarray, np.ndarray, np.ndarray]:
+    """Transform inverse multiplicative output uncertainty frequency response to additive form.
+
+    Parameters
+    ----------
+    complex_nominal : np.ndarray
+        Nominal model complex frequency response of inverse multiplicative output
+        uncertainty.
+    complex_weight_left : np.ndarray
+        Left uncertainty weight complex frequency response of inverse multiplicative
+        output uncertainty.
+    complex_weight_right : np.ndarray
+        Right uncertainty weight complex frequency response of inverse multiplicative
+        output uncertainty.
+
+    Returns
+    -------
+    Tuple[np.ndarray, np.ndarray, np.ndarray]
+        Nominal model, left uncertainty weight, and right uncertainty weight complex
+        frequency response of equivalent additive uncertainty.
+    """
+    # Auxiliary variables
+    product = complex_weight_right @ complex_weight_left
+    product_herm = np.moveaxis(product.conj(), -1, -2)
+    eye_outer = np.eye(product.shape[1])[None, :, :]
+    eye_inner = np.eye(product.shape[2])[None, :, :]
+
+    # Nominal model
+    a_nominal = eye_outer - product @ product_herm
+    b_nominal = complex_weight_right @ complex_nominal
+    x_nominal = np.linalg.solve(a_nominal, b_nominal)
+    complex_nominal_add = (
+        complex_nominal + complex_weight_left @ product_herm @ x_nominal
+    )
+
+    # Left uncertainty weight
+    # The transpose using np.moveaxis is required as the linear system solved is in the
+    # form X @ A = B whereas numpy requires C @ X = D. The original problem is converted
+    # to the equivalent problem A.T @ X.T = B.T.
+    a_left = np.moveaxis(scipy.linalg.sqrtm(eye_inner - product_herm @ product), -1, -2)
+    b_left = np.moveaxis(-complex_weight_left, -1, -2)
+    complex_weight_left_add = np.moveaxis(np.linalg.solve(a_left, b_left), -1, -2)
+
+    # Right uncertainty weight
+    a_right = scipy.linalg.sqrtm(eye_outer - product @ product_herm)
+    b_right = complex_weight_right @ complex_nominal
+    complex_weight_right_add = np.linalg.solve(a_right, b_right)
+
+    return complex_nominal_add, complex_weight_left_add, complex_weight_right_add
+
+
+def _compute_minimal_weights_additive(
+    complex_weight_left: np.ndarray,
+    complex_weight_right: np.ndarray,
+) -> Tuple[np.ndarray, np.ndarray]:
+    """Compute minimal dimension additive uncertainty weight frequency response.
+
+    Parameters
+    ----------
+    complex_weight_left : np.ndarray
+        Left uncertainty weight complex response.
+    complex_weight_right : np.ndarray
+        Right uncertainty weight complex response.
+
+    Returns
+    -------
+    Tuple[np.ndarray, np.ndarray]
+        Minimal left and right uncertainty weight frequency response.
+
+    Raises
+    ------
+    ValueError
+        The number of perturbation outputs is less than the number of system outputs.
+    ValueError
+        The number of perturbation inputs is less than the number of system inputs.
+    """
+
+    # Number of inputs/outputs of system and perturbation (Delta block)
+    nbr_outputs_sys = complex_weight_left.shape[1]
+    nbr_inputs_sys = complex_weight_right.shape[2]
+    nbr_outputs_delta = complex_weight_left.shape[2]
+    nbr_inputs_delta = complex_weight_right.shape[1]
+
+    # Compute minimial left uncertainty weight
+    if nbr_outputs_sys > nbr_outputs_delta:
+        raise ValueError(
+            "The number of perturbation outputs (number of left uncertainty weight "
+            "columns) must be greater than the number of system outputs (number of "
+            "left uncertainty weight rows) for additive uncertainty (got "
+            f"{nbr_outputs_delta} perturbations outputs and {nbr_outputs_sys} system "
+            "outputs)."
+        )
+    elif nbr_outputs_sys < nbr_outputs_delta:
+        u_left, s_left, _ = np.linalg.svd(complex_weight_left, full_matrices=False)
+        complex_weight_left_min = s_left[:, None, :] * u_left  # Scale columns of U
+    else:
+        complex_weight_left_min = complex_weight_left
+
+    # Compute minimal right uncertainty weight
+    if nbr_inputs_sys > nbr_inputs_delta:
+        raise ValueError(
+            "The number of perturbation inputs (number of right uncertainty weight "
+            "rows) must be greater than the number of system inputs (number of "
+            "right uncertainty weight columns) for additive uncertainty (got "
+            f"{nbr_inputs_delta} perturbations inputs and {nbr_inputs_sys} system "
+            "inputs)."
+        )
+    elif nbr_inputs_sys < nbr_inputs_delta:
+        _, s_right, vh_right = np.linalg.svd(complex_weight_right, full_matrices=False)
+        complex_weight_right_min = s_right[:, :, None] * vh_right  # Scale rows of V^H
+    else:
+        complex_weight_right_min = complex_weight_right
+
+    return complex_weight_left_min, complex_weight_right_min
 
 
 def _convert_frequency_response_data_to_array(

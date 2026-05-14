@@ -929,6 +929,405 @@ class TestConvertFrequencyResponseDataToArray:
             )
 
 
+class TestComputeUncertaintyMeasureResponse:
+    @pytest.mark.parametrize(
+        "nominal, offnominal, omega, uncertainty_model",
+        [
+            (
+                control.TransferFunction([1], [0.5, 1]),
+                [
+                    control.TransferFunction([1], [0.3, 1]),
+                    control.TransferFunction([1], [0.4, 1]),
+                    control.TransferFunction([1], [0.6, 1]),
+                    control.TransferFunction([1], [0.7, 1]),
+                ],
+                np.logspace(-2, 2, 100),
+                "additive",
+            ),
+            (
+                control.TransferFunction([1], [0.5, 1]),
+                [
+                    control.TransferFunction([1], [0.3, 1]),
+                    control.TransferFunction([1], [0.4, 1]),
+                    control.TransferFunction([1], [0.6, 1]),
+                    control.TransferFunction([1], [0.7, 1]),
+                ],
+                np.logspace(-2, 2, 100),
+                "multiplicative_input",
+            ),
+            (
+                control.TransferFunction([1], [0.5, 1]),
+                [
+                    control.TransferFunction([1], [0.3, 1]),
+                    control.TransferFunction([1], [0.4, 1]),
+                    control.TransferFunction([1], [0.6, 1]),
+                    control.TransferFunction([1], [0.7, 1]),
+                ],
+                np.logspace(-2, 2, 100),
+                "multiplicative_output",
+            ),
+            (
+                control.TransferFunction([1], [0.5, 1]),
+                [
+                    control.TransferFunction([1], [0.3, 1]),
+                    control.TransferFunction([1], [0.4, 1]),
+                    control.TransferFunction([1], [0.6, 1]),
+                    control.TransferFunction([1], [0.7, 1]),
+                ],
+                np.logspace(-2, 2, 100),
+                "inverse_additive",
+            ),
+            (
+                control.TransferFunction([1], [0.5, 1]),
+                [
+                    control.TransferFunction([1], [0.3, 1]),
+                    control.TransferFunction([1], [0.4, 1]),
+                    control.TransferFunction([1], [0.6, 1]),
+                    control.TransferFunction([1], [0.7, 1]),
+                ],
+                np.logspace(-2, 2, 100),
+                "inverse_multiplicative_input",
+            ),
+            (
+                control.TransferFunction([1], [0.5, 1]),
+                [
+                    control.TransferFunction([1], [0.3, 1]),
+                    control.TransferFunction([1], [0.4, 1]),
+                    control.TransferFunction([1], [0.6, 1]),
+                    control.TransferFunction([1], [0.7, 1]),
+                ],
+                np.logspace(-2, 2, 100),
+                "inverse_multiplicative_output",
+            ),
+            (
+                control.TransferFunction(
+                    [
+                        [[1], [3]],
+                        [[2], [1]],
+                    ],
+                    [
+                        [[1, 2 * 0.5 * 1, 1**2], [0.5, 1]],
+                        [[1, 1], [1, 2 * 0.3 * 5, 5**2]],
+                    ],
+                ),
+                [
+                    control.TransferFunction(
+                        [
+                            [[1], [3.25]],
+                            [[1.9], [1]],
+                        ],
+                        [
+                            [[1, 2 * 0.4 * 1.1, 1.1**2], [0.6, 1]],
+                            [[0.8, 1], [1, 2 * 0.4 * 4.2, 4.2**2]],
+                        ],
+                    ),
+                    control.TransferFunction(
+                        [
+                            [[1.1], [2.85]],
+                            [[1.7], [0.9]],
+                        ],
+                        [
+                            [[1, 2 * 0.45 * 0.9, 0.9**2], [0.55, 1]],
+                            [[0.95, 1], [1, 2 * 0.8 * 5.5, 5.5**2]],
+                        ],
+                    ),
+                    control.TransferFunction(
+                        [
+                            [[1], [3.05]],
+                            [[1.7], [1.0]],
+                        ],
+                        [
+                            [[1, 2 * 0.5 * 1.3, 1.3**2], [0.42, 1]],
+                            [[1, 1], [1, 2 * 0.9 * 5.25, 5.25**2]],
+                        ],
+                    ),
+                ],
+                np.logspace(-1, 1.5, 100),
+                "additive",
+            ),
+            (
+                control.TransferFunction(
+                    [
+                        [[1], [3]],
+                        [[2], [1]],
+                    ],
+                    [
+                        [[1, 2 * 0.5 * 1, 1**2], [0.5, 1]],
+                        [[1, 1], [1, 2 * 0.3 * 5, 5**2]],
+                    ],
+                ),
+                [
+                    control.TransferFunction(
+                        [
+                            [[1], [3.25]],
+                            [[1.9], [1]],
+                        ],
+                        [
+                            [[1, 2 * 0.4 * 1.1, 1.1**2], [0.6, 1]],
+                            [[0.8, 1], [1, 2 * 0.4 * 4.2, 4.2**2]],
+                        ],
+                    ),
+                    control.TransferFunction(
+                        [
+                            [[1.1], [2.85]],
+                            [[1.7], [0.9]],
+                        ],
+                        [
+                            [[1, 2 * 0.45 * 0.9, 0.9**2], [0.55, 1]],
+                            [[0.95, 1], [1, 2 * 0.8 * 5.5, 5.5**2]],
+                        ],
+                    ),
+                    control.TransferFunction(
+                        [
+                            [[1], [3.05]],
+                            [[1.7], [1.0]],
+                        ],
+                        [
+                            [[1, 2 * 0.5 * 1.3, 1.3**2], [0.42, 1]],
+                            [[1, 1], [1, 2 * 0.9 * 5.25, 5.25**2]],
+                        ],
+                    ),
+                ],
+                np.logspace(-1, 1.5, 100),
+                "multiplicative_input",
+            ),
+            (
+                control.TransferFunction(
+                    [
+                        [[1], [3]],
+                        [[2], [1]],
+                    ],
+                    [
+                        [[1, 2 * 0.5 * 1, 1**2], [0.5, 1]],
+                        [[1, 1], [1, 2 * 0.3 * 5, 5**2]],
+                    ],
+                ),
+                [
+                    control.TransferFunction(
+                        [
+                            [[1], [3.25]],
+                            [[1.9], [1]],
+                        ],
+                        [
+                            [[1, 2 * 0.4 * 1.1, 1.1**2], [0.6, 1]],
+                            [[0.8, 1], [1, 2 * 0.4 * 4.2, 4.2**2]],
+                        ],
+                    ),
+                    control.TransferFunction(
+                        [
+                            [[1.1], [2.85]],
+                            [[1.7], [0.9]],
+                        ],
+                        [
+                            [[1, 2 * 0.45 * 0.9, 0.9**2], [0.55, 1]],
+                            [[0.95, 1], [1, 2 * 0.8 * 5.5, 5.5**2]],
+                        ],
+                    ),
+                    control.TransferFunction(
+                        [
+                            [[1], [3.05]],
+                            [[1.7], [1.0]],
+                        ],
+                        [
+                            [[1, 2 * 0.5 * 1.3, 1.3**2], [0.42, 1]],
+                            [[1, 1], [1, 2 * 0.9 * 5.25, 5.25**2]],
+                        ],
+                    ),
+                ],
+                np.logspace(-1, 1.5, 100),
+                "multiplicative_output",
+            ),
+            (
+                control.TransferFunction(
+                    [
+                        [[1], [3]],
+                        [[2], [1]],
+                    ],
+                    [
+                        [[1, 2 * 0.5 * 1, 1**2], [0.5, 1]],
+                        [[1, 1], [1, 2 * 0.3 * 5, 5**2]],
+                    ],
+                ),
+                [
+                    control.TransferFunction(
+                        [
+                            [[1], [3.25]],
+                            [[1.9], [1]],
+                        ],
+                        [
+                            [[1, 2 * 0.4 * 1.1, 1.1**2], [0.6, 1]],
+                            [[0.8, 1], [1, 2 * 0.4 * 4.2, 4.2**2]],
+                        ],
+                    ),
+                    control.TransferFunction(
+                        [
+                            [[1.1], [2.85]],
+                            [[1.7], [0.9]],
+                        ],
+                        [
+                            [[1, 2 * 0.45 * 0.9, 0.9**2], [0.55, 1]],
+                            [[0.95, 1], [1, 2 * 0.8 * 5.5, 5.5**2]],
+                        ],
+                    ),
+                    control.TransferFunction(
+                        [
+                            [[1], [3.05]],
+                            [[1.7], [1.0]],
+                        ],
+                        [
+                            [[1, 2 * 0.5 * 1.3, 1.3**2], [0.42, 1]],
+                            [[1, 1], [1, 2 * 0.9 * 5.25, 5.25**2]],
+                        ],
+                    ),
+                ],
+                np.logspace(-1, 1.5, 100),
+                "inverse_additive",
+            ),
+            (
+                control.TransferFunction(
+                    [
+                        [[1], [3]],
+                        [[2], [1]],
+                    ],
+                    [
+                        [[1, 2 * 0.5 * 1, 1**2], [0.5, 1]],
+                        [[1, 1], [1, 2 * 0.3 * 5, 5**2]],
+                    ],
+                ),
+                [
+                    control.TransferFunction(
+                        [
+                            [[1], [3.25]],
+                            [[1.9], [1]],
+                        ],
+                        [
+                            [[1, 2 * 0.4 * 1.1, 1.1**2], [0.6, 1]],
+                            [[0.8, 1], [1, 2 * 0.4 * 4.2, 4.2**2]],
+                        ],
+                    ),
+                    control.TransferFunction(
+                        [
+                            [[1.1], [2.85]],
+                            [[1.7], [0.9]],
+                        ],
+                        [
+                            [[1, 2 * 0.45 * 0.9, 0.9**2], [0.55, 1]],
+                            [[0.95, 1], [1, 2 * 0.8 * 5.5, 5.5**2]],
+                        ],
+                    ),
+                    control.TransferFunction(
+                        [
+                            [[1], [3.05]],
+                            [[1.7], [1.0]],
+                        ],
+                        [
+                            [[1, 2 * 0.5 * 1.3, 1.3**2], [0.42, 1]],
+                            [[1, 1], [1, 2 * 0.9 * 5.25, 5.25**2]],
+                        ],
+                    ),
+                ],
+                np.logspace(-1, 1.5, 100),
+                "inverse_multiplicative_input",
+            ),
+            (
+                control.TransferFunction(
+                    [
+                        [[1], [3]],
+                        [[2], [1]],
+                    ],
+                    [
+                        [[1, 2 * 0.5 * 1, 1**2], [0.5, 1]],
+                        [[1, 1], [1, 2 * 0.3 * 5, 5**2]],
+                    ],
+                ),
+                [
+                    control.TransferFunction(
+                        [
+                            [[1], [3.25]],
+                            [[1.9], [1]],
+                        ],
+                        [
+                            [[1, 2 * 0.4 * 1.1, 1.1**2], [0.6, 1]],
+                            [[0.8, 1], [1, 2 * 0.4 * 4.2, 4.2**2]],
+                        ],
+                    ),
+                    control.TransferFunction(
+                        [
+                            [[1.1], [2.85]],
+                            [[1.7], [0.9]],
+                        ],
+                        [
+                            [[1, 2 * 0.45 * 0.9, 0.9**2], [0.55, 1]],
+                            [[0.95, 1], [1, 2 * 0.8 * 5.5, 5.5**2]],
+                        ],
+                    ),
+                    control.TransferFunction(
+                        [
+                            [[1], [3.05]],
+                            [[1.7], [1.0]],
+                        ],
+                        [
+                            [[1, 2 * 0.5 * 1.3, 1.3**2], [0.42, 1]],
+                            [[1, 1], [1, 2 * 0.9 * 5.25, 5.25**2]],
+                        ],
+                    ),
+                ],
+                np.logspace(-1, 1.5, 100),
+                "inverse_multiplicative_output",
+            ),
+        ],
+    )
+    def test_compute_uncertainty_measure_response(
+        self,
+        ndarrays_regression,
+        nominal,
+        offnominal,
+        omega,
+        uncertainty_model,
+    ):
+        """Regression test for :func:`compute_uncertainty_measure_response`."""
+
+        # Frequency response of systems
+        frd_nominal = control.frequency_response(nominal, omega, squeeze=False)
+        frd_offnominal_list = control.frequency_response(
+            offnominal, omega, squeeze=False
+        )
+
+        # Uncertainty residual computation
+        uncertainty_model_list = [uncertainty_model]
+        complex_residual_dict = dkpy.compute_uncertainty_residual_response(
+            frd_nominal,
+            frd_offnominal_list,
+            uncertainty_model_list,
+        )
+
+        measure_dict = {}
+        for weight_structure in ["scalar", "diagonal", "full"]:
+            # Uncertainty weight computation
+            complex_weight_left, complex_weight_right = (
+                dkpy.compute_uncertainty_weight_response(
+                    complex_residual_dict[uncertainty_model],
+                    weight_structure,
+                    weight_structure,
+                )
+            )
+
+            # Uncertainty measure computation
+            measure = dkpy.compute_uncertainty_measure_response(
+                frd_nominal,
+                complex_weight_left,
+                complex_weight_right,
+                uncertainty_model,
+            )
+
+            measure_dict[weight_structure] = measure
+
+        ndarrays_regression.check(
+            measure_dict,
+            default_tolerance=dict(atol=1e-2, rtol=1e-2),
+        )
+
+
 class TestConvertFrequencyResponseListToArray:
     @pytest.mark.parametrize(
         "sys_list, omega",
