@@ -11,9 +11,9 @@ __all__ = [
     "plot_singular_value_response_residual",
     "plot_singular_value_response_residual_comparison",
     "plot_singular_value_response_uncertainty_weight",
+    "plot_uncertainty_measure",
 ]
 
-import warnings
 
 import control
 import numpy as np
@@ -28,22 +28,13 @@ from matplotlib.legend import Legend
 
 from . import lti_system_fit
 
-UncertaintyModelId = Literal[
-    "additive",
-    "multiplicative_input",
-    "multiplicative_output",
-    "inverse_additive",
-    "inverse_multiplicative_input",
-    "inverse_multiplicative_output",
-]
-
 
 def compute_uncertainty_residual_response(
     complex_response_nom: Union[np.ndarray, control.FrequencyResponseData],
     complex_response_offnom_list: Union[np.ndarray, control.FrequencyResponseList],
-    uncertainty_model: Union[UncertaintyModelId, List[UncertaintyModelId]],
+    uncertainty_model: Union[str, List[str]],
     tol_residual_existence: float = 1e-12,
-) -> Dict[UncertaintyModelId, np.ndarray]:
+) -> Dict[str, np.ndarray]:
     """Compute the residual response of unstructured uncertainty models.
 
     Parameters
@@ -52,8 +43,15 @@ def compute_uncertainty_residual_response(
         Frequency response of the nominal system.
     complex_response_offnom_list : Union[np.ndarray, control.FrequencyResponseList]
         Frequency response of the off-nominal system.
-    uncertainty_model : Union[UncertaintyModelId, List[UncertaintyModelId]]
-        Uncertainty model identifiers to compute the residual response.
+    uncertainty_model : Union[str, List[str]]
+        Uncertainty model identifiers to compute the residual response. The valid
+        uncertainty model identifiers are:
+            - "additive"
+            - "multiplicative_input"
+            - "multiplicative_output"
+            - "inverse_additive"
+            - "inverse_multiplicative_input",
+            - "inverse_multiplicative_output"
     tol_residual_existence : float
         Tolerance for the existence of an uncertainty residual.
 
@@ -75,14 +73,14 @@ def compute_uncertainty_residual_response(
     >>> complex_response_nom, complex_response_offnom_list, omega = (
     ...     example_multimodel_uncertainty
     ... )
-    >>> uncertainty_models = {
+    >>> uncertainty_models = [
     ...     "additive",
     ...     "multiplicative_input",
     ...     "multiplicative_output",
     ...     "inverse_additive",
     ...     "inverse_multiplicative_input",
     ...     "inverse_multiplicative_output",
-    ... }
+    ... ]
     >>> complex_response_residuals_dict = dkpy.compute_uncertainty_residual_response(
     ...     complex_response_nom,
     ...     complex_response_offnom_list,
@@ -115,10 +113,10 @@ def compute_uncertainty_residual_response(
             compute_residual_model = compute_residual_dispatcher[model]
         except KeyError:
             raise KeyError(
-                "The uncertainty model identifier must be `additive`, "
-                "`multiplicative_input`, `multiplicative_output`, `inverse_additive` "
-                "`inverse_multiplicative_input`, or `inverse_multiplicative_output` "
-                f"(got `{model}`)."
+                'The uncertainty model identifier must be "additive", '
+                '"multiplicative_input", "multiplicative_output", "inverse_additive" '
+                '"inverse_multiplicative_input", or "inverse_multiplicative_output" '
+                f'(got "{model}").'
             )
         complex_response_residual_list = compute_residual_model(
             complex_response_nom,
@@ -953,7 +951,7 @@ def compute_uncertainty_measure_response(
     complex_nominal: Union[np.ndarray, control.FrequencyResponseData],
     complex_weight_left: Union[np.ndarray, control.FrequencyResponseData],
     complex_weight_right: Union[np.ndarray, control.FrequencyResponseData],
-    uncertainty_model: UncertaintyModelId,
+    uncertainty_model: str,
 ) -> np.ndarray:
     """Compute measure (size/volume) frequency response of uncertainty model.
 
@@ -965,8 +963,16 @@ def compute_uncertainty_measure_response(
         Left uncertainty weight complex frequency response.
     complex_weight_right : Union[np.ndarray, control.FrequencyResponseData]
         Right uncertainty weight complex frequency reponse.
-    uncertainty_model : UncertaintyModelId
-        Uncertainty model identifier.
+    uncertainty_model : str
+        Uncertainty model identifier to compute the residual response. The valid
+        uncertainty model identifiers are:
+            - "additive"
+            - "multiplicative_input"
+            - "multiplicative_output"
+            - "inverse_additive"
+            - "inverse_multiplicative_input",
+            - "inverse_multiplicative_output"
+
 
     Returns
     -------
@@ -1910,7 +1916,7 @@ def plot_singular_value_response_uncertain_model_set(
 
 
 def plot_singular_value_response_residual(
-    complex_response_residual_dict: Dict[UncertaintyModelId, np.ndarray],
+    complex_response_residual_dict: Dict[str, np.ndarray],
     omega: np.ndarray,
     db: bool = True,
     hz: bool = False,
@@ -2045,7 +2051,7 @@ def plot_singular_value_response_residual(
 
 
 def plot_singular_value_response_residual_comparison(
-    complex_response_residual_dict: Dict[UncertaintyModelId, np.ndarray],
+    complex_response_residual_dict: Dict[str, np.ndarray],
     omega: np.ndarray,
     db: bool = True,
     hz: bool = False,
