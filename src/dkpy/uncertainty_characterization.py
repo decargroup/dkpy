@@ -1242,8 +1242,8 @@ def _transform_inverse_additive_to_additive(
     # Auxiliary variables
     product = complex_weight_right @ complex_nominal @ complex_weight_left
     product_herm = np.moveaxis(product.conj(), -1, -2)
-    eye_outer = np.eye(product.shape[1])[None, :, :]
-    eye_inner = np.eye(product.shape[2])[None, :, :]
+    eye_outer = np.eye(product.shape[-2])[None, :, :]
+    eye_inner = np.eye(product.shape[-1])[None, :, :]
 
     # Nominal model
     a_nominal = eye_outer - product @ product_herm
@@ -1298,8 +1298,8 @@ def _transform_inverse_multiplicative_input_to_additive(
     # Auxiliary variables
     product = complex_weight_right @ complex_weight_left
     product_herm = np.moveaxis(product.conj(), -1, -2)
-    eye_outer = np.eye(product.shape[1])[None, :, :]
-    eye_inner = np.eye(product.shape[2])[None, :, :]
+    eye_outer = np.eye(product.shape[-2])[None, :, :]
+    eye_inner = np.eye(product.shape[-1])[None, :, :]
 
     # Nominal model
     a_nominal = eye_outer - product @ product_herm
@@ -1354,8 +1354,8 @@ def _transform_inverse_multiplicative_output_to_additive(
     # Auxiliary variables
     product = complex_weight_right @ complex_weight_left
     product_herm = np.moveaxis(product.conj(), -1, -2)
-    eye_outer = np.eye(product.shape[1])[None, :, :]
-    eye_inner = np.eye(product.shape[2])[None, :, :]
+    eye_outer = np.eye(product.shape[-2])[None, :, :]
+    eye_inner = np.eye(product.shape[-1])[None, :, :]
 
     # Nominal model
     a_nominal = eye_outer - product @ product_herm
