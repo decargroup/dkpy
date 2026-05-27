@@ -32,15 +32,26 @@ def example_uncertainty_characterization():
     )
 
     # Compute uncertainty weight frequency response
-    response_weight_left, response_weight_right = (
+    complex_weight_left, complex_weight_right = (
         dkpy.compute_uncertainty_weight_response(
             response_residuals_dict["inverse_additive"], "diagonal", "diagonal"
         )
     )
 
     # Fit overbounding stable and minimum-phase uncertainty weight system
-    weight_left = dkpy.fit_uncertainty_weight(response_weight_left, omega, [4, 5])
-    weight_right = dkpy.fit_uncertainty_weight(response_weight_right, omega, [3, 5])
+    weight_left = dkpy.fit_uncertainty_weight(
+        complex_weight_left, omega, [4, 5], "left", "diagonal"
+    )
+    weight_right = dkpy.fit_uncertainty_weight(
+        complex_weight_right, omega, [3, 5], "right", "diagonal"
+    )
+
+    measure = dkpy.compute_uncertainty_measure_response(
+        complex_nominal,
+        complex_weight_left,
+        complex_weight_right,
+        "multiplicative_input",
+    )
 
     # Plot: Magnitude response of nominal and off-nominal systems
     dkpy.plot_magnitude_response_uncertain_model_set(
@@ -72,15 +83,20 @@ def example_uncertainty_characterization():
         response_residuals_dict, omega
     )
 
-    # Plot: Magnitude response of uncertainty weight frequency response and overbounding
-    # fit
-    dkpy.plot_magnitude_response_uncertainty_weight(
-        response_weight_left,
-        response_weight_right,
+    # Plot: Singular value response of left uncertainty weight
+    dkpy.plot_singular_value_response_uncertainty_weight(
+        complex_weight_left,
         omega,
         weight_left,
+    )
+
+    # Plot: Singular value response of right uncertainty weight
+    dkpy.plot_singular_value_response_uncertainty_weight(
+        complex_weight_right,
+        omega,
         weight_right,
     )
+
     plt.show()
 
 

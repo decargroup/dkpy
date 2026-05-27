@@ -3,16 +3,17 @@
 __all__ = [
     "compute_uncertainty_residual_response",
     "compute_uncertainty_weight_response",
+    "compute_uncertainty_measure_response",
     "fit_uncertainty_weight",
     "plot_magnitude_response_uncertain_model_set",
     "plot_phase_response_uncertain_model_set",
     "plot_singular_value_response_uncertain_model_set",
     "plot_singular_value_response_residual",
     "plot_singular_value_response_residual_comparison",
-    "plot_magnitude_response_uncertainty_weight",
+    "plot_singular_value_response_uncertainty_weight",
+    "plot_uncertainty_measure",
 ]
 
-import warnings
 
 import control
 import numpy as np
@@ -20,25 +21,18 @@ import cvxpy
 import scipy
 from matplotlib import pyplot as plt
 
-from typing import List, Optional, Union, Tuple, Dict, Callable, Set, Any
+from typing import List, Optional, Union, Tuple, Dict, Any, Literal
 from matplotlib.figure import Figure
 from matplotlib.axes import Axes
 from matplotlib.legend import Legend
 
-from . import utilities
+from . import lti_system_fit
 
 
 def compute_uncertainty_residual_response(
     complex_response_nom: Union[np.ndarray, control.FrequencyResponseData],
     complex_response_offnom_list: Union[np.ndarray, control.FrequencyResponseList],
-    uncertainty_model: Union[str, List[str], Set[str]] = {
-        "additive",
-        "multiplicative_input",
-        "multiplicative_output",
-        "inverse_additive",
-        "inverse_multiplicative_input",
-        "inverse_multiplicative_output",
-    },
+    uncertainty_model: Union[str, List[str]],
     tol_residual_existence: float = 1e-12,
 ) -> Dict[str, np.ndarray]:
     """Compute the residual response of unstructured uncertainty models.
@@ -49,8 +43,15 @@ def compute_uncertainty_residual_response(
         Frequency response of the nominal system.
     complex_response_offnom_list : Union[np.ndarray, control.FrequencyResponseList]
         Frequency response of the off-nominal system.
-    uncertainty_model : Union[str, List[str], Set[str]]
-        Uncertainty model identifiers to compute the residual response.
+    uncertainty_model : Union[str, List[str]]
+        Uncertainty model identifiers to compute the residual response. The valid
+        uncertainty model identifiers are:
+            - "additive"
+            - "multiplicative_input"
+            - "multiplicative_output"
+            - "inverse_additive"
+            - "inverse_multiplicative_input",
+            - "inverse_multiplicative_output"
     tol_residual_existence : float
         Tolerance for the existence of an uncertainty residual.
 
@@ -72,14 +73,14 @@ def compute_uncertainty_residual_response(
     >>> complex_response_nom, complex_response_offnom_list, omega = (
     ...     example_multimodel_uncertainty
     ... )
-    >>> uncertainty_models = {
+    >>> uncertainty_models = [
     ...     "additive",
     ...     "multiplicative_input",
     ...     "multiplicative_output",
     ...     "inverse_additive",
     ...     "inverse_multiplicative_input",
     ...     "inverse_multiplicative_output",
-    ... }
+    ... ]
     >>> complex_response_residuals_dict = dkpy.compute_uncertainty_residual_response(
     ...     complex_response_nom,
     ...     complex_response_offnom_list,
@@ -98,202 +99,82 @@ def compute_uncertainty_residual_response(
     # Uncertainty residual response dictionary
     complex_response_residual_dict = {}
 
-    # Check uncertainty model identifiers
-    uncertainty_model = set(uncertainty_model)
-    valid_uncertainty_model = {
-        "additive",
-        "multiplicative_input",
-        "multiplicative_output",
-        "inverse_additive",
-        "inverse_multiplicative_input",
-        "inverse_multiplicative_output",
+    compute_residual_dispatcher = {
+        "additive": _compute_residual_additive,
+        "multiplicative_input": _compute_residual_multiplicative_input,
+        "multiplicative_output": _compute_residual_multiplicative_output,
+        "inverse_additive": _compute_residual_inverse_additive,
+        "inverse_multiplicative_input": _compute_residual_inverse_multiplicative_input,
+        "inverse_multiplicative_output": _compute_residual_inverse_multiplicative_output,
     }
-    if not uncertainty_model.issubset(valid_uncertainty_model):
-        raise ValueError(
-            "The uncertainty model identifiers provided in `uncertainty_model` do not "
-            "all correspond to valid uncertainty models. In particular, "
-            f"{uncertainty_model.difference(valid_uncertainty_model)} are not valid "
-            "uncertainty model identifiers. The identifiers are: "
-            '"additive": Additive uncertainty, '
-            '"multiplicative_input": Multiplicative input uncertainty, '
-            '"multiplicative_output": Multiplicative output uncertainty, '
-            '"inverse_additive": Inverse additive uncertainty, '
-            '"inverse_multiplicative_input": Inverse multiplicative input uncertainty, '
-            '"inverse_multiplicative_output": Inverse multiplicative output uncertainty.'
-        )
 
-    # Additive uncertainty residual response
-    if "additive" in uncertainty_model:
-        complex_response_residual_list = _compute_uncertainty_residual_response(
+    for model in uncertainty_model:
+        try:
+            compute_residual_model = compute_residual_dispatcher[model]
+        except KeyError:
+            raise KeyError(
+                'The uncertainty model identifier must be "additive", '
+                '"multiplicative_input", "multiplicative_output", "inverse_additive" '
+                '"inverse_multiplicative_input", or "inverse_multiplicative_output" '
+                f'(got "{model}").'
+            )
+        complex_response_residual_list = compute_residual_model(
             complex_response_nom,
             complex_response_offnom_list,
-            _compute_uncertainty_residual_additive_freq,
             tol_residual_existence,
         )
-        complex_response_residual_dict["additive"] = complex_response_residual_list
-
-    # Multiplicative input uncertainty residual response
-    if "multiplicative_input" in uncertainty_model:
-        complex_response_residual_list = _compute_uncertainty_residual_response(
-            complex_response_nom,
-            complex_response_offnom_list,
-            _compute_uncertainty_residual_multiplicative_input_freq,
-            tol_residual_existence,
-        )
-        complex_response_residual_dict["multiplicative_input"] = (
-            complex_response_residual_list
-        )
-
-    # Multiplicative output uncertainty residual response
-    if "multiplicative_output" in uncertainty_model:
-        complex_response_residual_list = _compute_uncertainty_residual_response(
-            complex_response_nom,
-            complex_response_offnom_list,
-            _compute_uncertainty_residual_multiplicative_output_freq,
-            tol_residual_existence,
-        )
-        complex_response_residual_dict["multiplicative_output"] = (
-            complex_response_residual_list
-        )
-
-    # Inverse additive uncertainty residual response
-    if "inverse_additive" in uncertainty_model:
-        complex_response_residual_list = _compute_uncertainty_residual_response(
-            complex_response_nom,
-            complex_response_offnom_list,
-            _compute_uncertainty_residual_inverse_additive_freq,
-            tol_residual_existence,
-        )
-        complex_response_residual_dict["inverse_additive"] = (
-            complex_response_residual_list
-        )
-
-    # Inverse multiplicative input uncertainty residual response
-    if "inverse_multiplicative_input" in uncertainty_model:
-        complex_response_residual_list = _compute_uncertainty_residual_response(
-            complex_response_nom,
-            complex_response_offnom_list,
-            _compute_uncertainty_residual_inverse_multiplicative_input_freq,
-            tol_residual_existence,
-        )
-        complex_response_residual_dict["inverse_multiplicative_input"] = (
-            complex_response_residual_list
-        )
-
-    # Inverse multiplicative output uncertainty residual response
-    if "inverse_multiplicative_output" in uncertainty_model:
-        complex_response_residual_list = _compute_uncertainty_residual_response(
-            complex_response_nom,
-            complex_response_offnom_list,
-            _compute_uncertainty_residual_inverse_multiplicative_output_freq,
-            tol_residual_existence,
-        )
-        complex_response_residual_dict["inverse_multiplicative_output"] = (
-            complex_response_residual_list
-        )
+        complex_response_residual_dict[model] = complex_response_residual_list
 
     return complex_response_residual_dict
 
 
-def _compute_uncertainty_residual_response(
-    complex_response_nom: np.ndarray,
-    complex_response_offnom_list: np.ndarray,
-    compute_uncertainty_residual_freq: Callable,
-    tol_residual_existence: float,
+def _compute_residual_additive(
+    complex_nominal: np.ndarray,
+    complex_offnominal: np.ndarray,
+    tol_residual_existence: Optional[float] = None,
 ) -> np.ndarray:
-    """Compute the uncertainty residual response for a given uncertainty model.
+    """Compute the additive uncertainty residual frequency responses.
 
     Parameters
     ----------
-    complex_response_nom : np.ndarray
-        Frequency response of the nominal system.
-    complex_response_offnom_list : np.ndarray
-        Frequency response of the off-nominal system.
-    compute_uncertainty_residual_freq : Callable,
-        Uncertainty residual computation function at a given frequency.
+    complex_nominal : np.ndarray
+        Nominal model frequency response.
+    complex_offnominal : np.ndarray
+        Off-nominal model frequency responses.
     tol_residual_existence : float
         Tolerance for the existence of an uncertainty residual.
 
     Returns
     -------
     np.ndarray
-        Uncertainty residual response of the given uncertainty model.
+        Additive uncertainty residual frequency response for all off-nominal models.
     """
+    complex_residual = complex_offnominal - complex_nominal
 
-    # Frequency response parameters
-    num_offnom = complex_response_offnom_list.shape[0]
-    num_frequency = complex_response_offnom_list.shape[1]
-
-    complex_response_residual_list = []
-    for idx_offnom in range(num_offnom):
-        complex_response_residual = []
-        complex_response_offnom = complex_response_offnom_list[idx_offnom, :, :, :]
-        for idx_freq in range(num_frequency):
-            complex_response_nom_freq = complex_response_nom[idx_freq, :, :]
-            complex_response_offnom_freq = complex_response_offnom[idx_freq, :, :]
-            complex_response_residual_freq = compute_uncertainty_residual_freq(
-                complex_response_nom_freq,
-                complex_response_offnom_freq,
-                tol_residual_existence,
-            )
-            complex_response_residual.append(complex_response_residual_freq)
-        complex_response_residual = np.array(complex_response_residual, dtype=complex)
-        complex_response_residual_list.append(complex_response_residual)
-    complex_response_residual_list = np.array(complex_response_residual_list)
-
-    return complex_response_residual_list
+    return complex_residual
 
 
-def _compute_uncertainty_residual_additive_freq(
-    complex_response_nom_freq: np.ndarray,
-    complex_response_offnom_freq: np.ndarray,
-    tol_residual_existence: Optional[float] = None,
-) -> np.ndarray:
-    """Compute the additive uncertainty residual at a frequency.
-
-    Parameters
-    ----------
-    complex_response_nom_freq : np.ndarray
-        Nominal frequency response matrix evaluated at a given frequency.
-    complex_response_offnom_freq : np.ndarray
-        Frequency response matrix of a single off-nominal system evaluated at a given
-        frequency.
-    tol_residual_existence : float
-        Tolerance for the existence of a multiplicative input uncertainty residual.
-
-    Returns
-    -------
-    np.ndarray
-        Additive uncertainty residual at a given frequency.
-    """
-    complex_response_residual_freq = (
-        complex_response_offnom_freq - complex_response_nom_freq
-    )
-
-    return complex_response_residual_freq
-
-
-def _compute_uncertainty_residual_multiplicative_input_freq(
-    complex_response_nom_freq: np.ndarray,
-    complex_response_offnom_freq: np.ndarray,
+def _compute_residual_multiplicative_input(
+    complex_nominal: np.ndarray,
+    complex_offnominal: np.ndarray,
     tol_residual_existence: float = 1e-8,
 ) -> np.ndarray:
-    """Compute the multiplicative input uncertainty residual at a frequency.
+    """Compute the multiplicative input uncertainty residual frequency responses.
 
     Parameters
     ----------
-    complex_response_nom_freq : np.ndarray
-        Nominal frequency response matrix evaluated at a given frequency.
-    complex_response_offnom_freq : np.ndarray
-        Frequency response matrix of a single off-nominal system evaluated at a given
-        frequency.
+    complex_response_nom : np.ndarray
+        Nominal model frequency response.
+    complex_response_offnom : np.ndarray
+        Off-nominal model frequency responses.
     tol_residual_existence : float
-        Tolerance for the existence of a multiplicative input uncertainty residual.
+        Tolerance for the existence of an uncertainty residual.
 
     Returns
     -------
     np.ndarray
-        Multiplicative input uncertainty residual at a given frequency.
+        Multiplicative input uncertainty residual frequency response for all
+        off-nominal models.
 
     Raises
     ------
@@ -303,19 +184,19 @@ def _compute_uncertainty_residual_multiplicative_input_freq(
         solution.
     """
 
-    num_inputs = complex_response_nom_freq.shape[1]
-    num_outputs = complex_response_nom_freq.shape[0]
+    nbr_inputs = complex_nominal.shape[-1]
+    nbr_outputs = complex_nominal.shape[-2]
 
-    A = complex_response_nom_freq
-    B = complex_response_offnom_freq - complex_response_nom_freq
-    X, residues_lstsq, _, _ = scipy.linalg.lstsq(A, B)
-    complex_response_residual_freq = X
+    a = complex_nominal
+    b = complex_offnominal - complex_nominal
+    x, residues_lstsq, _, _ = scipy.linalg.lstsq(a, b)
+    complex_residual = x
 
-    if num_inputs >= num_outputs:
-        return complex_response_residual_freq
+    if nbr_inputs >= nbr_outputs:
+        return complex_residual
     else:
         if np.all(residues_lstsq <= tol_residual_existence):
-            return complex_response_residual_freq
+            return complex_residual
         else:
             raise ValueError(
                 "A multiplicative input uncertainty residual does not exist for the "
@@ -327,27 +208,27 @@ def _compute_uncertainty_residual_multiplicative_input_freq(
             )
 
 
-def _compute_uncertainty_residual_multiplicative_output_freq(
-    complex_response_nom_freq: np.ndarray,
-    complex_response_offnom_freq: np.ndarray,
+def _compute_residual_multiplicative_output(
+    complex_nominal: np.ndarray,
+    complex_offnominal: np.ndarray,
     tol_residual_existence: float = 1e-8,
 ) -> np.ndarray:
-    """Compute the multiplicative output uncertainty residual at a frequency.
+    """Compute the multiplicative output uncertainty residual frequency responses.
 
     Parameters
     ----------
-    complex_response_nom_freq : np.ndarray
-        Nominal frequency response matrix evaluated at a given frequency.
-    complex_response_offnom_freq : np.ndarray
-        Frequency response matrix of a single off-nominal system evaluated at a given
-        frequency.
+    complex_nominal : np.ndarray
+        Nominal model frequency response.
+    complex_offnominal : np.ndarray
+        Off-nominal model frequency responses.
     tol_residual_existence : float
-        Tolerance for the existence of a multiplicative input uncertainty residual.
+        Tolerance for the existence of an uncertainty residual.
 
     Returns
     -------
     np.ndarray
-        Multiplicative output uncertainty residual at a given frequency.
+        Multiplicative output uncertainty residual frequency response for all
+        off-nominal models.
 
     Raises
     ------
@@ -357,19 +238,19 @@ def _compute_uncertainty_residual_multiplicative_output_freq(
         solution.
     """
 
-    num_inputs = complex_response_nom_freq.shape[1]
-    num_outputs = complex_response_nom_freq.shape[0]
+    nbr_inputs = complex_nominal.shape[-1]
+    nbr_outputs = complex_nominal.shape[-2]
 
-    A = complex_response_nom_freq.T
-    B = complex_response_offnom_freq.T - complex_response_nom_freq.T
-    X, residues_lstsq, _, _ = scipy.linalg.lstsq(A, B)
-    complex_response_residual_freq = X.T
+    a = np.moveaxis(complex_nominal, -1, -2)
+    b = np.moveaxis(complex_offnominal - complex_nominal, -1, -2)
+    x, residues_lstsq, _, _ = scipy.linalg.lstsq(a, b)
+    complex_residual = np.moveaxis(x, -1, -2)
 
-    if num_inputs <= num_outputs:
-        return complex_response_residual_freq
+    if nbr_inputs <= nbr_outputs:
+        return complex_residual
     else:
         if np.all(residues_lstsq <= tol_residual_existence):
-            return complex_response_residual_freq
+            return complex_residual
         else:
             raise ValueError(
                 "A multiplicative output uncertainty residual does not exist for the "
@@ -381,27 +262,27 @@ def _compute_uncertainty_residual_multiplicative_output_freq(
             )
 
 
-def _compute_uncertainty_residual_inverse_additive_freq(
-    complex_response_nom_freq: np.ndarray,
-    complex_response_offnom_freq: np.ndarray,
+def _compute_residual_inverse_additive(
+    complex_nominal: np.ndarray,
+    complex_offnominal: np.ndarray,
     tol_residual_existence: float = 1e-8,
 ) -> np.ndarray:
-    """Compute the inverse additive uncertainty residual at a frequency.
+    """Compute the inverse additive uncertainty residual frequency responses.
 
     Parameters
     ----------
-    complex_response_nom_freq : np.ndarray
-        Nominal frequency response matrix evaluated at a given frequency.
-    complex_response_offnom_freq : np.ndarray
-        Frequency response matrix of a single off-nominal system evaluated at a given
-        frequency.
+    complex_nominal : np.ndarray
+        Nominal model frequency response.
+    complex_offnominal : np.ndarray
+        Off-nominal model frequency responses.
     tol_residual_existence : float
-        Tolerance for the existence of a inverse additive uncertainty residual.
+        Tolerance for the existence of an uncertainty residual.
 
     Returns
     -------
     np.ndarray
-        Inverse additive uncertainty residual at a given frequency.
+        Inverse additive uncertainty residual frequency response for all
+        off-nominal models.
 
     Raises
     ------
@@ -411,24 +292,24 @@ def _compute_uncertainty_residual_inverse_additive_freq(
         solution.
     """
 
-    num_inputs = complex_response_nom_freq.shape[1]
-    num_outputs = complex_response_nom_freq.shape[0]
+    nbr_inputs = complex_nominal.shape[-1]
+    nbr_outputs = complex_nominal.shape[-2]
 
-    A1 = complex_response_offnom_freq
-    B1 = complex_response_offnom_freq - complex_response_nom_freq
-    Y, residues_lstsq_1, _, _ = scipy.linalg.lstsq(A1, B1)
-    A2 = complex_response_nom_freq.T
-    B2 = Y.T
-    X, residues_lstsq_2, _, _ = scipy.linalg.lstsq(A2, B2)
-    complex_response_residual_freq = X.T
+    a1 = complex_offnominal
+    b1 = complex_offnominal - complex_nominal
+    y, residues_lstsq_1, _, _ = scipy.linalg.lstsq(a1, b1)
+    a2 = np.moveaxis(complex_nominal, -1, -2)
+    b2 = np.moveaxis(y, -1, -2)
+    x, residues_lstsq_2, _, _ = scipy.linalg.lstsq(a2, b2)
+    complex_residual = np.moveaxis(x, -1, -2)
 
-    if num_inputs == num_outputs:
-        return complex_response_residual_freq
+    if nbr_inputs == nbr_outputs:
+        return complex_residual
     else:
         if np.all(residues_lstsq_1 <= tol_residual_existence) and np.all(
             residues_lstsq_2 <= tol_residual_existence
         ):
-            return complex_response_residual_freq
+            return complex_residual
         else:
             raise ValueError(
                 "An inverse additive uncertainty residual does not exist for the "
@@ -440,28 +321,27 @@ def _compute_uncertainty_residual_inverse_additive_freq(
             )
 
 
-def _compute_uncertainty_residual_inverse_multiplicative_input_freq(
-    complex_response_nom_freq: np.ndarray,
-    complex_response_offnom_freq: np.ndarray,
+def _compute_residual_inverse_multiplicative_input(
+    complex_nominal: np.ndarray,
+    complex_offnominal: np.ndarray,
     tol_residual_existence: float = 1e-8,
 ) -> np.ndarray:
-    """Compute the inverse multiplicative input uncertainty residual at a frequency.
+    """Compute the inverse multiplicative input uncertainty residual frequency responses.
 
     Parameters
     ----------
-    complex_response_nom_freq: np.ndarray
-        Nominal frequency response matrix evaluated at a given frequency.
-    complex_response_offnom_freq : np.ndarray
-        Frequency response matrix of a single off-nominal system evaluated at a given
-        frequency.
+    complex_nominal : np.ndarray
+        Nominal model frequency response.
+    complex_offnominal : np.ndarray
+        Off-nominal model frequency responses.
     tol_residual_existence : float
-        Tolerance for the existence of an inverse multiplicative input uncertainty
-        residual.
+        Tolerance for the existence of an uncertainty residual.
 
     Returns
     -------
     np.ndarray
-        Inverse multiplicative input uncertainty residual at a given frequency.
+        Inverse multiplicative input uncertainty residual frequency response for all
+        off-nominal models.
 
     Raises
     ------
@@ -471,19 +351,19 @@ def _compute_uncertainty_residual_inverse_multiplicative_input_freq(
         a solution.
     """
 
-    num_inputs = complex_response_nom_freq.shape[1]
-    num_outputs = complex_response_nom_freq.shape[0]
+    nbr_inputs = complex_nominal.shape[-1]
+    nbr_outputs = complex_nominal.shape[-2]
 
-    A = complex_response_offnom_freq
-    B = complex_response_offnom_freq - complex_response_nom_freq
-    X, residues_lstsq, _, _ = scipy.linalg.lstsq(A, B)
-    complex_response_residual_freq = X
+    a = complex_offnominal
+    b = complex_offnominal - complex_nominal
+    x, residues_lstsq, _, _ = scipy.linalg.lstsq(a, b)
+    complex_residual = x
 
-    if num_inputs >= num_outputs:
-        return complex_response_residual_freq
+    if nbr_inputs >= nbr_outputs:
+        return complex_residual
     else:
         if np.all(residues_lstsq <= tol_residual_existence):
-            return complex_response_residual_freq
+            return complex_residual
         else:
             raise ValueError(
                 "An inverse multiplicative input uncertainty residual does not exist "
@@ -495,27 +375,27 @@ def _compute_uncertainty_residual_inverse_multiplicative_input_freq(
             )
 
 
-def _compute_uncertainty_residual_inverse_multiplicative_output_freq(
-    complex_response_nom_freq: np.ndarray,
-    complex_response_offnom_freq: np.ndarray,
+def _compute_residual_inverse_multiplicative_output(
+    complex_nominal: np.ndarray,
+    complex_offnominal: np.ndarray,
     tol_residual_existence: float = 1e-8,
 ) -> np.ndarray:
-    """Compute the inverse multiplicative output uncertainty residual at a frequency.
+    """Compute the inverse multiplicative output uncertainty residual frequency responses.
 
     Parameters
     ----------
-    complex_response_nom_freq : np.ndarray
-        Nominal frequency response matrix evaluated at a given frequency.
-    complex_response_offnom_freq : np.ndarray
-        Frequency response matrix of a single off-nominal system evaluated at a given
-        frequency.
+    complex_nominal : np.ndarray
+        Nominal model frequency response.
+    complex_offnominal : np.ndarray
+        Off-nominal model frequency responses.
     tol_residual_existence : float
-        Tolerance for the existence of a multiplicative input uncertainty residual.
+        Tolerance for the existence of an uncertainty residual.
 
     Returns
     -------
     np.ndarray
-        Inverse multiplicative output uncertainty residual at a given frequency.
+        Inverse multiplicative output uncertainty residual frequency response for all
+        off-nominal models.
 
     Raises
     ------
@@ -525,19 +405,19 @@ def _compute_uncertainty_residual_inverse_multiplicative_output_freq(
         a solution.
     """
 
-    num_inputs = complex_response_nom_freq.shape[1]
-    num_outputs = complex_response_nom_freq.shape[0]
+    nbr_inputs = complex_nominal.shape[-1]
+    nbr_outputs = complex_nominal.shape[-2]
 
-    A = complex_response_offnom_freq.T
-    B = complex_response_offnom_freq.T - complex_response_nom_freq.T
-    X, residues_lstsq, _, _ = scipy.linalg.lstsq(A, B)
-    complex_response_residual_freq = X.T
+    a = np.moveaxis(complex_offnominal, -1, -2)
+    b = np.moveaxis(complex_offnominal - complex_nominal, -1, -2)
+    x, residues_lstsq, _, _ = scipy.linalg.lstsq(a, b)
+    complex_residual = np.moveaxis(x, -1, -2)
 
-    if num_inputs <= num_outputs:
-        return complex_response_residual_freq
+    if nbr_inputs <= nbr_outputs:
+        return complex_residual
     else:
         if np.all(residues_lstsq <= tol_residual_existence):
-            return complex_response_residual_freq
+            return complex_residual
         else:
             raise ValueError(
                 "An inverse multiplicative output uncertainty residual does not exist "
@@ -550,9 +430,9 @@ def _compute_uncertainty_residual_inverse_multiplicative_output_freq(
 
 
 def compute_uncertainty_weight_response(
-    complex_response_residual_list: Union[np.ndarray, control.FrequencyResponseList],
-    weight_left_structure: str,
-    weight_right_structure: str,
+    complex_residual: Union[np.ndarray, control.FrequencyResponseList],
+    weight_left_structure: Literal["full", "diagonal", "scalar", "identity"],
+    weight_right_structure: Literal["full", "diagonal", "scalar", "identity"],
     solver_params: Optional[Dict[str, Any]] = None,
 ) -> Tuple[np.ndarray, np.ndarray]:
     """Compute the optimal uncertainty weight frequency response.
@@ -562,16 +442,14 @@ def compute_uncertainty_weight_response(
 
     Parameters
     ----------
-    complex_response_residual_list : Union[np.ndarray, control.FrequencyResponseList]
+    complex_residual : Union[np.ndarray, control.FrequencyResponseList]
         Frequency response of the residuals for which to compute the optimal uncertainty
         weights.
-    weight_left_structure : str
-        Structure of the left uncertainty weight. Valid structures include: "diagonal",
-        "scalar", and "identity".
-    weight_right_structure : str
-        Structure of the right uncertainty weight. Valid structures include: "diagonal",
-        "scalar", and "identity".
-    solver_param : Dict[str, Any]
+    weight_left_structure : Literal["full", "diagonal", "scalar", "identity"]
+        Structure of the left uncertainty weight.
+    weight_right_structure : Literal["full", "diagonal", "scalar", "identity"]
+        Structure of the right uncertainty weight.
+    solver_params : Dict[str, Any]
         Keyword arguments for the convex optimization solver. See [#cvxpy_solver]_ for
         more information.
 
@@ -587,25 +465,25 @@ def compute_uncertainty_weight_response(
     residual frequency response where the left and right uncertainty weights are assumed
     to be diagonal.
 
-    >>> complex_response_nom, complex_response_offnom_list, omega = (
+    >>> complex_nominal, complex_offnominal_list, omega = (
     ...     example_multimodel_uncertainty
     ... )
-    >>> uncertainty_models = {
+    >>> uncertainty_models = [
     ...     "additive",
     ...     "multiplicative_input",
     ...     "multiplicative_output",
     ...     "inverse_additive",
     ...     "inverse_multiplicative_input",
     ...     "inverse_multiplicative_output",
-    ... }
-    >>> complex_response_residual_dict = compute_uncertainty_residual_response(
-    ...     complex_response_nom,
-    ...     complex_response_offnom_list,
+    ... ]
+    >>> complex_residual_dict = compute_uncertainty_residual_response(
+    ...     complex_nominal,
+    ...     complex_offnominal_list,
     ...     uncertainty_models,
     ... )
-    >>> complex_response_weight_left, complex_response_weight_right = (
+    >>> complex_weight_left, complex_weight_right = (
     ...     dkpy.compute_uncertainty_weight_response(
-    ...         complex_response_residual_dict["multiplicative_input"],
+    ...         complex_residual_dict["multiplicative_input"],
     ...         "diagonal",
     ...         "diagonal",
     ...     )
@@ -616,72 +494,12 @@ def compute_uncertainty_weight_response(
     .. [#uncertainty_characterization] G. J. Balas, A. K. Packard, and P. J. Seiler,
     “Uncertain Model Set Calculation from Frequency Domain Data,” Springer eBooks,
     pp. 89–105, Jan. 2009, doi: https://doi.org/10.1007/978-1-4419-0895-7_6.
-
     """
 
     # Convert frequency response data to expected type
-    complex_response_residual_list = _convert_frequency_response_list_to_array(
-        complex_response_residual_list
-    )
+    complex_residual = _convert_frequency_response_list_to_array(complex_residual)
 
-    # Frequency response parameters
-    num_frequency = complex_response_residual_list.shape[1]
-
-    # Compute optimal uncertainty weights
-    complex_response_weight_left = []
-    complex_response_weight_right = []
-    for idx_freq in range(num_frequency):
-        complex_residual_freq = complex_response_residual_list[:, idx_freq, :, :]
-        weight_left_freq, weight_right_freq = _compute_optimal_weight_freq(
-            complex_residual_freq,
-            weight_left_structure,
-            weight_right_structure,
-            solver_params,
-        )
-        complex_response_weight_left.append(weight_left_freq)
-        complex_response_weight_right.append(weight_right_freq)
-
-    # Generate uncertainty weight complex frequency reponses
-    complex_response_weight_left = np.array(complex_response_weight_left)
-    complex_response_weight_right = np.array(complex_response_weight_right)
-
-    return complex_response_weight_left, complex_response_weight_right
-
-
-def _compute_optimal_weight_freq(
-    complex_residual_offnom_set_freq: np.ndarray,
-    weight_left_structure: str,
-    weight_right_structure: str,
-    solver_params: Optional[Dict[str, Any]] = None,
-) -> Tuple[np.ndarray, np.ndarray]:
-    """Compute the optimal uncertainty weight at a given frequency.
-
-    Parameters
-    ----------
-    complex_residual_offnom_set_freq : np.ndarray
-        Frequency response matrix of the off-nominal models at a given frequency.
-    weight_left_structure : str
-        Structure of the left uncertainty weight. Valid structures include: "diagonal",
-        "scalar", and "identity".
-    weight_right_structure : str
-        Structure of the right uncertainty weight. Valid structures include: "diagonal",
-        "scalar", and "identity".
-    solver_param : Dict[str, Any]
-        Keyword arguments for the convex optimization solver. See [#cvxpy_solver]_ for
-        more information.
-
-    Returns
-    -------
-    Tuple[np.ndarray, np.ndarray]
-        The left and right uncertainty weight frequency response matrices at a given
-        frequency.
-
-    References
-    ----------
-    .. [#cxvpy_solver] https://www.cvxpy.org/tutorial/solvers/index.html
-    """
-
-    # Solver settings
+    # Parse solver parameters
     solver_params = (
         {
             "solver": cvxpy.CLARABEL,
@@ -695,130 +513,148 @@ def _compute_optimal_weight_freq(
         else solver_params
     )
 
-    # System parameters
-    num_left = complex_residual_offnom_set_freq.shape[1]
-    num_right = complex_residual_offnom_set_freq.shape[2]
-    num_offnom = complex_residual_offnom_set_freq.shape[0]
+    # Frequency response parameters
+    nbr_frequency = complex_residual.shape[1]
+    nbr_left = complex_residual.shape[2]
+    nbr_right = complex_residual.shape[3]
+    nbr_offnom = complex_residual.shape[0]
 
     # Generate left weight variable
-    if weight_left_structure == "diagonal":
-        L = cvxpy.Variable((num_left, num_left), diag=True)
-    elif weight_left_structure == "scalar":
-        L_scalar = cvxpy.Variable()
-        L = L_scalar * scipy.sparse.eye_array(num_left)
-    elif weight_left_structure == "identity":
-        L = cvxpy.Parameter(
-            shape=(num_left, num_left), value=np.eye(num_left), diag=True
-        )
-    else:
-        raise ValueError(
-            f'"{weight_left_structure}" is not a valid value for '
-            '`weight_right_structure`. It must take a value of either "diagonal" '
-            '"scalar", or "identity".'
+    weight_left_power_dispatcher = {
+        "full": cvxpy.Variable((nbr_left, nbr_left), hermitian=True),
+        "diagonal": cvxpy.Variable((nbr_left, nbr_left), diag=True),
+        "scalar": cvxpy.Variable() * scipy.sparse.eye_array(nbr_left),
+        "identity": cvxpy.Constant(value=np.eye(nbr_left)),
+    }
+    try:
+        weight_left_power = weight_left_power_dispatcher[weight_left_structure]
+    except KeyError:
+        raise KeyError(
+            '`weight_left_structure` must be "full", "diagonal", or "scalar" (got '
+            f'"{weight_left_structure})".'
         )
 
     # Generate right weight variable
-    if weight_right_structure == "diagonal":
-        R = cvxpy.Variable((num_right, num_right), diag=True)
-    elif weight_right_structure == "scalar":
-        R_scalar = cvxpy.Variable()
-        R = R_scalar * scipy.sparse.eye_array(num_right)
-    elif weight_right_structure == "identity":
-        R = cvxpy.Parameter(
-            shape=(num_right, num_right), value=np.eye(num_right), diag=True
-        )
-    else:
-        raise ValueError(
-            f'"{weight_right_structure}" is not a valid value for '
-            '`weight_right_structure`. It must take a value of either "diagonal" '
-            '"scalar", or "identity".'
+    weight_right_power_dispatcher = {
+        "full": cvxpy.Variable((nbr_right, nbr_right), hermitian=True),
+        "diagonal": cvxpy.Variable((nbr_right, nbr_right), diag=True),
+        "scalar": cvxpy.Variable() * scipy.sparse.eye_array(nbr_right),
+        "identity": cvxpy.Constant(value=np.eye(nbr_right)),
+    }
+    try:
+        weight_right_power = weight_right_power_dispatcher[weight_right_structure]
+    except KeyError:
+        raise KeyError(
+            '`weight_right_structure` must be "full", "diagonal", or "scalar" (got '
+            f'"{weight_right_structure})".'
         )
 
-    # Generate optimal uncertainty weight constraints
-    constraint_freq_list = []
-    for idx_offnom in range(num_offnom):
-        E_k = cvxpy.Parameter(
-            shape=(num_left, num_right),
-            value=complex_residual_offnom_set_freq[idx_offnom, :, :],
-            complex=True,
-        )
+    # Generate residual parameters
+    residual_offnom = cvxpy.Parameter(
+        shape=(nbr_offnom, nbr_left, nbr_right),
+        complex=True,
+    )
+
+    # Uncertainty set constraints over all frequencies
+    constraint_list = []
+    for idx_offnom in range(nbr_offnom):
         constraint_matrix_freq = cvxpy.bmat(
             [
-                [L, E_k],
-                [E_k.H, R],
+                [weight_left_power, residual_offnom[idx_offnom, :, :]],
+                [residual_offnom[idx_offnom, :, :].H, weight_right_power],
             ]
         )
         constraint_freq = constraint_matrix_freq >> 0
-        constraint_freq_list.append(constraint_freq)
-    constraint_freq_list.append(L.H == L)
-    constraint_freq_list.append(L >> 0)
-    constraint_freq_list.append(R.H == R)
-    constraint_freq_list.append(R >> 0)
+        constraint_list.append(constraint_freq)
+
+    # Positive semidefiniteness constraints
+    constraint_list.append(weight_left_power >> 0)
+    constraint_list.append(weight_right_power >> 0)
 
     # Semidefinite program
-    objective = cvxpy.Minimize(cvxpy.trace(L) + cvxpy.trace(R))
-    problem = cvxpy.Problem(objective, constraint_freq_list)
-    problem.solve(**solver_params)
+    objective = cvxpy.Minimize(
+        nbr_right * cvxpy.trace(weight_left_power)
+        + nbr_left * cvxpy.trace(weight_right_power)
+    )
+    problem = cvxpy.Problem(objective, constraint_list)
 
-    # Extract left weight
-    if weight_left_structure == "identity":
-        L_value = np.array(L.value)
-    else:
-        L_value = np.array(L.value.toarray())
-    complex_response_weight_left_freq = np.sqrt(L_value)
-    # Extract right weight
-    if weight_right_structure == "identity":
-        R_value = np.array(R.value)
-    else:
-        R_value = np.array(R.value.toarray())
-    complex_response_weight_right_freq = np.sqrt(R_value)
+    # Compute optimal uncertainty weights
+    complex_weight_left = []
+    complex_weight_right = []
+    for idx_freq in range(nbr_frequency):
+        # Residual of off-nominal models at given frequency
+        residual_offnom.value = complex_residual[:, idx_freq, :, :]
 
-    return complex_response_weight_left_freq, complex_response_weight_right_freq
+        # Solve optimal weight SDP
+        problem.solve(canon_backend=cvxpy.SCIPY_CANON_BACKEND, **solver_params)
+
+        # Extract left weight
+        if weight_left_structure == "identity" or weight_left_structure == "full":
+            weight_left_power_opt = np.array(weight_left_power.value)
+        else:
+            weight_left_power_opt = np.array(weight_left_power.value.toarray())
+        weight_left_opt = scipy.linalg.sqrtm(weight_left_power_opt)
+
+        # Extract right weight
+        if weight_right_structure == "identity" or weight_right_structure == "full":
+            weight_right_power_opt = np.array(weight_right_power.value)
+        else:
+            weight_right_power_opt = np.array(weight_right_power.value.toarray())
+        weight_right_opt = scipy.linalg.sqrtm(weight_right_power_opt)
+
+        complex_weight_left.append(weight_left_opt)
+        complex_weight_right.append(weight_right_opt)
+
+    # Generate uncertainty weight complex frequency reponses
+    complex_weight_left = np.array(complex_weight_left)
+    complex_weight_right = np.array(complex_weight_right)
+
+    return complex_weight_left, complex_weight_right
 
 
 def fit_uncertainty_weight(
-    complex_response_uncertainty_weight: Union[
-        np.ndarray, control.FrequencyResponseData
-    ],
+    complex_uncertainty_weight: Union[np.ndarray, control.FrequencyResponseData],
     omega: np.ndarray,
     order: Union[int, List[int], np.ndarray],
+    uncertainty_weight_type: Literal["left", "right"],
+    uncertainty_weight_structure: Literal["scalar", "diagonal", "full"],
     weight: Optional[np.ndarray] = None,
-    linear_solver_params: Optional[Dict[str, Any]] = None,
+    solver_params: Optional[Dict[str, Any]] = None,
     tol_bisection: float = 1e-3,
     max_iter_bisection: int = 500,
-    num_spec_constr: int = 500,
+    max_iter_bisection_init: int = 15,
+    nbr_power_constraint: int = 500,
 ) -> control.StateSpace:
-    """Fit an overbounding stable and minimum-phase state-space uncertainty weight to
-    frequency response data.
+    """Fit an overbounding stable and minimum-phase uncertainty weight.
 
     Parameters
     ----------
-    complex_response_uncertainty_weight : Union[np.ndarray, control.FrequencyResponseData]
-        Uncertainty weight frequency response used for the overbounding fit.
+    complex_uncertainty_weight : Union[np.ndarray, control.FrequencyResponseData]
+        Frequency response of uncertainty weight.
     order : Union[int, List[int], np.ndarray]
-        Order of the LTI system fit. If `order` is an `int`, the order will be
-        used for all elements of the weight. If `order` is a `List` or `np.ndarray`,
-        the order can be specified for each element of the weight.
-    weight : Optional[np.ndarray] = None
-        Frequency-dependent weight used to improve the fit over certain bandwidths. The
-        weight is a 2D array with the first dimension representing the number of
-        elements in the weight and the second dimension representing the number of
-        frequency points.
-    linear_solver_params : Dict[str, Any]
-        Keyword arguments for the linear feasibility problem solver. See
-        [#cvxpy_solver]_ for more information.
+        Order of the uncertainty weight model.
+    uncertainty_weight_type: Literal["left", "right"],
+        Identifier for the left or right uncertainty weight.
+    uncertainty_weight_structure : Literal["scalar", "diagonal", "full"]
+        Structure constraint for the uncertainty weight.
+    weight : Optional[np.ndrray] = None
+        Frequency-dependent weight for fit accuracy.
+    solver_params: Optional[Dict[str, Any]]
+        Solver parameters for the optimization problem. These are keyword arguments for
+        `cvxpy.Problem.solve()` [#cvxpy_solver]_.
     tol_bisection : float
         Numerical tolerance for the bisection algorithm.
     max_iter_bisection : int
-        Maximum allowable number of iterations in the bisection algorithm.
-    num_spec_constr : int
-        Number of constraints used to enforce the spectral factorizability of the
-        fitted autocorrelation.
+        Maximum number of iterations for the bisection algorithm.
+    max_iter_bisection_init : int
+        Maximum number of iterations for the bisection algorithm initialization.
+    nbr_power_constraint : Optional[np.ndarray]
+        Number of frequencies to enforce non-negativity of power spectrum.
 
     Returns
     -------
     control.StateSpace
-        Fitted overbounding uncertainty weight state-space systems.
+        Overbounding stable and minimum-phase uncertainty weight.
 
     Examples
     --------
@@ -828,14 +664,7 @@ def fit_uncertainty_weight(
     >>> complex_response_nom, complex_response_offnom_list, omega = (
     ...     example_multimodel_uncertainty
     ... )
-    >>> uncertainty_models = {
-    ...     "additive",
-    ...     "multiplicative_input",
-    ...     "multiplicative_output",
-    ...     "inverse_additive",
-    ...     "inverse_multiplicative_input",
-    ...     "inverse_multiplicative_output",
-    ... }
+    >>> uncertainty_models = ["multiplicative_input"]
     >>> complex_response_residual_dict = compute_uncertainty_residual_response(
     ...     complex_response_nom,
     ...     complex_response_offnom_list,
@@ -849,10 +678,10 @@ def fit_uncertainty_weight(
     ...     )
     ... )
     >>> weight_left = dkpy.fit_uncertainty_weight(
-    ...     complex_response_weight_left, omega, [4, 5]
+    ...     complex_response_weight_left, omega, [4, 5], "left", "diagonal"
     ... )
     >>> weight_right = dkpy.fit_uncertainty_weight(
-    ...     complex_response_weight_right, omega, [3, 5]
+    ...     complex_response_weight_right, omega, [3, 5], "right", "diagonal"
     ... )
 
     References
@@ -861,12 +690,12 @@ def fit_uncertainty_weight(
     """
 
     # Convert frequency response data to expected type
-    complex_response_uncertainty_weight = _convert_frequency_response_data_to_array(
-        complex_response_uncertainty_weight
+    complex_uncertainty_weight = _convert_frequency_response_data_to_array(
+        complex_uncertainty_weight
     )
 
     # Solver settings
-    linear_solver_params = (
+    solver_params = (
         {
             "solver": cvxpy.CLARABEL,
             "tol_gap_abs": 1e-9,
@@ -875,54 +704,746 @@ def fit_uncertainty_weight(
             "tol_infeas_abs": 1e-9,
             "tol_infeas_rel": 1e-9,
         }
-        if linear_solver_params is None
-        else linear_solver_params
+        if solver_params is None
+        else solver_params
     )
 
-    # Parse arguments
-    num_elements = complex_response_uncertainty_weight.shape[1]
-    order_list = (
-        order * np.ones(num_elements, dtype=int)
-        if isinstance(order, int)
-        else np.array(order, dtype=int)
-    )
+    # Fit method dispatcher
+    fit_method_dispatcher = {
+        "scalar": _fit_uncertainty_weight_scalar,
+        "diagonal": _fit_uncertainty_weight_diagonal,
+        "full": _fit_uncertainty_weight_full,
+    }
 
-    if weight is None:
-        # Take the default frequency-dependent weight as the normalized magnitude the
-        # uncertainty weight magnitude in order to place greater importance on tightly
-        # overbounding at the largest uncertainties
-        weight = np.diagonal(
-            np.abs(complex_response_uncertainty_weight), axis1=1, axis2=2
+    # Select uncertainty weight fit method based on weight structure
+    try:
+        fit_uncertainty_weight_method = fit_method_dispatcher[
+            uncertainty_weight_structure
+        ]
+    except KeyError:
+        raise KeyError(
+            "Exptected `weight_structure` to be `scalar`, `diagonal` or `full` (got "
+            f"`{uncertainty_weight_structure}`)."
         )
-        weight = weight / np.max(weight, axis=0)
 
+    # Fit uncertainty weight
+    uncertainty_weight = fit_uncertainty_weight_method(
+        complex_uncertainty_weight,
+        omega,
+        order,
+        uncertainty_weight_type,
+        weight,
+        solver_params,
+        tol_bisection,
+        max_iter_bisection,
+        max_iter_bisection_init,
+        nbr_power_constraint,
+    )
+
+    return uncertainty_weight
+
+
+def _fit_uncertainty_weight_scalar(
+    complex_uncertainty_weight: np.ndarray,
+    omega: np.ndarray,
+    order: int,
+    uncertainty_weight_type: Literal["left", "right"],
+    weight: Optional[np.ndarray] = None,
+    solver_params: Optional[Dict[str, Any]] = None,
+    tol_bisection: float = 1e-3,
+    max_iter_bisection: int = 500,
+    max_iter_bisection_init: int = 15,
+    nbr_power_constraint: int = 500,
+) -> control.StateSpace:
+    """Fit an overbounding stable and minimum-phase scalar uncertainty weight.
+
+    Parameters
+    ----------
+    complex_uncertainty_weight : Union[np.ndarray, control.FrequencyResponseData]
+        Frequency response of uncertainty weight.
+    order : Union[int, List[int], np.ndarray]
+        Order of the uncertainty weight model.
+    uncertainty_weight_type: Literal["left", "right"],
+        Identifier for the left or right uncertainty weight.
+    weight : Optional[np.ndrray] = None
+        Frequency-dependent weight for fit accuracy.
+    solver_params: Optional[Dict[str, Any]]
+        Solver parameters for the optimization problem. These are keyword arguments for
+        `cvxpy.Problem.solve()` [#cvxpy_solver]_.
+    tol_bisection : float
+        Numerical tolerance for the bisection algorithm.
+    max_iter_bisection : int
+        Maximum number of iterations for the bisection algorithm.
+    max_iter_bisection_init : int
+        Maximum number of iterations for the bisection algorithm initialization.
+    nbr_power_constraint : Optional[np.ndarray]
+        Number of frequencies to enforce non-negativity of power spectrum.
+
+    Returns
+    -------
+    control.StateSpace
+        Overbounding stable and minimum-phase uncertainty weight.
+
+    References
+    ----------
+    .. [#cxvpy_solver] https://www.cvxpy.org/tutorial/solvers/index.html
+    """
+
+    # Auxiliary parameters
+    nbr_signals = complex_uncertainty_weight.shape[1]
+
+    # Compute the magnitude of the scalar weight. Given that a scalar weight is assumed,
+    # the weight contains the same values on the diagonals and zeros elsewhere.
+    # Therefore, we take the first diagonal as they are identical along the diagonal.
+    magnitude_uncertainty_weight = np.abs(complex_uncertainty_weight[:, 0, 0])
+
+    # Fit the scalar uncertainty weight
+    uncertainty_weight_scalar = lti_system_fit.fit_magnitude_siso_ct(
+        magnitude_fit=magnitude_uncertainty_weight,
+        omega=omega,
+        order=order,
+        magnitude_upper_bound=None,
+        magnitude_lower_bound=magnitude_uncertainty_weight,
+        weight=weight,
+        solver_params=solver_params,
+        tol_bisection=tol_bisection,
+        max_iter_bisection=max_iter_bisection,
+        max_iter_bisection_init=max_iter_bisection_init,
+        nbr_power_constraint=nbr_power_constraint,
+    )
+
+    # Duplicate the scalar uncertainty weight along the diagonal
+    uncertainty_weight = control.append(*([uncertainty_weight_scalar] * nbr_signals))
+
+    return uncertainty_weight
+
+
+def _fit_uncertainty_weight_diagonal(
+    complex_uncertainty_weight: np.ndarray,
+    omega: np.ndarray,
+    order: Union[int, List[int]],
+    uncertainty_weight_type: Literal["left", "right"],
+    weight: Optional[np.ndarray] = None,
+    solver_params: Optional[Dict[str, Any]] = None,
+    tol_bisection: float = 1e-3,
+    max_iter_bisection: int = 500,
+    max_iter_bisection_init: int = 15,
+    nbr_power_constraint: int = 500,
+):
+    """Fit an overbounding stable and minimum-phase diagonal uncertainty weight.
+
+    Parameters
+    ----------
+    complex_uncertainty_weight : Union[np.ndarray, control.FrequencyResponseData]
+        Frequency response of uncertainty weight.
+    order : Union[int, List[int], np.ndarray]
+        Order of the uncertainty weight model.
+    uncertainty_weight_type: Literal["left", "right"],
+        Identifier for the left or right uncertainty weight.
+    weight : Optional[np.ndrray] = None
+        Frequency-dependent weight for fit accuracy.
+    solver_params: Optional[Dict[str, Any]]
+        Solver parameters for the optimization problem. These are keyword arguments for
+        `cvxpy.Problem.solve()` [#cvxpy_solver]_.
+    tol_bisection : float
+        Numerical tolerance for the bisection algorithm.
+    max_iter_bisection : int
+        Maximum number of iterations for the bisection algorithm.
+    max_iter_bisection_init : int
+        Maximum number of iterations for the bisection algorithm initialization.
+    nbr_power_constraint : Optional[np.ndarray]
+        Number of frequencies to enforce non-negativity of power spectrum.
+
+    Returns
+    -------
+    control.StateSpace
+        Overbounding stable and minimum-phase uncertainty weight.
+
+    References
+    ----------
+    .. [#cxvpy_solver] https://www.cvxpy.org/tutorial/solvers/index.html
+    """
+    # Auxiliary parameters
+    nbr_signals = complex_uncertainty_weight.shape[1]
+
+    # Parse order into list format
+    order_list = [order] * nbr_signals if isinstance(order, int) else order
+
+    # Fit the diagonal uncertainty weight elements
     uncertainty_weight_list = []
-    for idx_element in range(num_elements):
-        # Extract the parameters relevant to each SISO uncertainty weight element
-        magnitude_response_weight_element = np.abs(
-            complex_response_uncertainty_weight[:, idx_element, idx_element]
-        )
-        order_element = order_list[idx_element]
-        weight_element = weight[:, idx_element]
+    for idx in range(nbr_signals):
+        # Compute the magnitude of the diagonal uncertainty weight element
+        magnitude_uncertainty_weight = np.abs(complex_uncertainty_weight[:, idx, idx])
+        order_idx = order_list[idx]
 
-        # Fit the uncertainty weight to each SISO element
-        uncertainty_weight_element = utilities._fit_magnitude_log_chebyshev_siso(
+        # Fit the diagonal uncertainty weight element
+        uncertainty_weight_diagonal = lti_system_fit.fit_magnitude_siso_ct(
+            magnitude_fit=magnitude_uncertainty_weight,
             omega=omega,
-            magnitude_fit=magnitude_response_weight_element,
-            order=order_element,
-            magnitude_lower_bound=magnitude_response_weight_element,
-            weight=weight_element,
-            linear_solver_params=linear_solver_params,
+            order=order_idx,
+            magnitude_upper_bound=None,
+            magnitude_lower_bound=magnitude_uncertainty_weight,
+            weight=weight,
+            solver_params=solver_params,
             tol_bisection=tol_bisection,
             max_iter_bisection=max_iter_bisection,
-            num_spec_constr=num_spec_constr,
+            max_iter_bisection_init=max_iter_bisection_init,
+            nbr_power_constraint=nbr_power_constraint,
         )
-        uncertainty_weight_list.append(uncertainty_weight_element)
+        uncertainty_weight_list.append(uncertainty_weight_diagonal)
 
-    # Construct uncertainty weight fit from SISO elements
+    # Construct the diagonal uncertainty weight from the diagonal elements
     uncertainty_weight = control.append(*uncertainty_weight_list)
 
     return uncertainty_weight
+
+
+def _fit_uncertainty_weight_full(
+    complex_uncertainty_weight: np.ndarray,
+    omega: np.ndarray,
+    order: int,
+    uncertainty_weight_type: Literal["left", "right"],
+    weight: Optional[np.ndarray] = None,
+    solver_params: Optional[Dict[str, Any]] = None,
+    tol_bisection: float = 1e-3,
+    max_iter_bisection: int = 500,
+    max_iter_bisection_init: int = 15,
+    nbr_power_constraint: int = 500,
+):
+    """Fit an overbounding stable and minimum-phase full uncertainty weight.
+
+    Parameters
+    ----------
+    complex_uncertainty_weight : Union[np.ndarray, control.FrequencyResponseData]
+        Frequency response of uncertainty weight.
+    order : Union[int, List[int], np.ndarray]
+        Order of the uncertainty weight model.
+    uncertainty_weight_type: Literal["left", "right"],
+        Identifier for the left or right uncertainty weight.
+    weight : Optional[np.ndrray] = None
+        Frequency-dependent weight for fit accuracy.
+    solver_params: Optional[Dict[str, Any]]
+        Solver parameters for the optimization problem. These are keyword arguments for
+        `cvxpy.Problem.solve()` [#cvxpy_solver]_.
+    tol_bisection : float
+        Numerical tolerance for the bisection algorithm.
+    max_iter_bisection : int
+        Maximum number of iterations for the bisection algorithm.
+    max_iter_bisection_init : int
+        Maximum number of iterations for the bisection algorithm initialization.
+    nbr_power_constraint : Optional[np.ndarray]
+        Number of frequencies to enforce non-negativity of power spectrum.
+
+    Returns
+    -------
+    control.StateSpace
+        Overbounding stable and minimum-phase uncertainty weight.
+
+    References
+    ----------
+    .. [#cxvpy_solver] https://www.cvxpy.org/tutorial/solvers/index.html
+    """
+
+    raise NotImplementedError()
+
+
+def compute_uncertainty_measure_response(
+    complex_nominal: Union[np.ndarray, control.FrequencyResponseData],
+    complex_weight_left: Union[np.ndarray, control.FrequencyResponseData],
+    complex_weight_right: Union[np.ndarray, control.FrequencyResponseData],
+    uncertainty_model: str,
+) -> np.ndarray:
+    """Compute measure (size/volume) frequency response of uncertainty model.
+
+    Parameters
+    ----------
+    complex_nominal : Union[np.ndarray, control.FrequencyResponseData]
+        Nominal model complex frequency response.
+    complex_weight_left : Union[np.ndarray, control.FrequencyResponseData]
+        Left uncertainty weight complex frequency response.
+    complex_weight_right : Union[np.ndarray, control.FrequencyResponseData]
+        Right uncertainty weight complex frequency reponse.
+    uncertainty_model : str
+        Uncertainty model identifier to compute the residual response. The valid
+        uncertainty model identifiers are:
+            - "additive"
+            - "multiplicative_input"
+            - "multiplicative_output"
+            - "inverse_additive"
+            - "inverse_multiplicative_input",
+            - "inverse_multiplicative_output"
+
+
+    Returns
+    -------
+    np.ndarray
+        Measure frequency response.
+
+
+    Examples
+    --------
+    Compute the uncertainty measure response for a multiplicative input uncertainty
+    model.
+
+    >>> complex_nominal, complex_offnominal_list, omega = (
+    ...     example_multimodel_uncertainty
+    ... )
+    >>> uncertainty_models = ["multiplicative_input"]
+    >>> complex_residual_dict = compute_uncertainty_residual_response(
+    ...     complex_nominal,
+    ...     complex_offnominal_list,
+    ...     uncertainty_models,
+    ... )
+    >>> complex_weight_left, complex_weight_right = (
+    ...     dkpy.compute_uncertainty_weight_response(
+    ...         complex_residual_dict["multiplicative_input"],
+    ...         "diagonal",
+    ...         "diagonal",
+    ...     )
+    ... )
+    >>> measure = dkpy.compute_uncertainty_measure_response(
+    ...     complex_nominal,
+    ...     complex_weight_left,
+    ...     complex_weight_right,
+    ...     "multiplicative_input",
+    ... )
+    """
+
+    complex_nominal = _convert_frequency_response_data_to_array(complex_nominal)
+    complex_weight_left = _convert_frequency_response_data_to_array(complex_weight_left)
+    complex_weight_right = _convert_frequency_response_data_to_array(
+        complex_weight_right
+    )
+
+    transform_to_additive_dispatcher = {
+        "additive": _transform_additive_to_additive,
+        "multiplicative_input": _transform_multiplicative_input_to_additive,
+        "multiplicative_output": _transform_multiplicative_output_to_additive,
+        "inverse_additive": _transform_inverse_additive_to_additive,
+        "inverse_multiplicative_input": _transform_inverse_multiplicative_input_to_additive,
+        "inverse_multiplicative_output": _transform_inverse_multiplicative_output_to_additive,
+    }
+
+    # Compute equivalent additive uncertainty model frequency response
+    complex_uncertainty_add = transform_to_additive_dispatcher[uncertainty_model](
+        complex_nominal, complex_weight_left, complex_weight_right
+    )
+    complex_nominal_add = complex_uncertainty_add[0]
+    complex_weight_left_add = complex_uncertainty_add[1]
+    complex_weight_right_add = complex_uncertainty_add[2]
+
+    # Compute minimal representation of additive uncertainty frequency response
+    complex_weight_add_min = _compute_minimal_weights_additive(
+        complex_weight_left_add, complex_weight_right_add
+    )
+    complex_weight_left_add = complex_weight_add_min[0]
+    complex_weight_right_add = complex_weight_add_min[1]
+
+    # Compute measure frequency response of minimal additive uncertainty response
+    measure = _compute_uncertainty_measure_additive(
+        complex_weight_left_add, complex_weight_right_add
+    )
+
+    return measure
+
+
+def _compute_uncertainty_measure_additive(
+    complex_weight_left: np.ndarray,
+    complex_weight_right: np.ndarray,
+) -> np.ndarray:
+    """Compute measure (size/volume) frequency response of additive uncertainty.
+
+    Parameters
+    ----------
+    complex_nominal : np.ndarray
+        Nominal model complex frequency response of additive uncertainty.
+    complex_weight_left : np.ndarray
+        Left uncertainty weight complex frequency response of additive uncertainty.
+    complex_weight_right : np.ndarray
+        Right uncertainty weight complex frequency response of additive uncertainty
+
+    Returns
+    -------
+    np.ndarray
+        Measure frequency response of additive uncertainty.
+
+    Raises
+    ------
+    ValueError
+        Left uncertainty weight is non-square.
+    ValueError
+        Right uncertainty weight is non-square.
+    """
+
+    # Check uncertainty weight dimensions
+    if complex_weight_left.shape[1] != complex_weight_left.shape[2]:
+        raise ValueError(
+            "Left uncertainty weight must be square (got "
+            f"{complex_weight_left.shape[1]} rows and {complex_weight_left.shape[2]} "
+            f"columns)."
+        )
+    if complex_weight_right.shape[1] != complex_weight_right.shape[2]:
+        raise ValueError(
+            "Right uncertainty weight must be square (got "
+            f"{complex_weight_right.shape[1]} rows and {complex_weight_right.shape[2]} "
+            f"columns)."
+        )
+
+    # Auxiliary parameters
+    nbr_inputs = complex_weight_right.shape[1]
+    nbr_outputs = complex_weight_left.shape[1]
+
+    # Measure computation
+    measure_weight_left = np.abs(np.linalg.det(complex_weight_left)) ** (
+        2 / nbr_outputs
+    )
+    measure_weight_right = np.abs(np.linalg.det(complex_weight_right)) ** (
+        2 / nbr_inputs
+    )
+    measure = measure_weight_left * measure_weight_right
+
+    return measure
+
+
+def _transform_additive_to_additive(
+    complex_nominal: np.ndarray,
+    complex_weight_left: np.ndarray,
+    complex_weight_right: np.ndarray,
+) -> Tuple[np.ndarray, np.ndarray, np.ndarray]:
+    """Transform additive uncertainty frequency response to additive form.
+
+    Parameters
+    ----------
+    complex_nominal : np.ndarray
+        Nominal model complex frequency response of additive uncertainty.
+    complex_weight_left : np.ndarray
+        Left uncertainty weight complex frequency response of additive uncertainty.
+    complex_weight_right : np.ndarray
+        Right uncertainty weight complex frequency response of additive uncertainty.
+
+    Returns
+    -------
+    Tuple[np.ndarray, np.ndarray, np.ndarray]
+        Nominal model, left uncertainty weight, and right uncertainty weight complex
+        frequency response of equivalent additive uncertainty.
+    """
+
+    # Nominal model
+    complex_nominal_add = complex_nominal
+
+    # Left uncertainty weight
+    complex_weight_left_add = complex_weight_left
+
+    # Right uncertainty weight
+    complex_weight_right_add = complex_weight_right
+
+    return complex_nominal_add, complex_weight_left_add, complex_weight_right_add
+
+
+def _transform_multiplicative_input_to_additive(
+    complex_nominal: np.ndarray,
+    complex_weight_left: np.ndarray,
+    complex_weight_right: np.ndarray,
+) -> Tuple[np.ndarray, np.ndarray, np.ndarray]:
+    """Transform multiplicative input uncertainty frequency response to additive form.
+
+    Parameters
+    ----------
+    complex_nominal : np.ndarray
+        Nominal model complex frequency response of multiplicative input uncertainty.
+    complex_weight_left : np.ndarray
+        Left uncertainty weight complex frequency response of multiplicative input
+        uncertainty.
+    complex_weight_right : np.ndarray
+        Right uncertainty weight complex frequency response of multiplicative input
+        uncertainty.
+
+    Returns
+    -------
+    Tuple[np.ndarray, np.ndarray, np.ndarray]
+        Nominal model, left uncertainty weight, and right uncertainty weight complex
+        frequency response of equivalent additive uncertainty.
+    """
+
+    # Nominal model
+    complexnominal_add = complex_nominal
+
+    # Left uncertainty weight
+    complex_weight_left_add = complex_nominal @ complex_weight_left
+
+    # Right uncertainty weight
+    complex_weight_right_add = complex_weight_right
+
+    return complexnominal_add, complex_weight_left_add, complex_weight_right_add
+
+
+def _transform_multiplicative_output_to_additive(
+    complex_nominal: np.ndarray,
+    complex_weight_left: np.ndarray,
+    complex_weight_right: np.ndarray,
+) -> Tuple[np.ndarray, np.ndarray, np.ndarray]:
+    """Transform multiplicative output uncertainty frequency response to additive form.
+
+    Parameters
+    ----------
+    complex_nominal : np.ndarray
+        Nominal model complex frequency response of multiplicative output uncertainty.
+    complex_weight_left : np.ndarray
+        Left uncertainty weight complex frequency response of multiplicative output
+        uncertainty.
+    complex_weight_right : np.ndarray
+        Right uncertainty weight complex frequency response of multiplicative output
+        uncertainty.
+
+    Returns
+    -------
+    Tuple[np.ndarray, np.ndarray, np.ndarray]
+        Nominal model, left uncertainty weight, and right uncertainty weight complex
+        frequency response of equivalent additive uncertainty.
+    """
+
+    # Nominal model
+    complex_nominal_add = complex_nominal
+
+    # Left uncertainty weight
+    complex_weight_left_add = complex_weight_left
+
+    # Right uncertainty weight
+    complex_weight_right_add = complex_weight_right @ complex_nominal
+
+    return complex_nominal_add, complex_weight_left_add, complex_weight_right_add
+
+
+def _transform_inverse_additive_to_additive(
+    complex_nominal: np.ndarray,
+    complex_weight_left: np.ndarray,
+    complex_weight_right: np.ndarray,
+) -> Tuple[np.ndarray, np.ndarray, np.ndarray]:
+    """Transform inverse additive uncertainty frequency response to additive form.
+
+    Parameters
+    ----------
+    complex_nominal : np.ndarray
+        Nominal model complex frequency response of inverse additive uncertainty.
+    complex_weight_left : np.ndarray
+        Left uncertainty weight complex frequency response of inverse additive
+        uncertainty.
+    complex_weight_right : np.ndarray
+        Right uncertainty weight complex frequency response of inverse additive
+        uncertainty.
+
+    Returns
+    -------
+    Tuple[np.ndarray, np.ndarray, np.ndarray]
+        Nominal model, left uncertainty weight, and right uncertainty weight complex
+        frequency response of equivalent additive uncertainty.
+    """
+
+    # Auxiliary variables
+    product = complex_weight_right @ complex_nominal @ complex_weight_left
+    product_herm = np.moveaxis(product.conj(), -1, -2)
+    eye_outer = np.eye(product.shape[-2])[None, :, :]
+    eye_inner = np.eye(product.shape[-1])[None, :, :]
+
+    # Nominal model
+    a_nominal = eye_outer - product @ product_herm
+    b_nominal = complex_weight_right @ complex_nominal
+    x_nominal = np.linalg.solve(a_nominal, b_nominal)
+    complex_nominal_add = (
+        complex_nominal
+        + complex_nominal @ complex_weight_left @ product_herm @ x_nominal
+    )
+
+    # Left uncertainty weight
+    # The transpose using np.moveaxis is required as the linear system solved is in the
+    # form X @ A = B whereas numpy requires C @ X = D. The original problem is converted
+    # to the equivalent problem A.T @ X.T = B.T.
+    a_left = np.moveaxis(scipy.linalg.sqrtm(eye_inner - product_herm @ product), -1, -2)
+    b_left = np.moveaxis(-(complex_nominal @ complex_weight_left), -1, -2)
+    complex_weight_left_add = np.moveaxis(np.linalg.solve(a_left, b_left), -1, -2)
+
+    # Right uncertainty weight
+    a_right = scipy.linalg.sqrtm(eye_outer - product @ product_herm)
+    b_right = complex_weight_right @ complex_nominal
+    complex_weight_right_add = np.linalg.solve(a_right, b_right)
+
+    return complex_nominal_add, complex_weight_left_add, complex_weight_right_add
+
+
+def _transform_inverse_multiplicative_input_to_additive(
+    complex_nominal: np.ndarray,
+    complex_weight_left: np.ndarray,
+    complex_weight_right: np.ndarray,
+) -> Tuple[np.ndarray, np.ndarray, np.ndarray]:
+    """Transform inverse multiplicative input uncertainty frequency response to additive form.
+
+    Parameters
+    ----------
+    complex_nominal : np.ndarray
+        Nominal model complex frequency response of inverse multiplicative input
+        uncertainty.
+    complex_weight_left : np.ndarray
+        Left uncertainty weight complex frequency response of inverse multiplicative
+        input uncertainty.
+    complex_weight_right : np.ndarray
+        Right uncertainty weight complex frequency response of inverse multiplicative
+        input uncertainty.
+
+    Returns
+    -------
+    Tuple[np.ndarray, np.ndarray, np.ndarray]
+        Nominal model, left uncertainty weight, and right uncertainty weight complex
+        frequency response of equivalent additive uncertainty.
+    """
+    # Auxiliary variables
+    product = complex_weight_right @ complex_weight_left
+    product_herm = np.moveaxis(product.conj(), -1, -2)
+    eye_outer = np.eye(product.shape[-2])[None, :, :]
+    eye_inner = np.eye(product.shape[-1])[None, :, :]
+
+    # Nominal model
+    a_nominal = eye_outer - product @ product_herm
+    b_nominal = complex_weight_right
+    x_nominal = np.linalg.solve(a_nominal, b_nominal)
+    complex_nominal_add = (
+        complex_nominal
+        + complex_nominal @ complex_weight_left @ product_herm @ x_nominal
+    )
+
+    # Left uncertainty weight
+    # The transpose using np.moveaxis is required as the linear system solved is in the
+    # form X @ A = B whereas numpy requires C @ X = D. The original problem is converted
+    # to the equivalent problem A.T @ X.T = B.T.
+    a_left = np.moveaxis(scipy.linalg.sqrtm(eye_inner - product_herm @ product), -1, -2)
+    b_left = np.moveaxis(-(complex_nominal @ complex_weight_left), -1, -2)
+    complex_weight_left_add = np.moveaxis(np.linalg.solve(a_left, b_left), -1, -2)
+
+    # Right uncertainty weight
+    a_right = scipy.linalg.sqrtm(eye_outer - product @ product_herm)
+    b_right = complex_weight_right
+    complex_weight_right_add = np.linalg.solve(a_right, b_right)
+
+    return complex_nominal_add, complex_weight_left_add, complex_weight_right_add
+
+
+def _transform_inverse_multiplicative_output_to_additive(
+    complex_nominal: np.ndarray,
+    complex_weight_left: np.ndarray,
+    complex_weight_right: np.ndarray,
+) -> Tuple[np.ndarray, np.ndarray, np.ndarray]:
+    """Transform inverse multiplicative output uncertainty frequency response to additive form.
+
+    Parameters
+    ----------
+    complex_nominal : np.ndarray
+        Nominal model complex frequency response of inverse multiplicative output
+        uncertainty.
+    complex_weight_left : np.ndarray
+        Left uncertainty weight complex frequency response of inverse multiplicative
+        output uncertainty.
+    complex_weight_right : np.ndarray
+        Right uncertainty weight complex frequency response of inverse multiplicative
+        output uncertainty.
+
+    Returns
+    -------
+    Tuple[np.ndarray, np.ndarray, np.ndarray]
+        Nominal model, left uncertainty weight, and right uncertainty weight complex
+        frequency response of equivalent additive uncertainty.
+    """
+    # Auxiliary variables
+    product = complex_weight_right @ complex_weight_left
+    product_herm = np.moveaxis(product.conj(), -1, -2)
+    eye_outer = np.eye(product.shape[-2])[None, :, :]
+    eye_inner = np.eye(product.shape[-1])[None, :, :]
+
+    # Nominal model
+    a_nominal = eye_outer - product @ product_herm
+    b_nominal = complex_weight_right @ complex_nominal
+    x_nominal = np.linalg.solve(a_nominal, b_nominal)
+    complex_nominal_add = (
+        complex_nominal + complex_weight_left @ product_herm @ x_nominal
+    )
+
+    # Left uncertainty weight
+    # The transpose using np.moveaxis is required as the linear system solved is in the
+    # form X @ A = B whereas numpy requires C @ X = D. The original problem is converted
+    # to the equivalent problem A.T @ X.T = B.T.
+    a_left = np.moveaxis(scipy.linalg.sqrtm(eye_inner - product_herm @ product), -1, -2)
+    b_left = np.moveaxis(-complex_weight_left, -1, -2)
+    complex_weight_left_add = np.moveaxis(np.linalg.solve(a_left, b_left), -1, -2)
+
+    # Right uncertainty weight
+    a_right = scipy.linalg.sqrtm(eye_outer - product @ product_herm)
+    b_right = complex_weight_right @ complex_nominal
+    complex_weight_right_add = np.linalg.solve(a_right, b_right)
+
+    return complex_nominal_add, complex_weight_left_add, complex_weight_right_add
+
+
+def _compute_minimal_weights_additive(
+    complex_weight_left: np.ndarray,
+    complex_weight_right: np.ndarray,
+) -> Tuple[np.ndarray, np.ndarray]:
+    """Compute minimal dimension additive uncertainty weight frequency response.
+
+    Parameters
+    ----------
+    complex_weight_left : np.ndarray
+        Left uncertainty weight complex response.
+    complex_weight_right : np.ndarray
+        Right uncertainty weight complex response.
+
+    Returns
+    -------
+    Tuple[np.ndarray, np.ndarray]
+        Minimal left and right uncertainty weight frequency response.
+
+    Raises
+    ------
+    ValueError
+        The number of perturbation outputs is less than the number of system outputs.
+    ValueError
+        The number of perturbation inputs is less than the number of system inputs.
+    """
+
+    # Number of inputs/outputs of system and perturbation (Delta block)
+    nbr_outputs_sys = complex_weight_left.shape[1]
+    nbr_inputs_sys = complex_weight_right.shape[2]
+    nbr_outputs_delta = complex_weight_left.shape[2]
+    nbr_inputs_delta = complex_weight_right.shape[1]
+
+    # Compute minimial left uncertainty weight
+    if nbr_outputs_sys > nbr_outputs_delta:
+        raise ValueError(
+            "The number of perturbation outputs (number of left uncertainty weight "
+            "columns) must be greater than the number of system outputs (number of "
+            "left uncertainty weight rows) for additive uncertainty (got "
+            f"{nbr_outputs_delta} perturbations outputs and {nbr_outputs_sys} system "
+            "outputs)."
+        )
+    elif nbr_outputs_sys < nbr_outputs_delta:
+        u_left, s_left, _ = np.linalg.svd(complex_weight_left, full_matrices=False)
+        complex_weight_left_min = s_left[:, None, :] * u_left  # Scale columns of U
+    else:
+        complex_weight_left_min = complex_weight_left
+
+    # Compute minimal right uncertainty weight
+    if nbr_inputs_sys > nbr_inputs_delta:
+        raise ValueError(
+            "The number of perturbation inputs (number of right uncertainty weight "
+            "rows) must be greater than the number of system inputs (number of "
+            "right uncertainty weight columns) for additive uncertainty (got "
+            f"{nbr_inputs_delta} perturbations inputs and {nbr_inputs_sys} system "
+            "inputs)."
+        )
+    elif nbr_inputs_sys < nbr_inputs_delta:
+        _, s_right, vh_right = np.linalg.svd(complex_weight_right, full_matrices=False)
+        complex_weight_right_min = s_right[:, :, None] * vh_right  # Scale rows of V^H
+    else:
+        complex_weight_right_min = complex_weight_right
+
+    return complex_weight_left_min, complex_weight_right_min
 
 
 def _convert_frequency_response_data_to_array(
@@ -1643,12 +2164,10 @@ def plot_singular_value_response_residual_comparison(
     return fig, ax, legend
 
 
-def plot_magnitude_response_uncertainty_weight(
-    complex_response_weight_left: np.ndarray,
-    complex_response_weight_right: np.ndarray,
+def plot_singular_value_response_uncertainty_weight(
+    complex_weight: np.ndarray,
     omega: np.ndarray,
-    weight_left: Optional[control.StateSpace] = None,
-    weight_right: Optional[control.StateSpace] = None,
+    weight_fit: Optional[control.LTI] = None,
     db: bool = True,
     hz: bool = False,
     frequency_log_scale: bool = True,
@@ -1656,24 +2175,17 @@ def plot_magnitude_response_uncertainty_weight(
     plot_response_fit_kw: Dict[str, Any] = {},
     subplot_kw: Dict[str, Any] = {},
 ) -> Tuple[Figure, Union[Axes, np.ndarray], Legend]:
-    """Plot the diagonal elements of the optimal left and right uncertainty weight
-    frequency responses. Optionally, the fitted overbounding left and right uncertainty
-    weights can also be displayed.
+    """Plot the singular value respone of an uncertainty weight.
 
     Parameters
     ----------
-    complex_response_weight_left : np.ndarray,
-        Frequency response matrices of the left uncertainty weight over a grid of
-        frequencies.
-    complex_response_weight_right : np.ndarray,
-        Frequency response matrices of the right uncertainty weight over a grid of
-        frequencies.
-    omega : np.ndarray
+    complex_weight : Dict[str, np.ndarray]
+        Dictionary of the uncertainty residual frequency response matrices over a grid
+        of frequencies for different uncertainty models.
+    omega : np.narray
         Angular frequency grid.
-    weight_left: Optional[control.StateSpace] = None,
-        State-space model if the fitted overbounding left uncertainty weight.
-    weight_right: Optional[control.StateSpace] = None,
-        State-space model if the fitted overbounding right uncertainty weight.
+    weight_fit : Optional[control.LTI]
+        Fitted uncertainty weight model.
     db : bool
         If True, plot the magnitude in units of dB. Otherwise, plot the magnitude in
         absolute units.
@@ -1683,12 +2195,9 @@ def plot_magnitude_response_uncertainty_weight(
     frequency_log_scale : bool
         If True, plot the frequency using a logarithmic axis. Otherwise, plot the
         the frequency using a linear axis.
-    plot_response_kw : Dict[str, Any]
-        Keyword arguments for the frequency response of the uncertainty weight plot.
-        See [#plot_kw]_ for more information on plotting keywords.
-    plot_response_fit_kw : Dict[str, Any]
-        Keyword arguments for the frequency response of the fitted uncertainty weight
-        plot. See [#plot_kw]_ for more information on plotting keywords.
+    plot_sval_max_kw : Dict[str, Any]
+        Keyword arguments for the maximum singular value plot. See [#plot_kw]_ for more
+        information on plotting keywords.
     subplot_kw : Dict[str, Any]
         Keyword arguments for the subplot. See [#subplot_kw]_ for more information on
         the subplot keywords.
@@ -1727,93 +2236,43 @@ def plot_magnitude_response_uncertainty_weight(
     subplot_kw = {} if subplot_kw is None else subplot_kw
     subplot_kwargs.update(subplot_kw)
 
-    # Uncertainty weight parameters
-    num_left = complex_response_weight_left.shape[1]
-    num_right = complex_response_weight_right.shape[1]
+    # Singular value weight response
+    sval_weight = np.linalg.svdvals(complex_weight)
+    sval_weight = control.mag2db(sval_weight) if db else sval_weight
 
-    # Magnitude response of the uncertainty weights
-    magnitude_response_weight_left = np.abs(complex_response_weight_left)
-    magnitude_response_weight_right = np.abs(complex_response_weight_right)
+    # Singular value weight fit response
+    if weight_fit is None:
+        sval_weight_fit = None
+    else:
+        frd_weight_fit = control.FrequencyResponseData(weight_fit, omega, squeeze=False)
+        response_weight_fit = frd_weight_fit.complex.transpose(2, 0, 1)
+        sval_weight_fit = np.linalg.svdvals(response_weight_fit)
+    sval_weight_fit = control.mag2db(sval_weight_fit) if db else sval_weight_fit
 
     # Initialize figure
-    fig, ax = plt.subplots(
-        max(num_left, num_right), 2, sharex=True, layout="constrained"
-    )
+    fig, ax = plt.subplots(**subplot_kwargs)
 
-    # Plot left uncertainty weight frequency response
-    for idx_left in range(num_left):
-        ax[idx_left, 0].plot(
+    # Plot weight singular value response
+    for idx_sval in range(sval_weight.shape[-1]):
+        ax.plot(
             omega / (2 * np.pi) if hz else omega,
-            control.mag2db(magnitude_response_weight_left[:, idx_left, idx_left])
-            if db
-            else magnitude_response_weight_left[:, idx_left, idx_left],
+            sval_weight[:, idx_sval],
             **plot_response_kwargs,
         )
-        ax[idx_left, 0].set_ylabel(
-            f"$|W_{{L, ({idx_left + 1}, {idx_left + 1})}}|$ (dB)"
-            if db
-            else f"$|W_{{L, ({idx_left + 1}, {idx_left + 1})}}|$ (-)"
-        )
-        ax[idx_left, 0].grid()
-    # Plot right uncertainty weight frequency response
-    for idx_right in range(num_left):
-        ax[idx_right, 1].plot(
-            omega / (2 * np.pi) if hz else omega,
-            control.mag2db(magnitude_response_weight_right[:, idx_right, idx_right])
-            if db
-            else magnitude_response_weight_right[:, idx_right, idx_right],
-            **plot_response_kwargs,
-        )
-        ax[idx_right, 1].set_ylabel(
-            f"$|W_{{R, ({idx_right + 1}, {idx_right + 1})}}|$ (dB)"
-            if db
-            else f"$|W_{{R, ({idx_right + 1}, {idx_right + 1})}}|$ (-)"
-        )
-        ax[idx_right, 1].grid()
-
-    # Plot left uncertainty weight fit frequency response
-    if weight_left is not None:
-        response_fit_weight_left = control.frequency_response(weight_left, omega)
-        magnitude_response_fit_weight_left = np.array(
-            response_fit_weight_left.magnitude
-        )
-        for idx_left in range(num_left):
-            ax[idx_left, 0].plot(
+        if sval_weight_fit is not None:
+            ax.plot(
                 omega / (2 * np.pi) if hz else omega,
-                control.mag2db(
-                    magnitude_response_fit_weight_left[idx_left, idx_left, :]
-                )
-                if db
-                else magnitude_response_fit_weight_left[idx_left, idx_left, :],
-                **plot_response_fit_kwargs,
-            )
-    # Plot right uncertainty weight fit frequency response
-    if weight_right is not None:
-        response_fit_weight_right = control.frequency_response(weight_right, omega)
-        magnitude_response_fit_weight_right = np.array(
-            response_fit_weight_right.magnitude
-        )
-        for idx_right in range(num_right):
-            ax[idx_right, 1].plot(
-                omega / (2 * np.pi) if hz else omega,
-                control.mag2db(
-                    magnitude_response_fit_weight_right[idx_right, idx_right, :]
-                )
-                if db
-                else magnitude_response_fit_weight_right[idx_right, idx_right, :],
+                sval_weight_fit[:, idx_sval],
                 **plot_response_fit_kwargs,
             )
 
     # Plot settings
-    for idx_col in range(2):
-        ax[-1, idx_col].set_xlabel("$f$ (Hz)" if hz else r"$\omega$ (rad/s)")
-    for ax_row in ax:
-        for ax_row_col in ax_row:
-            if frequency_log_scale:
-                ax_row_col.set_xscale("log")
-            if not ax_row_col.has_data():
-                fig.delaxes(ax_row_col)
-    handles, labels = ax[0, 0].get_legend_handles_labels()
+    ax.set_xlabel("$f$ (Hz)" if hz else r"$\omega$ (rad/s)")
+    ax.set_ylabel("Magnitude (dB)" if db else "Magnitude (-)")
+    ax.grid()
+    if frequency_log_scale:
+        ax.set_xscale("log")
+    handles, labels = ax.get_legend_handles_labels()
     legend_dict = dict(zip(labels, handles))
     legend = fig.legend(
         labels=legend_dict.keys(),
@@ -1823,3 +2282,86 @@ def plot_magnitude_response_uncertainty_weight(
     )
 
     return fig, ax, legend
+
+
+def plot_uncertainty_measure(
+    measure: np.ndarray,
+    omega: np.ndarray,
+    db: bool = True,
+    hz: bool = False,
+    frequency_log_scale: bool = True,
+    plot_kw: Dict[str, Any] = {},
+    subplot_kw: Dict[str, Any] = {},
+) -> Tuple[Figure, Union[Axes, np.ndarray]]:
+    """Plot uncertainty measure frequency response.
+
+    Parameters
+    ----------
+    measure : np.ndarray
+        Uncertainty measure frequency response.
+    omega : np.narray
+        Angular frequency grid.
+    weight_fit : Optional[control.LTI]
+        Fitted uncertainty weight model.
+    db : bool
+        If True, plot the magnitude in units of dB. Otherwise, plot the magnitude in
+        absolute units.
+    hz : bool
+        If True, plot the frequency in units of Hz. Otherwise, plot the frequency in
+        units of rad/s.
+    frequency_log_scale : bool
+        If True, plot the frequency using a logarithmic axis. Otherwise, plot the
+        the frequency using a linear axis.
+    plot_sval_max_kw : Dict[str, Any]
+        Keyword arguments for the maximum singular value plot. See [#plot_kw]_ for more
+        information on plotting keywords.
+    subplot_kw : Dict[str, Any]
+        Keyword arguments for the subplot. See [#subplot_kw]_ for more information on
+        the subplot keywords.
+
+    Returns
+    -------
+    Tuple[Figure, Union[Axes, np.ndarray], Legend]
+        Matplotlib Figure object, Axes object (or np.ndarray of Axes objects), and
+        Legend object.
+
+    References
+    ----------
+    .. [#plot_kw] https://matplotlib.org/stable/api/_as_gen/matplotlib.pyplot.plot.html
+    .. [#subplot_kw] https://matplotlib.org/stable/api/_as_gen/matplotlib.pyplot.subplots.html
+
+    """
+    # Plot keyword arguments
+    plot_kwargs = {
+        "color": "C0",
+        "marker": "",
+        "linestyle": "-",
+    }
+    plot_kwargs.update(plot_kw)
+
+    # Subplot keyword arguments
+    subplot_kwargs = {"sharex": True, "layout": "constrained"}
+    subplot_kw = {} if subplot_kw is None else subplot_kw
+    subplot_kwargs.update(subplot_kw)
+
+    # Measure response
+    measure = control.mag2db(measure) if db else measure
+
+    # Initialize figure
+    fig, ax = plt.subplots(**subplot_kwargs)
+
+    # Plot weight singular value response
+    ax.plot(
+        omega / (2 * np.pi) if hz else omega,
+        measure,
+        **plot_kwargs,
+    )
+
+    # Plot settings
+    ax.set_xlabel("$f$ (Hz)" if hz else r"$\omega$ (rad/s)")
+    ax.set_ylabel("Magnitude (dB)" if db else "Magnitude (-)")
+    ax.grid()
+    if frequency_log_scale:
+        ax.set_xscale("log")
+
+    return fig, ax

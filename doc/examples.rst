@@ -204,17 +204,17 @@ by the variation in parameters.
 Next, the uncertainty residual can be computed for each off-nominal system and
 uncertainty model. `dkpy` implements six unstructured uncertainty models:
 
-* Additive uncertainty ("A");
+* Additive uncertainty ("A")
     .. image:: _static/example_7/7_sval_residual_A.png
-* Multiplicative input uncertainty ("I");
+* Multiplicative input uncertainty ("I")
     .. image:: _static/example_7/7_sval_residual_I.png
-* Multiplicative output uncertainty ("O");
+* Multiplicative output uncertainty ("O")
     .. image:: _static/example_7/7_sval_residual_O.png
-* Inverse additive uncertainty ("iA");
+* Inverse additive uncertainty ("iA")
     .. image:: _static/example_7/7_sval_residual_iA.png
-* Inverse multiplicative input uncertainty ("iI");
+* Inverse multiplicative input uncertainty ("iI")
     .. image:: _static/example_7/7_sval_residual_iI.png
-* Inverse multiplicative output uncertainty ("iO").
+* Inverse multiplicative output uncertainty ("iO")
     .. image:: _static/example_7/7_sval_residual_iO.png
 
 See Chapter 8.2.3 of [SP06]_ for more information on these unstructured 
@@ -239,7 +239,10 @@ stable and minimum phase linear time-invariant (LTI) system can be fit to the
 frequency response of the weights to obtain a LTI description of the uncertainty
 set. The optimal weight frequency responses and fitted weights are shown below.
 
-.. image:: _static/example_7/7_uncertainty_weight.png
+* Left:
+    .. image:: _static/example_7/7_sval_uncertainty_weight_left.png
+* Right:
+    .. image:: _static/example_7/7_sval_uncertainty_weight_right.png
 
 Multi-Model Uncertainty Characterization: Aircraft Actuator Model
 -----------------------------------------------------------------
@@ -269,7 +272,7 @@ weight is constrained to the identity matrix. Given that the right uncertainty
 weight is the identity matrix, a fit does not need to be performed for this weight
 as it will be neglected in the generalized plant.
 
-.. image:: _static/example_8/8_magnitude_uncertainty_weight.png
+.. image:: _static/example_8/8_sval_uncertainty_weight_left.png
 
 
 
