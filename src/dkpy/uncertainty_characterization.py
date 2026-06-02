@@ -431,24 +431,38 @@ def _compute_residual_inverse_multiplicative_output(
 
 def compute_uncertainty_weight_response(
     complex_residual: Union[np.ndarray, control.FrequencyResponseList],
+    uncertainty_model: str,
     weight_left_structure: Literal["full", "diagonal", "scalar", "identity"],
     weight_right_structure: Literal["full", "diagonal", "scalar", "identity"],
+    method: Literal["trace", "measure"] = "trace",
     solver_params: Optional[Dict[str, Any]] = None,
 ) -> Tuple[np.ndarray, np.ndarray]:
     """Compute the optimal uncertainty weight frequency response.
-
-    The algorithm is based on a modified semidefinite program formulation presented in
-    [#uncertainty_characterization]_.
 
     Parameters
     ----------
     complex_residual : Union[np.ndarray, control.FrequencyResponseList]
         Frequency response of the residuals for which to compute the optimal uncertainty
         weights.
+    uncertainty_model : str
+        Uncertainty model identifier. The valid uncertainty model identifiers are:
+            - "additive"
+            - "multiplicative_input"
+            - "multiplicative_output"
+            - "inverse_additive"
+            - "inverse_multiplicative_input",
+            - "inverse_multiplicative_output"
     weight_left_structure : Literal["full", "diagonal", "scalar", "identity"]
         Structure of the left uncertainty weight.
     weight_right_structure : Literal["full", "diagonal", "scalar", "identity"]
         Structure of the right uncertainty weight.
+    method : Literal["trace", "measure"]
+        Method used to compute the optimal uncertainty weight response. The available
+        methods are:
+            - "trace": Minimize the trace of the uncertainty weights at a given
+              frequency.
+            - "measure": Minimize the measure of the uncertainty set at a given
+              frequency.
     solver_params : Dict[str, Any]
         Keyword arguments for the convex optimization solver. See [#cvxpy_solver]_ for
         more information.
@@ -456,8 +470,12 @@ def compute_uncertainty_weight_response(
     Returns
     -------
     Tuple[np.ndarray, np.ndarray]
-        Frequency response of the diagonal elements of the left and right uncertainty
-        weights.
+        Frequency response of the left and right uncertainty weights.
+
+    Notes
+    -----
+    The algorithm is based on a modified semidefinite program formulation presented in
+    [#uncertainty_characterization]_.
 
     Examples
     --------
@@ -513,6 +531,43 @@ def compute_uncertainty_weight_response(
         else solver_params
     )
 
+    raise NotImplementedError()
+
+
+def _compute_uncertainty_weight_response_trace(
+    complex_residual: np.ndarray,
+    weight_left_structure: Literal["full", "diagonal", "scalar", "identity"],
+    weight_right_structure: Literal["full", "diagonal", "scalar", "identity"],
+    solver_params: Dict[str, Any],
+):
+    """Compute the trace-optimal uncertainty weight frequency response.
+
+    Parameters
+    ----------
+    complex_residual : Union[np.ndarray, control.FrequencyResponseList]
+        Frequency response of the residuals for which to compute the optimal uncertainty
+        weights.
+    uncertainty_model : str
+        Uncertainty model identifier. The valid uncertainty model identifiers are:
+            - "additive"
+            - "multiplicative_input"
+            - "multiplicative_output"
+            - "inverse_additive"
+            - "inverse_multiplicative_input",
+            - "inverse_multiplicative_output"
+    weight_left_structure : Literal["full", "diagonal", "scalar", "identity"]
+        Structure of the left uncertainty weight.
+    weight_right_structure : Literal["full", "diagonal", "scalar", "identity"]
+        Structure of the right uncertainty weight.
+    solver_params : Dict[str, Any]
+        Keyword arguments for the convex optimization solver. See [#cvxpy_solver]_ for
+        more information.
+
+    Returns
+    -------
+    Tuple[np.ndarray, np.ndarray]
+        Frequency response of the left and right uncertainty weights.
+    """
     # Frequency response parameters
     nbr_frequency = complex_residual.shape[1]
     nbr_left = complex_residual.shape[2]
@@ -610,6 +665,133 @@ def compute_uncertainty_weight_response(
     complex_weight_right = np.array(complex_weight_right)
 
     return complex_weight_left, complex_weight_right
+
+
+def _compute_uncertainty_weight_response_measure(
+    complex_residual: Union[np.ndarray, control.FrequencyResponseList],
+    weight_left_structure: Literal["full", "diagonal", "scalar", "identity"],
+    weight_right_structure: Literal["full", "diagonal", "scalar", "identity"],
+    solver_params: Optional[Dict[str, Any]] = None,
+):
+    """Compute the measure-optimal uncertainty weight frequency response.
+
+    Parameters
+    ----------
+    complex_residual : Union[np.ndarray, control.FrequencyResponseList]
+        Frequency response of the residuals for which to compute the optimal uncertainty
+        weights.
+    uncertainty_model : str
+        Uncertainty model identifier. The valid uncertainty model identifiers are:
+            - "additive"
+    weight_left_structure : Literal["full", "diagonal", "scalar", "identity"]
+        Structure of the left uncertainty weight.
+    weight_right_structure : Literal["full", "diagonal", "scalar", "identity"]
+        Structure of the right uncertainty weight.
+    method : Literal["trace", "measure"]
+        Method used to compute the optimal uncertainty weight response. The available
+        methods are:
+            - "trace": Minimize the trace of the uncertainty weights at a given
+              frequency.
+            - "measure": Minimize the measure of the uncertainty set at a given
+              frequency.
+    solver_params : Dict[str, Any]
+        Keyword arguments for the convex optimization solver. See [#cvxpy_solver]_ for
+        more information.
+
+    Returns
+    -------
+    Tuple[np.ndarray, np.ndarray]
+        Frequency response of the left and right uncertainty weights.
+    """
+    raise NotImplementedError()
+
+
+def _compute_uncertainty_weight_response_measure_coupled(
+    complex_residual: Union[np.ndarray, control.FrequencyResponseList],
+    weight_left_structure: Literal["full", "diagonal", "scalar", "identity"],
+    weight_right_structure: Literal["full", "diagonal", "scalar", "identity"],
+    solver_params: Optional[Dict[str, Any]] = None,
+):
+    """Compute the measure-optimal uncertainty weight frequency response.
+
+    Parameters
+    ----------
+    complex_residual : Union[np.ndarray, control.FrequencyResponseList]
+        Frequency response of the residuals for which to compute the optimal uncertainty
+        weights.
+    weight_left_structure : Literal["full", "diagonal", "scalar", "identity"]
+        Structure of the left uncertainty weight.
+    weight_right_structure : Literal["full", "diagonal", "scalar", "identity"]
+        Structure of the right uncertainty weight.
+    solver_params : Dict[str, Any]
+        Keyword arguments for the convex optimization solver. See [#cvxpy_solver]_ for
+        more information.
+
+    Returns
+    -------
+    Tuple[np.ndarray, np.ndarray]
+        Frequency response of the left and right uncertainty weights.
+    """
+    raise NotImplementedError()
+
+
+def _compute_uncertainty_weight_response_measure_left(
+    complex_residual: Union[np.ndarray, control.FrequencyResponseList],
+    weight_left_structure: Literal["full", "diagonal", "scalar", "identity"],
+    solver_params: Optional[Dict[str, Any]] = None,
+):
+    """Compute the measure-optimal uncertainty weight frequency response.
+
+    Parameters
+    ----------
+    complex_residual : Union[np.ndarray, control.FrequencyResponseList]
+        Frequency response of the residuals for which to compute the optimal uncertainty
+        weights.
+    weight_left_structure : Literal["full", "diagonal", "scalar", "identity"]
+        Structure of the left uncertainty weight.
+    solver_params : Dict[str, Any]
+        Keyword arguments for the convex optimization solver. See [#cvxpy_solver]_ for
+        more information.
+
+    Returns
+    -------
+    Tuple[np.ndarray, np.ndarray]
+        Frequency response of the left and right uncertainty weights.
+    """
+    raise NotImplementedError()
+
+
+def _compute_uncertainty_weight_response_measure_right(
+    complex_residual: Union[np.ndarray, control.FrequencyResponseList],
+    weight_right_structure: Literal["full", "diagonal", "scalar", "identity"],
+    solver_params: Optional[Dict[str, Any]] = None,
+):
+    """Compute the measure-optimal uncertainty weight frequency response.
+
+    Parameters
+    ----------
+    complex_residual : Union[np.ndarray, control.FrequencyResponseList]
+        Frequency response of the residuals for which to compute the optimal uncertainty
+        weights.
+    weight_right_structure : Literal["full", "diagonal", "scalar", "identity"]
+        Structure of the right uncertainty weight.
+    solver_params : Dict[str, Any]
+        Keyword arguments for the convex optimization solver. See [#cvxpy_solver]_ for
+        more information.
+
+    Returns
+    -------
+    Tuple[np.ndarray, np.ndarray]
+        Frequency response of the left and right uncertainty weights.
+    """
+    raise NotImplementedError()
+
+
+def _parse_weight_structure(
+    weight_left_structure: Literal["full", "diagonal", "scalar", "identity"],
+    weight_right_structure: Literal["full", "diagonal", "scalar", "identity"],
+):
+    raise NotImplementedError()
 
 
 def fit_uncertainty_weight(
