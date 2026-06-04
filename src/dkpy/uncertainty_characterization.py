@@ -707,22 +707,36 @@ def _compute_uncertainty_weight_response_measure(
 
 
 def _compute_uncertainty_weight_response_measure_coupled(
-    complex_residual: Union[np.ndarray, control.FrequencyResponseList],
-    weight_left_structure: Literal["full", "diagonal", "scalar", "identity"],
-    weight_right_structure: Literal["full", "diagonal", "scalar", "identity"],
+    complex_residual: np.ndarray,
+    weight_left_structure: Literal["full", "diagonal", "scalar"],
+    weight_right_structure: Literal["full", "diagonal", "scalar"],
     solver_params: Optional[Dict[str, Any]] = None,
 ):
-    """Compute the measure-optimal uncertainty weight frequency response.
+    raise NotImplementedError()
+
+
+def _compute_uncertainty_weight_response_measure_coupled_frequency(
+    complex_residual_frequency: np.ndarray,
+    weight_left_structure: Literal["full", "diagonal", "scalar"],
+    weight_right_structure: Literal["full", "diagonal", "scalar"],
+    weight_left_initial: np.ndarray,
+    weight_right_initial: np.ndarray,
+    solver_params: Dict[str, Any],
+    tol_rel: float = 1e-3,
+    max_iter: int = 25,
+):
+    """Compute the measure-optimal uncertainty weight at a given frequency.
 
     Parameters
     ----------
-    complex_residual : Union[np.ndarray, control.FrequencyResponseList]
-        Frequency response of the residuals for which to compute the optimal uncertainty
-        weights.
-    weight_left_structure : Literal["full", "diagonal", "scalar", "identity"]
+    complex_residual_frequency : np.ndarray
+        Frequency response matrix of the residual at a given frequency.
+    weight_left_structure : Literal["full", "diagonal", "scalar"]
         Structure of the left uncertainty weight.
-    weight_right_structure : Literal["full", "diagonal", "scalar", "identity"]
+    weight_right_structure : Literal["full", "diagonal", "scalar"]
         Structure of the right uncertainty weight.
+    weight_left_initial : np.ndarray
+        Initial left uncertainty weight.
     solver_params : Dict[str, Any]
         Keyword arguments for the convex optimization solver. See [#cvxpy_solver]_ for
         more information.
@@ -730,9 +744,103 @@ def _compute_uncertainty_weight_response_measure_coupled(
     Returns
     -------
     Tuple[np.ndarray, np.ndarray]
-        Frequency response of the left and right uncertainty weights.
+        Frequency response matrix of the left and right uncertainty weights at a given
+        frequency.
     """
-    raise NotImplementedError()
+
+    # Uncertainty weight dimensions
+    nbr_outputs = complex_residual_frequency.shape[0]
+    nbr_inputs = complex_residual_frequency.shape[1]
+
+    # Complex residual
+    complex_residual_param = cvxpy.Constant(complex_residual_frequency)
+
+    # Optimization problem with respect left weight
+    left_inv_var = _generate_weight_variable(nbr_outputs, weight_left_structure)
+    right_inv_param = _generate_weight_parameter(nbr_inputs, weight_right_structure)
+    constraint_list_left = _generate_constraints(
+        left_inv_var,
+        right_inv_param,
+        complex_residual_param,
+        weight_left_structure,
+        weight_right_structure,
+    )
+    objective_left = cvxpy.Maximize(
+        _generate_cost_expression(left_inv_var, weight_left_structure)
+        + _generate_cost_expression(right_inv_param, weight_right_structure)
+    )
+    problem_left = cvxpy.Problem(objective_left, constraint_list_left)
+
+    # Optimization problem with respect to right weight
+    left_inv_param = _generate_weight_parameter(nbr_outputs, weight_left_structure)
+    right_inv_var = _generate_weight_variable(nbr_inputs, weight_right_structure)
+    constraint_list_right = _generate_constraints(
+        left_inv_param,
+        right_inv_var,
+        complex_residual_param,
+        weight_left_structure,
+        weight_right_structure,
+    )
+    objective_right = cvxpy.Maximize(
+        _generate_cost_expression(left_inv_param, weight_left_structure)
+        + _generate_cost_expression(right_inv_var, weight_right_structure)
+    )
+    problem_right = cvxpy.Problem(objective_right, constraint_list_right)
+
+    # Initial uncertainty weight inverses
+    left_inv_initial = _compute_inverse_weight_matrix_value(
+        weight_left_initial, weight_left_structure
+    )
+    right_inv_initial = _compute_inverse_weight_matrix_value(
+        weight_right_initial, weight_right_structure
+    )
+
+    # Initial cost
+    cost_initial_left = _compute_cost_value(left_inv_initial, weight_left_structure)
+    cost_initial_right = _compute_cost_value(right_inv_initial, weight_right_structure)
+    cost_initial = cost_initial_left + cost_initial_right
+
+    # Initialize coordinate descent parameters
+    left_inv_param.value = left_inv_initial
+    right_inv_param.value = right_inv_initial
+    cost_previous = cost_initial
+    cost_update_relative = tol_rel
+
+    # Solution
+    iter = 0
+    while cost_update_relative >= tol_rel and iter <= max_iter:
+        # Increment iteration count
+        iter += 1
+
+        # Solve for left weight while right weight is fixed
+        problem_left.solve(verbose=False, **solver_params)
+        left_inv_param.value = left_inv_var.value
+
+        # Solve for right weight while left weight is fixed
+        problem_right.solve(verbose=False, **solver_params)
+        right_inv_param.value = right_inv_var.value
+
+        # Update objective function
+        cost_current = float(problem_right.objective.value)
+        cost_update_relative = np.abs((cost_current - cost_previous) / cost_current)
+        cost_previous = cost_current
+
+    # Compute uncertainty weights
+    weight_left = _compute_weight_inverse_value(
+        left_inv_var.value, weight_left_structure
+    )
+    weight_left_matrix = _construct_weight_value_matrix(
+        weight_left, nbr_outputs, weight_left_structure
+    )
+
+    weight_right = _compute_weight_inverse_value(
+        right_inv_var.value, weight_right_structure
+    )
+    weight_right_matrix = _construct_weight_value_matrix(
+        weight_right, nbr_inputs, weight_right_structure
+    )
+
+    return weight_left_matrix, weight_right_matrix
 
 
 def _compute_uncertainty_weight_response_measure_left(
@@ -792,6 +900,316 @@ def _parse_weight_structure(
     weight_right_structure: Literal["full", "diagonal", "scalar", "identity"],
 ):
     raise NotImplementedError()
+
+
+def _generate_weight_variable(
+    dim: int, weight_structure: Literal["full", "diagonal", "scalar"]
+) -> cvxpy.Variable:
+    """Generate an uncertainty weight variable given a weight structure.
+
+    The weight variable is the minimal number of elements required to represent the
+    uncertainty. The weight variables have the following dimensions for each of the
+    uncertainty weight structures:
+        - "full": (dim, dim)
+        - "diagonal": (dim,)
+        - "scalar": (,)
+
+    Parameters
+    ----------
+    dim : int
+        Dimension of uncertainty weight.
+    weight_structure: Literal["full", "diagonal", "scalar"]
+        Structure of the uncertainty weight variable.
+
+    Returns
+    -------
+    cvxpy.Variable
+        Uncertainty weight minimal dimension variable.
+    """
+
+    if weight_structure == "full":
+        return cvxpy.Variable((dim, dim), hermitian=True)
+    elif weight_structure == "diagonal":
+        return cvxpy.Variable(dim)
+    elif weight_structure == "scalar":
+        return cvxpy.Variable()
+    else:
+        raise ValueError()
+
+
+def _generate_weight_parameter(
+    dim: int, weight_structure: Literal["full", "diagonal", "scalar", "identity"]
+) -> Union[cvxpy.Parameter, cvxpy.Constant]:
+    """Generate an uncertainty weight parameter given a weight structure.
+
+    The weight parameter is the minimal number of elements required to represent the
+    uncertainty. The weight parameters have the following dimensions for each of the
+    uncertainty weight structures:
+        - "full": (dim, dim)
+        - "diagonal": (dim,)
+        - "scalar": (,)
+
+    Parameters
+    ----------
+    dim : int
+        Dimension of uncertainty weight.
+    weight_structure: Literal["full", "diagonal", "scalar"]
+        Structure of the uncertainty weight variable.
+
+    Returns
+    -------
+    Union[cvxpy.Parameter, cvxpy.Constant]
+        Uncertainty weight minimal dimension parameter.
+    """
+
+    if weight_structure == "full":
+        return cvxpy.Parameter((dim, dim), hermitian=True)
+    elif weight_structure == "diagonal":
+        return cvxpy.Parameter(dim)
+    elif weight_structure == "scalar":
+        return cvxpy.Parameter()
+    elif weight_structure == "identity":
+        return cvxpy.Constant(np.eye(dim))
+    else:
+        raise ValueError()
+
+
+def _construct_weight_expression_matrix(
+    weight_expression: cvxpy.Expression,
+    dim: int,
+    weight_structure: Literal["full", "diagonal", "scalar", "identity"],
+) -> cvxpy.Expression:
+    """Construct a weight matrix expression from the minimal dimension expression.
+
+    Parameters
+    ----------
+    weight_expression : cvxpy.Expression
+        Uncertainty weight matrix expression (variable or parameter) of minimal
+        dimension.
+    dim: int
+        Dimension of the uncertainty weight.
+    weight_structure: Literal["full", "diagonal", "scalar", "identity"],
+        Uncertainty weight structure.
+
+    Returns
+    -------
+    cvxpy.Expression
+        Uncertainty weight full matrix expression.
+    """
+
+    if weight_structure == "full":
+        return weight_expression
+    elif weight_structure == "diagonal":
+        return cvxpy.diag(weight_expression)
+    elif weight_structure == "scalar":
+        return weight_expression * np.eye(dim)
+    elif weight_structure == "identity":
+        return weight_expression
+    else:
+        raise ValueError()
+
+
+def _construct_weight_value_matrix(
+    weight_value: np.ndarray,
+    dim: int,
+    weight_structure: Literal["full", "diagonal", "scalar"],
+):
+    """Construct a weight matrix value from the minimal dimension value.
+
+    Parameters
+    ----------
+    weight_value : cvxpy.Expression
+        Uncertainty weight matrix value of minimal dimension.
+    dim: int
+        Dimension of the uncertainty weight.
+    weight_structure: Literal["full", "diagonal", "scalar", "identity"],
+        Uncertainty weight structure.
+
+    Returns
+    -------
+    cvxpy.Expression
+        Uncertainty weight full matrix value.
+    """
+    if weight_structure == "full":
+        return weight_value
+    elif weight_structure == "diagonal":
+        return np.diag(weight_value)
+    elif weight_structure == "scalar":
+        return weight_value * np.eye(dim)
+    else:
+        raise ValueError()
+
+
+def _generate_constraints(
+    weight_left_expression: cvxpy.Expression,
+    weight_right_expression: cvxpy.Expression,
+    complex_residual: cvxpy.Expression,
+    weight_left_structure: Literal["full", "diagonal", "scalar", "identity"],
+    weight_right_structure: Literal["full", "diagonal", "scalar", "identity"],
+) -> List[cvxpy.Constraint]:
+    """Construct optimization constraints from uncertainty weight expressions.
+
+    Parameters
+    ----------
+    left_expression: cvxpy.Expression
+        Left uncertainty weight expression (variable or parameter) of minimal dimension.
+    right_expression: cvxpy.Expression
+        Right uncertainty weight expression (variable or parameter) of minimal
+        dimension.
+    complex_residual: cvxpy.Expression
+        Complex residual expression (variable or parameter).
+    weight_left_structure: Literal["full", "diagonal", "scalar", "identity"]
+        Left uncertainty weight structure.
+    weight_right_structure: Literal["full", "diagonal", "scalar", "identity"]
+        Right uncertainty weight structure.
+
+    Returns
+    -------
+    List[cvxpy.Constraint]
+        List of optimization constraints.
+    """
+
+    # Auxiliary parameters
+    nbr_offnom = complex_residual.shape[0]
+    nbr_left = complex_residual.shape[1]
+    nbr_right = complex_residual.shape[2]
+
+    # Matrix expressions
+    left_matrix = _construct_weight_expression_matrix(
+        weight_left_expression, nbr_left, weight_left_structure
+    )
+    right_matrix = _construct_weight_expression_matrix(
+        weight_right_expression, nbr_right, weight_right_structure
+    )
+
+    # Residual membership constraints
+    constraint_list = []
+    for idx_offnom in range(nbr_offnom):
+        residual = cvxpy.Constant(complex_residual[idx_offnom, :, :])
+        constraint_left_matrix = cvxpy.bmat(
+            [
+                [np.eye(nbr_left), left_matrix @ residual @ right_matrix],
+                [(left_matrix @ residual @ right_matrix).H, np.eye(nbr_right)],
+            ]
+        )
+        constraint_list.append(constraint_left_matrix >> 0)
+
+    # Left expression positive definiteness constraints
+    if weight_left_structure == "full":
+        constraint_list.append(weight_left_expression >> 0)
+    elif weight_left_structure == "diagonal" or weight_left_structure == "scalar":
+        constraint_list.append(weight_left_expression >= 0)
+    else:
+        raise ValueError()
+
+    # Right expression positive definiteness constraints
+    if weight_right_structure == "full":
+        constraint_list.append(weight_right_expression >> 0)
+    elif weight_right_structure == "diagonal" or weight_right_structure == "scalar":
+        constraint_list.append(weight_right_expression >= 0)
+    else:
+        raise ValueError()
+
+    return constraint_list
+
+
+def _generate_cost_expression(
+    weight_expression: cvxpy.Expression,
+    weight_structure: Literal["full", "diagonal", "scalar", "identity"],
+) -> cvxpy.Expression:
+    """Generate optimization cost from uncertainty weight expression.
+
+    Parameters
+    ----------
+    weight_expression: cvxpy.Expression
+        Uncertainty weight expression (variable or parameter) of minimal dimension.
+    weight_structure: Literal["full", "diagonal", "scalar", "identity"]
+        Uncertainty weight structure.
+
+    Returns
+    -------
+    cvxpy.Expression
+        Optimiztion cost function.
+    """
+    if weight_structure == "full":
+        return 2 / weight_expression.shape[0] * cvxpy.log_det(weight_expression)
+    elif weight_structure == "diagonal":
+        return 2 / weight_expression.shape[0] * cvxpy.sum(cvxpy.log(weight_expression))
+    elif weight_structure == "scalar":
+        return 2 * cvxpy.log(weight_expression)
+    elif weight_structure == "identity":
+        return cvxpy.Constant(0.0)
+    else:
+        raise ValueError()
+
+
+def _compute_cost_value(
+    weight_inv_value: Union[np.ndarray, float],
+    weight_structure: Literal["full", "diagonal", "scalar"],
+) -> float:
+    """Compute optimization cost value.
+
+    Parameters
+    ----------
+    weight_inv_value: Union[np.ndarray, float]
+        Uncertainty weight inverse value of minimal dimension.
+    weight_structure: Literal["full", "diagonal", "scalar"]
+        Uncertainty weight structure.
+
+    Returns
+    -------
+    float
+        Optimization cost value.
+    """
+
+    if weight_structure == "full":
+        return 2 / weight_inv_value.shape[0] * np.log(np.linalg.det(weight_inv_value))
+    elif weight_structure == "diagonal":
+        return 2 / weight_inv_value.shape[0] * np.sum(np.log(weight_inv_value))
+    elif weight_structure == "scalar":
+        return 2 * np.log(weight_inv_value)
+    else:
+        ValueError()
+
+
+def _compute_inverse_weight_matrix_value(
+    weight_matrix_value: np.ndarray,
+    weight_structure: Literal["full", "diagonal", "scalar"],
+) -> np.ndarray:
+    """Compute inverse
+
+    Parameters
+    ----------
+    weight_matrix_value: np.ndarray
+        Uncertainty weight matrix value.
+    weight_structure: Literal["full", "diagonal", "scalar"]
+        Uncertainty weight structure.
+
+    Returns
+    -------
+    np.ndarray
+        Uncertainty weight value inverse of minimal dimension.
+    """
+
+    if weight_structure == "full":
+        return np.linalg.inv(weight_matrix_value)
+    elif weight_structure == "diagonal":
+        return 1 / np.diag(weight_matrix_value)
+    elif weight_structure == "scalar":
+        return 1 / weight_matrix_value[0, 0]
+    else:
+        raise ValueError()
+
+
+def _compute_weight_inverse_value(
+    weight: np.ndarray, weight_structure: Literal["full", "diagonal", "scalar"]
+):
+    if weight_structure == "full":
+        return np.linalg.inv(weight)
+    elif weight_structure == "diagonal" or weight_structure == "scalar":
+        return 1 / weight
+    else:
+        raise ValueError()
 
 
 def fit_uncertainty_weight(
