@@ -1,5 +1,8 @@
 .. role:: class(code)
 
+.. image:: https://raw.githubusercontent.com/decargroup/dkpy/main/doc/_static/logo/PNG/600px/dkpy_logo_blue.png
+   :alt: dkpy logo
+
 dkpy
 ====
 
