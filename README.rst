@@ -1,6 +1,6 @@
 .. role:: class(code)
 
-.. image:: https://raw.githubusercontent.com/decargroup/dkpy/62-add-logo/doc/_static/logo/SVG/dkpy_logo.png
+.. image:: https://raw.githubusercontent.com/decargroup/dkpy/62-add-logo/doc/_static/logo/SVG/dkpy_logo.svg
    :alt: dkpy logo
    :width: 600
    :align: center
